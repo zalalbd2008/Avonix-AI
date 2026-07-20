@@ -1,20 +1,14 @@
-# Nexus — Website Operations Platform
+# Avonix AI — Agency CRM & Lead Operations
 
-> Run every website from one platform.
+> One dashboard for every client's leads.
 
-A cloud SaaS for agencies, WordPress developers, and website owners who manage
-more than one site. A lightweight WordPress connector plugin reports in; all
-health checks, monitoring, leads, automation, and AI run in the cloud.
+A GoHighLevel alternative built for agencies that work in WordPress. An agency
+creates a client, installs the Avonix connector on that client's site, and every
+form submission and AI chat conversation lands in one CRM pipeline — across every
+client, from one dashboard.
 
-**Not** a website builder, a host, a registrar, or a WordPress replacement.
-
----
-
-## Naming — unresolved
-
-This repository was written as **"Avonix AI"**. The UI prototype says **"Nexus"**.
-Pick one before writing code — it lands in the package name, the plugin slug, the
-domain, and every table prefix. Tracked as `07-Decisions/ADR-000`.
+**Not** a website builder, a host, a registrar, a WordPress replacement, or a
+site-monitoring tool.
 
 ---
 
@@ -22,41 +16,43 @@ domain, and every table prefix. Tracked as `07-Decisions/ADR-000`.
 
 | Path | What it is | Trust it? |
 |---|---|---|
-| `prototype/` | Clickable UI prototype (`Nexus Platform.dc.html`) | **Yes — the most decision-dense artifact in the repo.** It names screens, tiers, prices, and the integration-level model. |
+| `07-Decisions/` | The four ADRs above | **Yes — authoritative.** |
+| `prototype/` | Clickable UI prototype | Screens and layout yes. Its name ("Nexus") and its monitoring features are superseded. |
 | `00-Foundation/` | Domain model, entity lifecycles, event philosophy, ownership matrix | Mostly — see caveats below |
 | `01-Product/` | Personas, roles, permission model, module catalog, pricing shape | Permission model yes; pricing/limits are empty |
 | `02-Platform/` | 15 module specs (auth, orgs, teams, files, …) with real events + error codes | As a *template*, yes. As a build list, no — it is far more than one person can build. |
 | `03-Engineering/` `04-Design/` `05-Business/` `06-AI/` | Generated 2026-07-19; ~20% substantive | Skim only |
-| `07-Decisions/` | ADRs — currently empty placeholders | To be written |
 | `archive/` | 139 files of generic enterprise-architecture boilerplate that never name the product | No. Kept for reference only. |
 
 ---
 
-## The product model (from the prototype)
+## The core loop
 
-Three integration levels, which double as the pricing tiers:
+```
+Agency signs up
+  → creates a Client
+    → installs the Avonix connector on that client's WordPress site
+      → forms and an AI chat widget capture visitors
+        → contacts land in that Client's inbox and pipeline
+          → agency works them from one dashboard across all clients
+```
 
-| Level | Tier | Requires | Examples |
-|---|---|---|---|
-| **1 — Zero Dependency** | Free | Nothing external | Health score, SSL monitor, uptime, update centre, backup monitor, audit log, error log, broken links, DB cleaner, cron monitor, SMTP test |
-| **2 — Optional Integrations** | Pro $19/mo | Your own API key | Telegram, Slack, Discord, Teams, Google Drive, Dropbox, OneDrive, S3 |
-| **3 — Enterprise Cloud** | Custom | Nexus cloud + AI | AI chat & analysis, WhatsApp Business, Search Console, PageSpeed, multi-site dashboard, malware intelligence |
-
-Level 1 costs nothing to run per customer, which is what makes a free tier and
-WordPress.org distribution possible. **Build Level 1 first.**
+Everything GoHighLevel sells is bolted around this loop. The loop is the product;
+see [ADR-003](07-Decisions/ADR-003-mvp-scope.md) for what is deliberately absent.
 
 ---
 
-## Known contradictions — resolve before coding
+## Decisions made — read these first
 
-1. **Product name** — Avonix AI vs Nexus (above).
-2. **Hierarchy** — the prototype's navigation says `Organization → Client → Website`;
-   its onboarding wizard says `Organization → Workspace → Website`. "Client" and
-   "Workspace" appear to be the same entity under two names. The written specs add a
-   third, incompatible reading. Pick one shape and delete the other words.
-3. **Tenant boundary** — `02-Platform/01-TENANT_MODEL.md` puts Tenant above
-   Organization; four module docs say Organization *is* the tenant. Getting this
-   wrong scopes data isolation one level too low, which is a security bug.
+| ADR | Decision |
+|---|---|
+| [001](07-Decisions/ADR-001-positioning.md) | Name is **Avonix AI**. Category is a **GoHighLevel alternative for WordPress agencies**. Site monitoring is out of scope. |
+| [002](07-Decisions/ADR-002-tenancy.md) | `Agency → Client → Website`. Agency is the tenant. **`Workspace` and `Tenant` are deleted as entities.** |
+| [003](07-Decisions/ADR-003-mvp-scope.md) | MVP is the loop: capture → inbox → pipeline. No funnels, email, SMS, calendars, automation, or RBAC in v1. |
+| [004](07-Decisions/ADR-004-stack.md) | Next.js + TypeScript + Postgres/pgvector + Drizzle. **Auth and billing are bought, not built.** |
+
+These ADRs supersede any conflicting statement in the specification folders. Where
+a spec file disagrees, the ADR wins.
 
 ---
 

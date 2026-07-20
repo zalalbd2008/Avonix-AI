@@ -78,6 +78,41 @@ class Avonix_Client
         return [false, 'Could not send (HTTP ' . $code . ').'];
     }
 
+    /** One chat turn. Returns a shape the widget can render either way. */
+    public function chat(array $payload)
+    {
+        if (!$this->is_configured()) {
+            return ['reply' => 'Chat is not configured on this site yet.'];
+        }
+
+        $response = $this->post('/api/v1/connector/chat', $payload);
+
+        if (is_wp_error($response)) {
+            return ['reply' => 'Sorry — we could not reach the assistant. Please try again.'];
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        $data = json_decode(wp_remote_retrieve_body($response), true);
+
+        if ($code === 200 && !empty($data['reply'])) {
+            return [
+                'reply'           => $data['reply'],
+                'conversation_id' => $data['conversation_id'] ?? null,
+            ];
+        }
+        if ($code === 429) {
+            return ['reply' => 'We are getting a lot of questions right now. Please try again shortly.'];
+        }
+
+        // The server stores the question even when it cannot answer, so the
+        // business still sees the lead — say something useful rather than
+        // pretending nothing happened.
+        return [
+            'reply'           => 'Sorry — we could not answer that just now, but your question has been passed on.',
+            'conversation_id' => $data['conversation_id'] ?? null,
+        ];
+    }
+
     private function post($path, array $body)
     {
         return wp_remote_post($this->endpoint . $path, [

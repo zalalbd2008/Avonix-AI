@@ -8,8 +8,14 @@ import { websites } from "./websites";
  * chunked. pgvector keeps this in the same database as everything else, so there
  * is no separate vector store to operate (ADR-004).
  *
- * NOTE: `dimensions` must match whatever embedding model ADR-005 settles on.
- * 1536 is a placeholder until that decision is made.
+ * Full-text search over `content` is available as a retrieval fallback via a GIN
+ * index defined in db/search.sql — an expression index rather than a column,
+ * because drizzle has no tsvector type and a stored copy of the text would only
+ * drift from it.
+ *
+ * Dimension is fixed at 1024 by ADR-005 (voyage-4-lite). Changing it means
+ * re-embedding the whole corpus, so it is cheap to change now and expensive
+ * later.
  */
 export const knowledgeChunks = pgTable(
   "knowledge_chunks",
@@ -23,7 +29,7 @@ export const knowledgeChunks = pgTable(
     content: text("content").notNull(),
     tokenCount: integer("token_count"),
 
-    embedding: vector("embedding", { dimensions: 1536 }),
+    embedding: vector("embedding", { dimensions: 1024 }),
 
     ...timestamps,
   },

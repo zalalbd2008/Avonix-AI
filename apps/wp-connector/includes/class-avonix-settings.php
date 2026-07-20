@@ -33,6 +33,22 @@ class Avonix_Settings
             'sanitize_callback' => 'esc_url_raw',
             'default'           => 'https://app.avonix.ai',
         ]);
+        register_setting('avonix', AVONIX_OPT_CHAT_ENABLED, [
+            'sanitize_callback' => fn($v) => $v === '1' ? '1' : '0',
+            'default'           => '0',
+        ]);
+        register_setting('avonix', AVONIX_OPT_CHAT_TITLE, [
+            'sanitize_callback' => 'sanitize_text_field',
+            'default'           => 'Ask us anything',
+        ]);
+        register_setting('avonix', AVONIX_OPT_CHAT_GREETING, [
+            'sanitize_callback' => 'sanitize_text_field',
+            'default'           => '',
+        ]);
+        register_setting('avonix', AVONIX_OPT_CHAT_COLOR, [
+            'sanitize_callback' => 'sanitize_hex_color',
+            'default'           => '#ff6600',
+        ]);
     }
 
     /**
@@ -106,6 +122,38 @@ class Avonix_Settings
                                    name="<?php echo esc_attr(AVONIX_OPT_ENDPOINT); ?>"
                                    value="<?php echo esc_attr(get_option(AVONIX_OPT_ENDPOINT, 'https://app.avonix.ai')); ?>">
                         </td>
+                    </tr>
+                </table>
+
+                <h2>Chat widget</h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">Show the widget</th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr(AVONIX_OPT_CHAT_ENABLED); ?>"
+                                       value="1" <?php checked(get_option(AVONIX_OPT_CHAT_ENABLED, '0'), '1'); ?>>
+                                Answer visitor questions from this site's own content
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="avonix_chat_title">Header</label></th>
+                        <td><input type="text" id="avonix_chat_title" class="regular-text"
+                                   name="<?php echo esc_attr(AVONIX_OPT_CHAT_TITLE); ?>"
+                                   value="<?php echo esc_attr(get_option(AVONIX_OPT_CHAT_TITLE, 'Ask us anything')); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="avonix_chat_greeting">Greeting</label></th>
+                        <td><input type="text" id="avonix_chat_greeting" class="regular-text"
+                                   name="<?php echo esc_attr(AVONIX_OPT_CHAT_GREETING); ?>"
+                                   value="<?php echo esc_attr(get_option(AVONIX_OPT_CHAT_GREETING, '')); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="avonix_chat_color">Colour</label></th>
+                        <td><input type="text" id="avonix_chat_color"
+                                   name="<?php echo esc_attr(AVONIX_OPT_CHAT_COLOR); ?>"
+                                   value="<?php echo esc_attr(get_option(AVONIX_OPT_CHAT_COLOR, '#ff6600')); ?>"></td>
                     </tr>
                 </table>
                 <?php submit_button('Save'); ?>

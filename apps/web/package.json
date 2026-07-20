@@ -14,17 +14,20 @@
     "db:rls": "psql \"$ADMIN_DATABASE_URL\" -v ON_ERROR_STOP=1 -f src/lib/db/rls.sql",
     "db:seed": "tsx scripts/seed.ts",
     "db:test": "./scripts/test-isolation.sh",
-    "db:setup": "npm run db:push && npm run db:rls && npm run db:test && npm run db:seed",
+    "db:setup": "npm run db:push && npm run db:rls && npm run db:search && npm run db:test && npm run db:seed",
     "test:clients": "tsx scripts/test-clients.ts",
     "test": "npm run db:test && npm run test:clients && npm run test:crm && npm run test:delivery",
     "test:connector": "tsx scripts/test-connector.ts",
-    "test:all": "npm run test && npm run test:connector && npm run test:inbound && npm run test:billing",
+    "test:all": "npm run test && npm run test:connector && npm run test:inbound && npm run test:billing && npm run test:ai",
     "test:crm": "tsx scripts/test-crm.ts",
     "test:delivery": "tsx scripts/test-delivery.ts",
     "test:inbound": "tsx scripts/test-inbound.ts",
-    "test:billing": "tsx scripts/test-billing.ts"
+    "test:billing": "tsx scripts/test-billing.ts",
+    "db:search": "psql \"$ADMIN_DATABASE_URL\" -v ON_ERROR_STOP=1 -f src/lib/db/search.sql",
+    "test:ai": "tsx scripts/test-ai.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.4",
     "better-auth": "^1.6.23",
     "next": "^16.2.10",
     "react": "^19.2.7",

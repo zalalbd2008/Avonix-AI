@@ -50,6 +50,7 @@ see [ADR-003](07-Decisions/ADR-003-mvp-scope.md) for what is deliberately absent
 | [002](07-Decisions/ADR-002-tenancy.md) | `Agency → Client → Website`. Agency is the tenant. **`Workspace` and `Tenant` are deleted as entities.** |
 | [003](07-Decisions/ADR-003-mvp-scope.md) | MVP is the loop: capture → inbox → pipeline. No funnels, email, SMS, calendars, automation, or RBAC in v1. |
 | [004](07-Decisions/ADR-004-stack.md) | Next.js + TypeScript + Postgres/pgvector + Drizzle. **Auth and billing are bought, not built.** |
+| [005](07-Decisions/ADR-005-embeddings.md) | **voyage-4-lite** at 1024 dimensions for retrieval; without a key it degrades to Postgres full-text rather than failing. |
 
 These ADRs supersede any conflicting statement in the specification folders. Where
 a spec file disagrees, the ADR wins.
@@ -58,7 +59,23 @@ a spec file disagrees, the ADR wins.
 
 ## Status
 
-Zero lines of application code. The specifications describe the *shape* of
-decisions without making them: across ~303,000 words there are no API endpoints,
-no schemas, no thresholds, and no technology choices. Treat the prototype and the
-six documents listed in `07-Decisions/` as the real starting point.
+The MVP in [ADR-003](07-Decisions/ADR-003-mvp-scope.md) is built. `apps/web` is a
+Next.js app; `apps/wp-connector` is the WordPress plugin.
+
+    npm run db:setup     # migrate, apply RLS, verify isolation, seed
+    npm run dev
+    npm run test:all     # 151 checks across eight suites
+
+**Working end to end:** agency sign-up and onboarding · client and website
+management · WordPress connector with hashed keys · form capture with contact
+dedupe · unified inbox, two-way by email · pipeline · Stripe subscriptions ·
+AI chat answering from the site's own content.
+
+**Not built, and not pretended otherwise:** teams and roles (one Owner per
+agency), white-label, funnels, SMS, calendars, and the automation builder — all
+deferred by ADR-003. `BACKLOG.md` triages the rest.
+
+Third-party keys are optional in development and every one of them degrades
+honestly rather than silently: no email sender writes to `.mail/`, no embedding
+key falls back to full-text search, no Stripe key disables upgrading and says so
+on the billing page, no model key returns a clean 503 instead of a fake answer.

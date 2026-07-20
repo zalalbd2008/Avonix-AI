@@ -273,7 +273,7 @@ CREATE TABLE "knowledge_chunks" (
 	"title" text,
 	"content" text NOT NULL,
 	"token_count" integer,
-	"embedding" vector(1536),
+	"embedding" vector(1024),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );

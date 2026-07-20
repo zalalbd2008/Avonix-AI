@@ -24,14 +24,20 @@ define('AVONIX_VERSION', '1.0.0');
 define('AVONIX_OPT_KEY', 'avonix_connector_key');
 define('AVONIX_OPT_ENDPOINT', 'avonix_endpoint');
 define('AVONIX_OPT_STATUS', 'avonix_status');
+define('AVONIX_OPT_CHAT_ENABLED', 'avonix_chat_enabled');
+define('AVONIX_OPT_CHAT_TITLE', 'avonix_chat_title');
+define('AVONIX_OPT_CHAT_GREETING', 'avonix_chat_greeting');
+define('AVONIX_OPT_CHAT_COLOR', 'avonix_chat_color');
 
 require_once __DIR__ . '/includes/class-avonix-client.php';
 require_once __DIR__ . '/includes/class-avonix-settings.php';
 require_once __DIR__ . '/includes/class-avonix-form.php';
+require_once __DIR__ . '/includes/class-avonix-chat.php';
 
 add_action('plugins_loaded', function () {
     new Avonix_Settings();
     new Avonix_Form();
+    new Avonix_Chat();
 });
 
 /** Register with the cloud on activation so the dashboard turns green immediately. */

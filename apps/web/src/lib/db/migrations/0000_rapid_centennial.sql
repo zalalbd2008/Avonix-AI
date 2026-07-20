@@ -105,12 +105,24 @@ CREATE TABLE "websites" (
 	"name" text NOT NULL,
 	"url" text NOT NULL,
 	"status" "website_status" DEFAULT 'pending' NOT NULL,
-	"connector_secret" text NOT NULL,
 	"connector_version" text,
 	"last_seen_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "connector_keys" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agency_id" uuid NOT NULL,
+	"client_id" uuid NOT NULL,
+	"website_id" uuid NOT NULL,
+	"secret_hash" text NOT NULL,
+	"prefix" text NOT NULL,
+	"last_used_at" timestamp with time zone,
+	"revoked_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "contacts" (
@@ -244,6 +256,12 @@ CREATE TABLE "ai_usage_daily" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "rate_limits" (
+	"key" text PRIMARY KEY NOT NULL,
+	"count" bigint DEFAULT 0 NOT NULL,
+	"window_start" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memberships" ADD CONSTRAINT "memberships_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -251,6 +269,9 @@ ALTER TABLE "memberships" ADD CONSTRAINT "memberships_user_id_user_id_fk" FOREIG
 ALTER TABLE "clients" ADD CONSTRAINT "clients_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "websites" ADD CONSTRAINT "websites_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "websites" ADD CONSTRAINT "websites_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "connector_keys" ADD CONSTRAINT "connector_keys_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "connector_keys" ADD CONSTRAINT "connector_keys_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "connector_keys" ADD CONSTRAINT "connector_keys_website_id_websites_id_fk" FOREIGN KEY ("website_id") REFERENCES "public"."websites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_source_website_id_websites_id_fk" FOREIGN KEY ("source_website_id") REFERENCES "public"."websites"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -286,6 +307,8 @@ CREATE INDEX "memberships_user_idx" ON "memberships" USING btree ("user_id");-->
 CREATE INDEX "clients_agency_idx" ON "clients" USING btree ("agency_id");--> statement-breakpoint
 CREATE INDEX "websites_agency_idx" ON "websites" USING btree ("agency_id");--> statement-breakpoint
 CREATE INDEX "websites_client_idx" ON "websites" USING btree ("client_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "connector_keys_hash_key" ON "connector_keys" USING btree ("secret_hash");--> statement-breakpoint
+CREATE INDEX "connector_keys_website_idx" ON "connector_keys" USING btree ("website_id");--> statement-breakpoint
 CREATE INDEX "contacts_agency_idx" ON "contacts" USING btree ("agency_id");--> statement-breakpoint
 CREATE INDEX "contacts_client_idx" ON "contacts" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "contacts_status_idx" ON "contacts" USING btree ("client_id","status");--> statement-breakpoint
@@ -305,4 +328,5 @@ CREATE INDEX "forms_client_idx" ON "forms" USING btree ("client_id");--> stateme
 CREATE INDEX "knowledge_website_idx" ON "knowledge_chunks" USING btree ("website_id");--> statement-breakpoint
 CREATE INDEX "knowledge_embedding_idx" ON "knowledge_chunks" USING hnsw ("embedding" vector_cosine_ops);--> statement-breakpoint
 CREATE UNIQUE INDEX "ai_usage_agency_day_model_key" ON "ai_usage_daily" USING btree ("agency_id","day","model");--> statement-breakpoint
-CREATE INDEX "ai_usage_agency_day_idx" ON "ai_usage_daily" USING btree ("agency_id","day");
+CREATE INDEX "ai_usage_agency_day_idx" ON "ai_usage_daily" USING btree ("agency_id","day");--> statement-breakpoint
+CREATE INDEX "rate_limits_window_idx" ON "rate_limits" USING btree ("window_start");

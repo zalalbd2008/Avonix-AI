@@ -47,6 +47,10 @@ CREATE POLICY tenant_isolation ON agencies
 --   user, session, account, verification  Better Auth's tables. Authentication
 --     happens before any agency is known, so a tenant policy here would make
 --     login impossible.
---   memberships  the join that *decides* the tenant. Reading it under a tenant
---     policy would be circular. It is filtered in application code, in
---     lib/auth/session.ts, and nowhere else.
+--   memberships  the join that *decides* the tenant for a signed-in user.
+--     Reading it under a tenant policy would be circular. Filtered in
+--     lib/auth/session.ts and nowhere else.
+--   connector_keys  the same thing for a plugin: it decides the tenant from a
+--     key alone. Filtered in lib/connector/auth.ts and nowhere else.
+--   rate_limits  throttles callers *before* we know or trust which tenant they
+--     claim to be.

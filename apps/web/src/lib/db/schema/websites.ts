@@ -20,8 +20,8 @@ export const websiteStatusEnum = pgEnum("website_status", [
  * A WordPress site belonging to a Client. A lead *source*, not a CRM boundary
  * (ADR-002 §4).
  *
- * The connector plugin authenticates with `connectorSecret`. It is written once
- * at registration and never returned to the browser.
+ * The plugin's key lives in `connector_keys`, not here — that table must be
+ * readable before a tenant is known, and this one is tenant-scoped.
  */
 export const websites = pgTable(
   "websites",
@@ -36,7 +36,6 @@ export const websites = pgTable(
     url: text("url").notNull(),
 
     status: websiteStatusEnum("status").notNull().default("pending"),
-    connectorSecret: text("connector_secret").notNull(),
     connectorVersion: text("connector_version"),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
 

@@ -16,7 +16,9 @@
     "db:test": "./scripts/test-isolation.sh",
     "db:setup": "npm run db:push && npm run db:rls && npm run db:test && npm run db:seed",
     "test:clients": "tsx scripts/test-clients.ts",
-    "test": "npm run db:test && npm run test:clients"
+    "test": "npm run db:test && npm run test:clients",
+    "test:connector": "tsx scripts/test-connector.ts",
+    "test:all": "npm run db:test && npm run test:clients && npm run test:connector"
   },
   "dependencies": {
     "better-auth": "^1.6.23",

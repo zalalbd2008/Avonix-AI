@@ -3,6 +3,11 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { sendEmail } from "@/lib/email";
+import { resetPasswordEmail } from "@/lib/email/templates/reset-password";
+import { verifyEmail } from "@/lib/email/templates/verify-email";
+
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 /**
  * Identity, per ADR-004: bought rather than built, but self-hosted — the tables
@@ -14,6 +19,9 @@ import * as schema from "@/lib/db/schema";
  * agency you are acting as is `memberships`, resolved in `session.ts`.
  */
 export const auth = betterAuth({
+  baseURL: appUrl,
+  secret: process.env.BETTER_AUTH_SECRET,
+
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
@@ -21,10 +29,26 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    // Turn on once an email sender exists. Leaving it false in development
-    // means the signup flow completes without a mailbox.
-    requireEmailVerification: false,
     minPasswordLength: 8,
+
+    // Sign-in is allowed before the address is confirmed. Blocking it would
+    // strand anyone whose verification mail is delayed, and the address is
+    // confirmed by the reminder in the app instead.
+    requireEmailVerification: false,
+
+    async sendResetPassword({ user, url }) {
+      await sendEmail(
+        resetPasswordEmail({ to: user.email, name: user.name, url }),
+      );
+    },
+  },
+
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    async sendVerificationEmail({ user, url }) {
+      await sendEmail(verifyEmail({ to: user.email, name: user.name, url }));
+    },
   },
 
   session: {

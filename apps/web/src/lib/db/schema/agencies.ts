@@ -1,7 +1,6 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { softDelete, timestamps } from "./_shared";
-import { clients } from "./clients";
 
 /** ADR-003 tier ladder. `agency` (white-label/resale) is v2. */
 export const agencyPlanEnum = pgEnum("agency_plan", ["free", "pro", "agency"]);
@@ -39,10 +38,6 @@ export const agencies = pgTable("agencies", {
   ...timestamps,
   ...softDelete,
 });
-
-export const agenciesRelations = relations(agencies, ({ many }) => ({
-  clients: many(clients),
-}));
 
 export type Agency = typeof agencies.$inferSelect;
 export type NewAgency = typeof agencies.$inferInsert;

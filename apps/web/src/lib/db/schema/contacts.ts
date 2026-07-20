@@ -1,6 +1,6 @@
-import { relations } from "drizzle-orm";
 import { index, jsonb, pgEnum, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { softDelete, tenantColumns, timestamps } from "./_shared";
+import { softDelete, primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 import { clients } from "./clients";
 import { websites } from "./websites";
 
@@ -22,7 +22,8 @@ export const contactStatusEnum = pgEnum("contact_status", [
 export const contacts = pgTable(
   "contacts",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
     sourceWebsiteId: uuid("source_website_id").references(() => websites.id, { onDelete: "set null" }),
 
@@ -45,11 +46,6 @@ export const contacts = pgTable(
     uniqueIndex("contacts_client_email_key").on(t.clientId, t.email),
   ],
 );
-
-export const contactsRelations = relations(contacts, ({ one }) => ({
-  client: one(clients, { fields: [contacts.clientId], references: [clients.id] }),
-  sourceWebsite: one(websites, { fields: [contacts.sourceWebsiteId], references: [websites.id] }),
-}));
 
 export type Contact = typeof contacts.$inferSelect;
 export type NewContact = typeof contacts.$inferInsert;

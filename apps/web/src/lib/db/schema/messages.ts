@@ -1,6 +1,6 @@
-import { relations } from "drizzle-orm";
 import { index, integer, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
-import { tenantColumns, timestamps } from "./_shared";
+import { primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 import { conversations } from "./conversations";
 
 export const messageAuthorEnum = pgEnum("message_author", [
@@ -13,7 +13,8 @@ export const messageAuthorEnum = pgEnum("message_author", [
 export const messages = pgTable(
   "messages",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
 
     author: messageAuthorEnum("author").notNull(),
@@ -32,12 +33,5 @@ export const messages = pgTable(
     index("messages_conversation_idx").on(t.conversationId, t.createdAt),
   ],
 );
-
-export const messagesRelations = relations(messages, ({ one }) => ({
-  conversation: one(conversations, {
-    fields: [messages.conversationId],
-    references: [conversations.id],
-  }),
-}));
 
 export type Message = typeof messages.$inferSelect;

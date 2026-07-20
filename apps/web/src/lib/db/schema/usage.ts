@@ -1,5 +1,6 @@
 import { date, index, integer, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { tenantColumns, timestamps } from "./_shared";
+import { primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 
 /**
  * Per-agency AI metering. ADR-004 calls this mandatory, not optional: without it
@@ -10,7 +11,8 @@ import { tenantColumns, timestamps } from "./_shared";
 export const aiUsageDaily = pgTable(
   "ai_usage_daily",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     day: date("day").notNull(),
     model: text("model").notNull(),
 

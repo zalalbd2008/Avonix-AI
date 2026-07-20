@@ -1,6 +1,6 @@
-import { relations } from "drizzle-orm";
 import { boolean, index, jsonb, pgTable, text, uuid } from "drizzle-orm/pg-core";
-import { softDelete, tenantColumns, timestamps } from "./_shared";
+import { softDelete, primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 import { clients } from "./clients";
 import { contacts } from "./contacts";
 import { websites } from "./websites";
@@ -19,7 +19,8 @@ export type FormField = {
 export const forms = pgTable(
   "forms",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
     websiteId: uuid("website_id").references(() => websites.id, { onDelete: "set null" }),
 
@@ -38,7 +39,8 @@ export const forms = pgTable(
 export const formSubmissions = pgTable(
   "form_submissions",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     formId: uuid("form_id").notNull().references(() => forms.id, { onDelete: "cascade" }),
     contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
     websiteId: uuid("website_id").references(() => websites.id, { onDelete: "set null" }),
@@ -55,11 +57,6 @@ export const formSubmissions = pgTable(
     index("form_submissions_agency_idx").on(t.agencyId),
   ],
 );
-
-export const formsRelations = relations(forms, ({ one, many }) => ({
-  client: one(clients, { fields: [forms.clientId], references: [clients.id] }),
-  submissions: many(formSubmissions),
-}));
 
 export type Form = typeof forms.$inferSelect;
 export type FormSubmission = typeof formSubmissions.$inferSelect;

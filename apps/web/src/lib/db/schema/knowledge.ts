@@ -1,5 +1,6 @@
 import { index, integer, pgTable, text, uuid, vector } from "drizzle-orm/pg-core";
-import { tenantColumns, timestamps } from "./_shared";
+import { primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 import { websites } from "./websites";
 
 /**
@@ -13,7 +14,8 @@ import { websites } from "./websites";
 export const knowledgeChunks = pgTable(
   "knowledge_chunks",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     websiteId: uuid("website_id").notNull().references(() => websites.id, { onDelete: "cascade" }),
 
     sourceUrl: text("source_url").notNull(),

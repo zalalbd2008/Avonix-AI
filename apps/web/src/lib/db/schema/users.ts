@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm";
 import { index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { timestamps } from "./_shared";
 import { agencies } from "./agencies";
@@ -36,11 +35,6 @@ export const memberships = pgTable(
     index("memberships_user_idx").on(t.userId),
   ],
 );
-
-export const membershipsRelations = relations(memberships, ({ one }) => ({
-  agency: one(agencies, { fields: [memberships.agencyId], references: [agencies.id] }),
-  user: one(users, { fields: [memberships.userId], references: [users.id] }),
-}));
 
 export type User = typeof users.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;

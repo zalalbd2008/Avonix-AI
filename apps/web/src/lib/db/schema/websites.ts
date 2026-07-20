@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm";
 import {
   index,
   pgEnum,
@@ -7,7 +6,8 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { softDelete, tenantColumns, timestamps } from "./_shared";
+import { softDelete, primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 import { clients } from "./clients";
 
 export const websiteStatusEnum = pgEnum("website_status", [
@@ -26,7 +26,8 @@ export const websiteStatusEnum = pgEnum("website_status", [
 export const websites = pgTable(
   "websites",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
@@ -47,13 +48,6 @@ export const websites = pgTable(
     index("websites_client_idx").on(t.clientId),
   ],
 );
-
-export const websitesRelations = relations(websites, ({ one }) => ({
-  client: one(clients, {
-    fields: [websites.clientId],
-    references: [clients.id],
-  }),
-}));
 
 export type Website = typeof websites.$inferSelect;
 export type NewWebsite = typeof websites.$inferInsert;

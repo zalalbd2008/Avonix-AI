@@ -1,6 +1,6 @@
-import { relations } from "drizzle-orm";
 import { index, integer, pgTable, text, uuid } from "drizzle-orm/pg-core";
-import { tenantColumns, timestamps } from "./_shared";
+import { primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 import { clients } from "./clients";
 import { contacts } from "./contacts";
 
@@ -8,7 +8,8 @@ import { contacts } from "./contacts";
 export const pipelines = pgTable(
   "pipelines",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
     name: text("name").notNull().default("Sales"),
     ...timestamps,
@@ -19,7 +20,8 @@ export const pipelines = pgTable(
 export const pipelineStages = pgTable(
   "pipeline_stages",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     pipelineId: uuid("pipeline_id").notNull().references(() => pipelines.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     position: integer("position").notNull(),
@@ -32,7 +34,8 @@ export const pipelineStages = pgTable(
 export const pipelineCards = pgTable(
   "pipeline_cards",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     pipelineId: uuid("pipeline_id").notNull().references(() => pipelines.id, { onDelete: "cascade" }),
     stageId: uuid("stage_id").notNull().references(() => pipelineStages.id, { onDelete: "cascade" }),
     contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
@@ -45,11 +48,6 @@ export const pipelineCards = pgTable(
     index("pipeline_cards_contact_idx").on(t.contactId),
   ],
 );
-
-export const pipelineStagesRelations = relations(pipelineStages, ({ one, many }) => ({
-  pipeline: one(pipelines, { fields: [pipelineStages.pipelineId], references: [pipelines.id] }),
-  cards: many(pipelineCards),
-}));
 
 export type Pipeline = typeof pipelines.$inferSelect;
 export type PipelineStage = typeof pipelineStages.$inferSelect;

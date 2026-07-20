@@ -1,9 +1,8 @@
-import { relations } from "drizzle-orm";
 import { index, pgEnum, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
-import { tenantColumns, timestamps } from "./_shared";
+import { primaryId, timestamps } from "./_shared";
+import { agencyId } from "./_tenant";
 import { clients } from "./clients";
 import { contacts } from "./contacts";
-import { messages } from "./messages";
 import { websites } from "./websites";
 
 export const conversationChannelEnum = pgEnum("conversation_channel", [
@@ -21,7 +20,8 @@ export const conversationStatusEnum = pgEnum("conversation_status", [
 export const conversations = pgTable(
   "conversations",
   {
-    ...tenantColumns,
+    ...primaryId,
+    agencyId: agencyId(),
     clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
     contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
     websiteId: uuid("website_id").references(() => websites.id, { onDelete: "set null" }),
@@ -41,11 +41,5 @@ export const conversations = pgTable(
     index("conversations_last_message_idx").on(t.lastMessageAt),
   ],
 );
-
-export const conversationsRelations = relations(conversations, ({ one, many }) => ({
-  client: one(clients, { fields: [conversations.clientId], references: [clients.id] }),
-  contact: one(contacts, { fields: [conversations.contactId], references: [contacts.id] }),
-  messages: many(messages),
-}));
 
 export type Conversation = typeof conversations.$inferSelect;

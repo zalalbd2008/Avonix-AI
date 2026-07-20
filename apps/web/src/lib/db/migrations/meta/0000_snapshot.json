@@ -1,5 +1,5 @@
 {
-  "id": "1d3e90a0-de13-420c-af15-6b31edfba4e1",
+  "id": "96dde73f-0cb3-498a-9710-12e62a79295c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1442,6 +1442,32 @@
           "primaryKey": false,
           "notNull": true
         },
+        "delivery": {
+          "name": "delivery",
+          "type": "message_delivery",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'not_applicable'"
+        },
+        "delivered_at": {
+          "name": "delivered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_ref": {
+          "name": "delivery_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_error": {
+          "name": "delivery_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "model": {
           "name": "model",
           "type": "text",
@@ -2645,6 +2671,16 @@
         "ai",
         "agent",
         "system"
+      ]
+    },
+    "public.message_delivery": {
+      "name": "message_delivery",
+      "schema": "public",
+      "values": [
+        "not_applicable",
+        "pending",
+        "sent",
+        "failed"
       ]
     }
   },

@@ -3,6 +3,8 @@ export type Email = {
   subject: string;
   html: string;
   text: string;
+  /** Where a human reply should go, when that differs from the sender. */
+  replyTo?: string;
 };
 
 export type EmailProvider = {

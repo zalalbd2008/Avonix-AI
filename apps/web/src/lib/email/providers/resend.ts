@@ -18,6 +18,7 @@ export function resendProvider(apiKey: string, from: string): EmailProvider {
         body: JSON.stringify({
           from,
           to: [email.to],
+          reply_to: email.replyTo,
           subject: email.subject,
           html: email.html,
           text: email.text,

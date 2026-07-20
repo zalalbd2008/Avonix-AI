@@ -30,6 +30,7 @@ export const consoleProvider: EmailProvider = {
         "  ┌─ email (dev transport — nothing actually sent)",
         `  │ to:      ${email.to}`,
         `  │ subject: ${email.subject}`,
+        email.replyTo ? `  │ replyTo: ${email.replyTo}` : null,
         link ? `  │ link:    ${link}` : null,
         `  │ saved:   ${file}`,
         "  └─",

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
 import { ReplyBox } from "@/components/reply-box";
+import { DeliveryBadge } from "@/components/delivery-badge";
 import { StatusPill, timeAgo } from "@/components/ui/status-pill";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
@@ -40,6 +41,9 @@ export default async function ConversationPage({
         author: messages.author,
         body: messages.body,
         createdAt: messages.createdAt,
+        delivery: messages.delivery,
+        deliveredAt: messages.deliveredAt,
+        deliveryError: messages.deliveryError,
       })
       .from(messages)
       .where(eq(messages.conversationId, conversationId))
@@ -85,7 +89,14 @@ export default async function ConversationPage({
             <div
               className={`mt-1 text-[11px] ${m.author === "agent" ? "text-white/70" : "text-faint"}`}
             >
-              {m.author} · {timeAgo(m.createdAt)}
+              {m.author} · {timeAgo(m.createdAt)}{" "}
+              {m.author === "agent" && (
+                <DeliveryBadge
+                  delivery={m.delivery}
+                  deliveredAt={m.deliveredAt}
+                  error={m.deliveryError}
+                />
+              )}
             </div>
           </div>
         ))}
@@ -95,6 +106,7 @@ export default async function ConversationPage({
         clientId={clientId}
         conversationId={conversationId}
         status={conversation.status}
+        deliversTo={conversation.contactEmail}
       />
     </div>
   );

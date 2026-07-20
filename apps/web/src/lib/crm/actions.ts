@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAgency } from "@/lib/auth/session";
+import { deliverReply } from "./deliver";
 import {
   isContactStatus,
   moveContactToStage,
@@ -32,13 +33,23 @@ export async function sendReply(
   body: string,
 ) {
   const ctx = await requireAgency();
+
+  // Store first. Delivery is attempted afterwards and its failure must never
+  // cost the agency the text they wrote.
   const result = await replyToConversation(ctx.agencyId, conversationId, body);
-  if (result.ok) {
-    revalidatePath(`/clients/${clientId}/inbox/${conversationId}`);
-    revalidatePath(`/clients/${clientId}/inbox`);
-    revalidatePath("/inbox");
-  }
-  return result;
+  if (!result.ok) return result;
+
+  const outcome = await deliverReply(ctx.agencyId, result.messageId);
+
+  revalidatePath(`/clients/${clientId}/inbox/${conversationId}`);
+  revalidatePath(`/clients/${clientId}/inbox`);
+  revalidatePath("/inbox");
+
+  return {
+    ...result,
+    delivered: outcome.delivered,
+    deliveryNote: outcome.delivered ? null : outcome.reason,
+  };
 }
 
 export async function closeConversation(

@@ -6,6 +6,7 @@ CREATE TYPE "public"."contact_status" AS ENUM('new', 'working', 'qualified', 'wo
 CREATE TYPE "public"."conversation_channel" AS ENUM('chat', 'form');--> statement-breakpoint
 CREATE TYPE "public"."conversation_status" AS ENUM('open', 'snoozed', 'closed');--> statement-breakpoint
 CREATE TYPE "public"."message_author" AS ENUM('visitor', 'ai', 'agent', 'system');--> statement-breakpoint
+CREATE TYPE "public"."message_delivery" AS ENUM('not_applicable', 'pending', 'sent', 'failed');--> statement-breakpoint
 CREATE TABLE "agencies" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -161,6 +162,10 @@ CREATE TABLE "messages" (
 	"conversation_id" uuid NOT NULL,
 	"author" "message_author" NOT NULL,
 	"body" text NOT NULL,
+	"delivery" "message_delivery" DEFAULT 'not_applicable' NOT NULL,
+	"delivered_at" timestamp with time zone,
+	"delivery_ref" text,
+	"delivery_error" text,
 	"model" text,
 	"input_tokens" integer,
 	"output_tokens" integer,

@@ -1,6 +1,7 @@
 /** Every table, one file each. Drizzle reads this barrel; nothing else should. */
 export * from "./_shared";
 export * from "./_tenant";
+export * from "./billing";
 export * from "./agencies";
 export * from "./auth";
 export * from "./users";

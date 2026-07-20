@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { softDelete, timestamps } from "./_shared";
+import { billingColumns } from "./billing";
 
 /** ADR-003 tier ladder. `agency` (white-label/resale) is v2. */
 export const agencyPlanEnum = pgEnum("agency_plan", ["free", "pro", "agency"]);
@@ -25,9 +26,12 @@ export const agencies = pgTable("agencies", {
   status: agencyStatusEnum("status").notNull().default("trialing"),
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
 
-  // Stripe owns billing (ADR-004). We only keep the pointers.
+  // Stripe owns billing (ADR-004). We keep pointers and the state the app
+  // gates on. The customer -> agency *lookup* lives in billing_customers,
+  // which is not tenant-scoped — see the comment there.
   stripeCustomerId: text("stripe_customer_id").unique(),
   stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  ...billingColumns,
 
   // White-label lands here in v2. Kept on Agency from the start so v2 is an
   // additive change, not a migration (ADR-002).

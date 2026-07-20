@@ -54,5 +54,9 @@ CREATE POLICY tenant_isolation ON agencies
 --     key alone. Filtered in lib/connector/auth.ts and nowhere else.
 --   reply_tokens  the same thing for an inbound email. Filtered in
 --     lib/crm/inbound.ts and nowhere else.
+--   billing_customers  the same thing for a Stripe webhook, which knows only a
+--     customer id. Filtered in lib/billing/sync.ts and nowhere else.
+--   billing_events  the idempotency log; deduping happens before the customer
+--     is resolved.
 --   rate_limits  throttles callers *before* we know or trust which tenant they
 --     claim to be.

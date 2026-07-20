@@ -7,6 +7,23 @@ CREATE TYPE "public"."conversation_channel" AS ENUM('chat', 'form');--> statemen
 CREATE TYPE "public"."conversation_status" AS ENUM('open', 'snoozed', 'closed');--> statement-breakpoint
 CREATE TYPE "public"."message_author" AS ENUM('visitor', 'ai', 'agent', 'system');--> statement-breakpoint
 CREATE TYPE "public"."message_delivery" AS ENUM('not_applicable', 'pending', 'sent', 'failed');--> statement-breakpoint
+CREATE TABLE "billing_customers" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agency_id" uuid NOT NULL,
+	"stripe_customer_id" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "billing_events" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"stripe_event_id" text NOT NULL,
+	"type" text NOT NULL,
+	"occurred_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "agencies" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -16,6 +33,9 @@ CREATE TABLE "agencies" (
 	"trial_ends_at" timestamp with time zone,
 	"stripe_customer_id" text,
 	"stripe_subscription_id" text,
+	"current_period_end" timestamp with time zone,
+	"cancel_at_period_end" boolean DEFAULT false NOT NULL,
+	"billing_synced_at" timestamp with time zone,
 	"brand_logo_url" text,
 	"brand_color" text,
 	"custom_domain" text,
@@ -278,6 +298,7 @@ CREATE TABLE "rate_limits" (
 	"window_start" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "billing_customers" ADD CONSTRAINT "billing_customers_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memberships" ADD CONSTRAINT "memberships_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -317,6 +338,9 @@ ALTER TABLE "forms" ADD CONSTRAINT "forms_website_id_websites_id_fk" FOREIGN KEY
 ALTER TABLE "knowledge_chunks" ADD CONSTRAINT "knowledge_chunks_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "knowledge_chunks" ADD CONSTRAINT "knowledge_chunks_website_id_websites_id_fk" FOREIGN KEY ("website_id") REFERENCES "public"."websites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ai_usage_daily" ADD CONSTRAINT "ai_usage_daily_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "billing_customers_stripe_key" ON "billing_customers" USING btree ("stripe_customer_id");--> statement-breakpoint
+CREATE INDEX "billing_customers_agency_idx" ON "billing_customers" USING btree ("agency_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "billing_events_stripe_key" ON "billing_events" USING btree ("stripe_event_id");--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint

@@ -2,6 +2,7 @@
 export * from "./_shared";
 export * from "./_tenant";
 export * from "./agencies";
+export * from "./auth";
 export * from "./users";
 export * from "./clients";
 export * from "./websites";

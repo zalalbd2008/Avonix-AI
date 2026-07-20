@@ -42,6 +42,11 @@ CREATE POLICY tenant_isolation ON agencies
   USING (id = current_agency_id())
   WITH CHECK (id = current_agency_id());
 
--- `users` is deliberately NOT tenant-scoped: one person may belong to several
--- agencies. `memberships` is the join, and it is filtered in application code
--- because it is read *before* a tenant context exists.
+-- Deliberately NOT tenant-scoped, and this is load-bearing:
+--
+--   user, session, account, verification  Better Auth's tables. Authentication
+--     happens before any agency is known, so a tenant policy here would make
+--     login impossible.
+--   memberships  the join that *decides* the tenant. Reading it under a tenant
+--     policy would be circular. It is filtered in application code, in
+--     lib/auth/session.ts, and nowhere else.

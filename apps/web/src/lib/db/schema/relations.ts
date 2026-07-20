@@ -4,7 +4,8 @@ import { clients } from "./clients";
 import { contacts } from "./contacts";
 import { conversations } from "./conversations";
 import { forms, formSubmissions } from "./forms";
-import { memberships, users } from "./users";
+import { user } from "./auth";
+import { memberships } from "./users";
 import { messages } from "./messages";
 import { pipelineCards, pipelineStages, pipelines } from "./pipelines";
 import { websites } from "./websites";
@@ -27,16 +28,12 @@ export const agenciesRelations = relations(agencies, ({ many }) => ({
   memberships: many(memberships),
 }));
 
-export const usersRelations = relations(users, ({ many }) => ({
-  memberships: many(memberships),
-}));
-
 export const membershipsRelations = relations(memberships, ({ one }) => ({
   agency: one(agencies, {
     fields: [memberships.agencyId],
     references: [agencies.id],
   }),
-  user: one(users, { fields: [memberships.userId], references: [users.id] }),
+  user: one(user, { fields: [memberships.userId], references: [user.id] }),
 }));
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({

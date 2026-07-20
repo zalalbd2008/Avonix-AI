@@ -17,6 +17,7 @@
     "db:setup": "npm run db:push && npm run db:rls && npm run db:test && npm run db:seed"
   },
   "dependencies": {
+    "better-auth": "^1.6.23",
     "next": "^16.2.10",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

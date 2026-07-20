@@ -52,5 +52,7 @@ CREATE POLICY tenant_isolation ON agencies
 --     lib/auth/session.ts and nowhere else.
 --   connector_keys  the same thing for a plugin: it decides the tenant from a
 --     key alone. Filtered in lib/connector/auth.ts and nowhere else.
+--   reply_tokens  the same thing for an inbound email. Filtered in
+--     lib/crm/inbound.ts and nowhere else.
 --   rate_limits  throttles callers *before* we know or trust which tenant they
 --     claim to be.

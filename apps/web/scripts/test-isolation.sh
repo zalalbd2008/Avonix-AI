@@ -71,7 +71,7 @@ missing=$(psql "$ADMIN_URL" -tAc "
   join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind = 'r'
     -- exempt by design: auth precedes tenancy (see rls.sql)
-    and c.relname not in ('user','session','account','verification','memberships','rate_limits','connector_keys')
+    and c.relname not in ('user','session','account','verification','memberships','rate_limits','connector_keys','reply_tokens')
     and not exists (select 1 from pg_policies p
                     where p.tablename = c.relname and p.policyname = 'tenant_isolation')")
 check "every tenant table has a tenant_isolation policy" "" "${missing:-}"

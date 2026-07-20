@@ -18,9 +18,10 @@
     "test:clients": "tsx scripts/test-clients.ts",
     "test": "npm run db:test && npm run test:clients && npm run test:crm && npm run test:delivery",
     "test:connector": "tsx scripts/test-connector.ts",
-    "test:all": "npm run test && npm run test:connector",
+    "test:all": "npm run test && npm run test:connector && npm run test:inbound",
     "test:crm": "tsx scripts/test-crm.ts",
-    "test:delivery": "tsx scripts/test-delivery.ts"
+    "test:delivery": "tsx scripts/test-delivery.ts",
+    "test:inbound": "tsx scripts/test-inbound.ts"
   },
   "dependencies": {
     "better-auth": "^1.6.23",

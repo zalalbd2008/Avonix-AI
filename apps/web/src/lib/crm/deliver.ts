@@ -3,6 +3,7 @@ import { withAgency } from "@/lib/db";
 import { clients, contacts, conversations, messages } from "@/lib/db/schema";
 import { sendEmail } from "@/lib/email";
 import { agencyReplyEmail } from "@/lib/email/templates/agency-reply";
+import { ensureReplyToken, inboundAddressFor } from "./inbound";
 
 export type DeliveryOutcome =
   | { delivered: true }
@@ -66,6 +67,13 @@ export async function deliverReply(
 
   await mark(agencyId, messageId, { delivery: "pending" });
 
+  // Route replies back into this thread when inbound is configured. Falling
+  // back to the client's own mailbox keeps the conversation reachable by a
+  // human either way — a dead no-reply address does not.
+  const token = await ensureReplyToken(agencyId, context.conversationId);
+  const replyTo =
+    (token ? inboundAddressFor(token) : null) ?? context.clientEmail ?? null;
+
   try {
     const result = await sendEmail(
       agencyReplyEmail({
@@ -73,10 +81,7 @@ export async function deliverReply(
         contactName: context.contactName,
         clientName: context.clientName,
         body: context.body,
-        // Replies land in the client's own mailbox. Inbound capture — pulling
-        // the answer back into this thread — is not built yet, so sending the
-        // visitor somewhere a human actually reads beats a dead no-reply address.
-        replyTo: context.clientEmail,
+        replyTo,
       }),
     );
 

@@ -156,6 +156,17 @@ CREATE TABLE "conversations" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "reply_tokens" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agency_id" uuid NOT NULL,
+	"conversation_id" uuid NOT NULL,
+	"token" text NOT NULL,
+	"last_used_at" timestamp with time zone,
+	"revoked_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "messages" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"agency_id" uuid NOT NULL,
@@ -284,6 +295,8 @@ ALTER TABLE "conversations" ADD CONSTRAINT "conversations_agency_id_agencies_id_
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_contact_id_contacts_id_fk" FOREIGN KEY ("contact_id") REFERENCES "public"."contacts"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_website_id_websites_id_fk" FOREIGN KEY ("website_id") REFERENCES "public"."websites"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reply_tokens" ADD CONSTRAINT "reply_tokens_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reply_tokens" ADD CONSTRAINT "reply_tokens_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pipeline_cards" ADD CONSTRAINT "pipeline_cards_agency_id_agencies_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -321,6 +334,8 @@ CREATE UNIQUE INDEX "contacts_client_email_key" ON "contacts" USING btree ("clie
 CREATE INDEX "conversations_agency_idx" ON "conversations" USING btree ("agency_id");--> statement-breakpoint
 CREATE INDEX "conversations_client_status_idx" ON "conversations" USING btree ("client_id","status");--> statement-breakpoint
 CREATE INDEX "conversations_last_message_idx" ON "conversations" USING btree ("last_message_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "reply_tokens_token_key" ON "reply_tokens" USING btree ("token");--> statement-breakpoint
+CREATE INDEX "reply_tokens_conversation_idx" ON "reply_tokens" USING btree ("conversation_id");--> statement-breakpoint
 CREATE INDEX "messages_agency_idx" ON "messages" USING btree ("agency_id");--> statement-breakpoint
 CREATE INDEX "messages_conversation_idx" ON "messages" USING btree ("conversation_id","created_at");--> statement-breakpoint
 CREATE INDEX "pipeline_cards_stage_idx" ON "pipeline_cards" USING btree ("stage_id","position");--> statement-breakpoint

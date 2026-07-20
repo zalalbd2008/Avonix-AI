@@ -1,280 +1,68 @@
-# Avonix AI
+# Nexus — Website Operations Platform
 
-> "A canonical, technology-neutral, enterprise architecture documentation repository designed to standardize strategy, governance, engineering, AI, operations, and enterprise delivery."
+> Run every website from one platform.
 
----
+A cloud SaaS for agencies, WordPress developers, and website owners who manage
+more than one site. A lightweight WordPress connector plugin reports in; all
+health checks, monitoring, leads, automation, and AI run in the cloud.
 
-# Overview
-
-Avonix AI is a comprehensive Enterprise Architecture Documentation Repository.
-
-Rather than focusing on implementation, this repository defines the principles, standards, governance models, architectural blueprints, operational guidance, and enterprise documentation required to design and evolve large-scale digital platforms.
-
-This repository is implementation-independent and serves as the authoritative reference for enterprise architecture decisions.
+**Not** a website builder, a host, a registrar, or a WordPress replacement.
 
 ---
 
-# Vision
+## Naming — unresolved
 
-Create a single source of truth for enterprise architecture that enables organizations to design, govern, evolve, and scale digital ecosystems with consistency and confidence.
-
----
-
-# Mission
-
-Provide a complete enterprise documentation framework that:
-
-- Standardizes architecture
-- Improves governance
-- Accelerates delivery
-- Reduces architectural inconsistency
-- Supports AI-ready enterprises
-- Encourages reusable enterprise knowledge
+This repository was written as **"Avonix AI"**. The UI prototype says **"Nexus"**.
+Pick one before writing code — it lands in the package name, the plugin slug, the
+domain, and every table prefix. Tracked as `07-Decisions/ADR-000`.
 
 ---
 
-# Core Principles
+## What is actually here
 
-- Business First
-- Architecture Before Implementation
-- Documentation as a Strategic Asset
-- Governance by Design
-- Security by Design
-- AI Ready
-- Technology Neutral
-- Reusability
-- Traceability
-- Continuous Improvement
-
----
-
-# Repository Structure
-
-```text
-00-Foundation/
-01-Product/
-02-Platform/
-03-Engineering/
-04-Design/
-05-Business/
-06-AI/
-07-Decisions/
-08-Reference-Architectures/
-09-Implementation-Standards/
-10-Operations/
-11-Governance/
-12-Enterprise-Playbooks/
-13-Enterprise-Templates/
-14-Enterprise-Reference/
-15-Enterprise-Blueprints/
-```
+| Path | What it is | Trust it? |
+|---|---|---|
+| `prototype/` | Clickable UI prototype (`Nexus Platform.dc.html`) | **Yes — the most decision-dense artifact in the repo.** It names screens, tiers, prices, and the integration-level model. |
+| `00-Foundation/` | Domain model, entity lifecycles, event philosophy, ownership matrix | Mostly — see caveats below |
+| `01-Product/` | Personas, roles, permission model, module catalog, pricing shape | Permission model yes; pricing/limits are empty |
+| `02-Platform/` | 15 module specs (auth, orgs, teams, files, …) with real events + error codes | As a *template*, yes. As a build list, no — it is far more than one person can build. |
+| `03-Engineering/` `04-Design/` `05-Business/` `06-AI/` | Generated 2026-07-19; ~20% substantive | Skim only |
+| `07-Decisions/` | ADRs — currently empty placeholders | To be written |
+| `archive/` | 139 files of generic enterprise-architecture boilerplate that never name the product | No. Kept for reference only. |
 
 ---
 
-# Documentation Layers
+## The product model (from the prototype)
 
-| Layer | Purpose |
-|--------|---------|
-| Foundation | Foundational principles and repository standards |
-| Product | Product vision, strategy, and lifecycle |
-| Platform | Shared platform architecture and capabilities |
-| Engineering | Engineering standards and practices |
-| Design | UX, UI, accessibility, and design systems |
-| Business | Business architecture and operating model |
-| AI | Enterprise AI architecture and governance |
-| Decisions | Architectural decision records and rationale |
-| Reference Architectures | Canonical architectural patterns |
-| Implementation Standards | Technology-neutral implementation guidance |
-| Operations | Operational architecture and service management |
-| Governance | Governance, compliance, and oversight |
-| Enterprise Playbooks | Repeatable operational and delivery playbooks |
-| Enterprise Templates | Standardized document templates |
-| Enterprise Reference | Enterprise reference materials |
-| Enterprise Blueprints | Canonical enterprise architecture blueprints |
+Three integration levels, which double as the pricing tiers:
+
+| Level | Tier | Requires | Examples |
+|---|---|---|---|
+| **1 — Zero Dependency** | Free | Nothing external | Health score, SSL monitor, uptime, update centre, backup monitor, audit log, error log, broken links, DB cleaner, cron monitor, SMTP test |
+| **2 — Optional Integrations** | Pro $19/mo | Your own API key | Telegram, Slack, Discord, Teams, Google Drive, Dropbox, OneDrive, S3 |
+| **3 — Enterprise Cloud** | Custom | Nexus cloud + AI | AI chat & analysis, WhatsApp Business, Search Console, PageSpeed, multi-site dashboard, malware intelligence |
+
+Level 1 costs nothing to run per customer, which is what makes a free tier and
+WordPress.org distribution possible. **Build Level 1 first.**
 
 ---
 
-# Repository Architecture
+## Known contradictions — resolve before coding
 
-```text
-Vision
-   │
-   ▼
-Principles
-   │
-   ▼
-Standards
-   │
-   ▼
-Reference Architectures
-   │
-   ▼
-Blueprints
-   │
-   ▼
-Implementation Standards
-   │
-   ▼
-Operations
-   │
-   ▼
-Continuous Improvement
-```
+1. **Product name** — Avonix AI vs Nexus (above).
+2. **Hierarchy** — the prototype's navigation says `Organization → Client → Website`;
+   its onboarding wizard says `Organization → Workspace → Website`. "Client" and
+   "Workspace" appear to be the same entity under two names. The written specs add a
+   third, incompatible reading. Pick one shape and delete the other words.
+3. **Tenant boundary** — `02-Platform/01-TENANT_MODEL.md` puts Tenant above
+   Organization; four module docs say Organization *is* the tenant. Getting this
+   wrong scopes data isolation one level too low, which is a security bug.
 
 ---
 
-# Intended Audience
+## Status
 
-This repository is designed for:
-
-- Enterprise Architects
-- Solution Architects
-- Platform Architects
-- Software Architects
-- Technical Leads
-- Engineering Managers
-- Product Managers
-- AI Engineers
-- Security Architects
-- DevOps Engineers
-- Governance Teams
-- Executive Leadership
-
----
-
-# Repository Highlights
-
-- Technology-neutral architecture
-- Governance-driven documentation
-- AI-ready architectural guidance
-- Enterprise security principles
-- Canonical reference architectures
-- Standardized templates
-- Cross-layer traceability
-- Long-term maintainability
-
----
-
-# Getting Started
-
-1. Read this README.
-2. Review the Foundation layer.
-3. Explore the Product and Platform layers.
-4. Understand the Engineering and Design standards.
-5. Study the Business and AI architecture.
-6. Review the Reference Architectures and Blueprints.
-7. Apply the guidance to enterprise initiatives.
-
----
-
-# Documentation Lifecycle
-
-```text
-Plan
-   │
-   ▼
-Author
-   │
-   ▼
-Review
-   │
-   ▼
-Approve
-   │
-   ▼
-Publish
-   │
-   ▼
-Adopt
-   │
-   ▼
-Review & Improve
-```
-
----
-
-# Governance
-
-Repository governance includes:
-
-- Document ownership
-- Version management
-- Review cycles
-- Change approval
-- Traceability
-- Quality assurance
-
-All documentation should follow the established governance model.
-
----
-
-# Repository Statistics
-
-| Metric | Value |
-|--------|------:|
-| Major Layers | 16 |
-| Core Documents | 160+ |
-| Documentation Type | Enterprise Architecture |
-| Implementation Code | None |
-| Technology Neutral | Yes |
-| AI Ready | Yes |
-| Governance Ready | Yes |
-
----
-
-# Roadmap
-
-Future enhancements may include:
-
-- Interactive documentation portal
-- Architecture knowledge graph
-- Searchable documentation explorer
-- AI-powered documentation assistant
-- Architecture assessment toolkit
-- Enterprise maturity model
-
----
-
-# Contributing
-
-Please read:
-
-- CONTRIBUTING.md
-- CODE_OF_CONDUCT.md
-- SECURITY.md
-
-before submitting changes.
-
----
-
-# License
-
-See the LICENSE file for licensing information.
-
----
-
-# Support
-
-For questions, proposals, or architectural discussions, open an issue or discussion in the repository.
-
----
-
-# Repository Status
-
-```text
-Repository Status
-
-████████████████████
-
-Enterprise Documentation Repository
-Version 1.0
-Status: Complete
-```
-
----
-
-# Final Statement
-
-Avonix AI is not an implementation framework.
-
-It is an enterprise architecture knowledge system that provides a governed, reusable, and scalable foundation for designing modern digital enterprises.
+Zero lines of application code. The specifications describe the *shape* of
+decisions without making them: across ~303,000 words there are no API endpoints,
+no schemas, no thresholds, and no technology choices. Treat the prototype and the
+six documents listed in `07-Decisions/` as the real starting point.

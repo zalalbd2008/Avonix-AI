@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#f4f6f9;font-family:'Instrument Sans',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#0d9488;text-decoration:none}a:hover{color:#0a7d74}
+::selection{background:rgba(255,102,0,.2)}
+</style>
+</helmet>
+<div data-screen-label="Nexus App" style="display:flex;flex-direction:column;height:100vh;overflow:hidden;color:#13233c;font-size:14px">
+  <div style="height:50px;flex:none;background:#ffffff;border-bottom:1px solid #e6e9f0;display:flex;align-items:center;gap:14px;padding:0 18px;position:relative;z-index:30">
+    <div onClick="{{goHome}}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <div style="width:26px;height:26px;border-radius:7px;background:#ff6600;color:#fff;font-weight:700;font-size:14px;display:grid;place-items:center">N</div>
+      <div style="font-weight:700;font-size:14.5px;letter-spacing:-0.01em">Nexus</div>
+    </div>
+    <div style="width:1px;height:20px;background:#e6e9f0"></div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+      <sc-for list="{{crumbs}}" as="c" hint-placeholder-count="2">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:#c3ccd9">{{c.sep}}</span>
+          <div onClick="{{c.go}}" style="cursor:pointer;color:#5b6b83;font-weight:500" style-hover="color:#13233c">{{c.label}}</div>
+        </div>
+      </sc-for>
+      <sc-if value="{{isProd}}" hint-placeholder-val="{{true}}">
+        <span style="font-weight:600;padding:3px 9px;border-radius:99px;font-size:11.5px;background:rgba(13,148,136,.1);color:#0d9488;margin-left:4px">Production</span>
+      </sc-if>
+      <sc-if value="{{isStaging}}" hint-placeholder-val="{{false}}">
+        <span style="font-weight:600;padding:3px 9px;border-radius:99px;font-size:11.5px;background:rgba(255,102,0,.12);color:#ff6600;margin-left:4px">Staging</span>
+      </sc-if>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+      <sc-if value="{{isWebsite}}" hint-placeholder-val="{{false}}">
+        <div style="display:flex;align-items:center;gap:14px;font-size:12.5px">
+          <span style="display:flex;align-items:center;gap:6px;color:#0d9488;font-weight:600"><span style="width:7px;height:7px;border-radius:99px;background:#0d9488"></span>Connected</span>
+          <span style="color:#8b98ab">Last Sync 4 sec ago</span>
+        </div>
+      </sc-if>
+      <div onClick="{{openSearch}}" style="display:flex;align-items:center;gap:8px;border:1px solid #e6e9f0;border-radius:7px;padding:6px 10px;color:#8b98ab;font-size:12.5px;cursor:pointer;background:#f8fafc" style-hover="border-color:#c3ccd9;color:#5b6b83">
+        <span>Search</span><span style="border:1px solid #e6e9f0;border-radius:4px;padding:0 5px;font-size:11px;background:#fff">⌘K</span>
+      </div>
+      <div onClick="{{signOut}}" style="font-size:12.5px;color:#8b98ab;cursor:pointer;font-weight:500" style-hover="color:#13233c">Sign Out</div>
+    </div>
+  </div>
+  <div style="display:flex;flex:1;min-height:0">
+    <sc-if value="{{showPlatSide}}" hint-placeholder-val="{{true}}">
+      <div style="width:225px;flex:none;background:#0b1e3a;display:flex;flex-direction:column;gap:2px;padding:12px 10px;overflow-y:auto">
+        <div onClick="{{openSearch}}" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:7px 10px;color:rgba(255,255,255,.55);font-size:13px;cursor:pointer;margin-bottom:10px" style-hover="background:rgba(255,255,255,.12)">
+          <span style="font-weight:600">⌘</span><span>Search</span><span style="margin-left:auto;font-size:11px;border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:1px 5px">K</span>
+        </div>
+        <div style="font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#ff9a5c;padding:4px 12px 6px;font-weight:600">Nexus Platform</div>
+        <sc-for list="{{pItems}}" as="it" hint-placeholder-count="9">
+          <div onClick="{{it.go}}" style="{{it.st}}" style-hover="color:#ffffff">{{it.label}}</div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{isWebsite}}" hint-placeholder-val="{{false}}">
+      <div style="width:225px;flex:none;background:#0b1e3a;display:flex;flex-direction:column;gap:2px;padding:12px 10px;overflow-y:auto">
+        <div onClick="{{backToClient}}" style="font-size:12px;color:rgba(255,255,255,.5);cursor:pointer;padding:2px 12px 8px" style-hover="color:#ffffff">← {{clientName}}</div>
+        <div style="position:relative;margin-bottom:10px">
+          <div onClick="{{toggleSw}}" style="display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:9px 10px;cursor:pointer" style-hover="background:rgba(255,255,255,.12)">
+            <span style="font-size:14px">🌐</span>
+            <div>
+              <div style="color:#fff;font-size:13px;font-weight:600">{{siteName}} Website</div>
+              <div style="color:rgba(255,255,255,.45);font-size:11px">Production</div>
+            </div>
+            <span style="margin-left:auto;color:rgba(255,255,255,.5);font-size:9px">▼</span>
+          </div>
+          <sc-if value="{{swOpen}}" hint-placeholder-val="{{false}}">
+            <div style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border-radius:9px;box-shadow:0 12px 32px rgba(11,30,58,.28);padding:6px;z-index:40">
+              <sc-for list="{{swItems}}" as="w" hint-placeholder-count="3">
+                <div onClick="{{w.go}}" style="padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#13233c" style-hover="background:#f1f4f8">
+                  <span style="width:7px;height:7px;border-radius:99px;background:#0d9488"></span>{{w.name}}
+                </div>
+              </sc-for>
+              <div onClick="{{newSite}}" style="padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:#ff6600;font-weight:600;border-top:1px solid #edf0f5;margin-top:4px" style-hover="background:#fff3ea">+ New Website</div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#ff9a5c;padding:4px 12px 6px;font-weight:600">Website Workspace</div>
+        <sc-for list="{{sItems}}" as="it" hint-placeholder-count="10">
+          <div onClick="{{it.go}}" style="{{it.st}}" style-hover="color:#ffffff">{{it.label}}</div>
+        </sc-for>
+        <div style="font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#ff9a5c;padding:12px 12px 6px;font-weight:600">Monitor &amp; Ops</div>
+        <sc-for list="{{s2Items}}" as="it" hint-placeholder-count="7">
+          <div onClick="{{it.go}}" style="{{it.st}}" style-hover="color:#ffffff">{{it.label}}</div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <main style="flex:1;overflow-y:auto;padding:26px 30px;min-width:0">
+      <sc-if value="{{pDash}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Platform Dashboard" style="max-width:1060px">
+          <div style="margin-bottom:18px">
+            <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Platform Dashboard</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-top:2px">Global metrics across all organizations and websites</div>
+          </div>
+          <sc-if value="{{showAlerts}}" hint-placeholder-val="{{true}}">
+            <div style="display:flex;align-items:center;gap:10px;background:#fff8f3;border:1px solid #ffd9bd;border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:13px">
+              <span style="width:8px;height:8px;border-radius:99px;background:#dc2626;flex:none"></span>
+              <span><b>12 SMTP Errors</b> and <b>4 Websites Offline</b> need attention</span>
+              <div onClick="{{goWebsites}}" style="margin-left:auto;color:#ff6600;font-weight:600;cursor:pointer" style-hover="text-decoration:underline">Review →</div>
+            </div>
+          </sc-if>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px">
+            <sc-for list="{{metrics}}" as="m" hint-placeholder-count="7">
+              <div style="background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px 16px 14px">
+                <div style="font-size:24px;font-weight:700;letter-spacing:-0.02em;color:{{m.c}}">{{m.v}}</div>
+                <div style="font-size:12.5px;color:#5b6b83;margin-top:3px">{{m.l}}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <div style="display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #edf0f5">
+              <div style="font-weight:600;font-size:14px">Clients</div>
+              <div onClick="{{goClients}}" style="margin-left:auto;font-size:12.5px;color:#ff6600;font-weight:600;cursor:pointer" style-hover="text-decoration:underline">View all →</div>
+            </div>
+            <sc-for list="{{clientRows}}" as="c" hint-placeholder-count="4">
+              <div onClick="{{c.go}}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f4f8;cursor:pointer" style-hover="background:#f8fafc">
+                <div style="width:32px;height:32px;border-radius:8px;background:#0b1e3a;color:#fff;font-weight:600;font-size:13px;display:grid;place-items:center">{{c.init}}</div>
+                <div style="font-weight:600;font-size:13.5px">{{c.name}}</div>
+                <div style="font-size:12.5px;color:#5b6b83">{{c.count}}</div>
+                <div style="margin-left:auto;color:#c3ccd9">›</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{clientWs}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Client Workspace" style="max-width:1060px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <div style="width:44px;height:44px;border-radius:11px;background:#0b1e3a;color:#fff;font-weight:700;font-size:17px;display:grid;place-items:center">{{clientInit}}</div>
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">{{clientName}}</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:1px">{{siteCount}} Websites · Client Workspace</div>
+            </div>
+            <div onClick="{{newSite}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">+ New Website</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <sc-for list="{{siteCards}}" as="w" hint-placeholder-count="3">
+              <div onClick="{{w.go}}" style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px;cursor:pointer" style-hover="border-color:#ff6600;box-shadow:0 8px 24px rgba(11,30,58,.08)">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  <span style="font-size:15px">🌐</span>
+                  <div style="font-weight:700;font-size:15px">{{w.name}}</div>
+                  <span style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:{{w.dot}}"><span style="width:7px;height:7px;border-radius:99px;background:{{w.dot}}"></span>{{w.status}}</span>
+                </div>
+                <div style="display:flex;gap:16px;font-size:12.5px;color:#5b6b83;margin-bottom:14px">
+                  <span><b style="color:#13233c">{{w.leads}}</b> Leads</span>
+                  <span>Production</span>
+                </div>
+                <div style="color:#ff6600;font-weight:600;font-size:13px">Open Workspace →</div>
+              </div>
+            </sc-for>
+            <div onClick="{{newSite}}" style="border:1.5px dashed #c3ccd9;border-radius:12px;display:grid;place-items:center;color:#8b98ab;font-weight:600;font-size:13px;cursor:pointer;min-height:130px" style-hover="border-color:#ff6600;color:#ff6600">+ New Website</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{pClients}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Clients" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Clients</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">Every client owns its own workspace and websites</div>
+            </div>
+            <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">+ New Client</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <sc-for list="{{clientRows}}" as="c" hint-placeholder-count="4">
+              <div onClick="{{c.go}}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #f1f4f8;cursor:pointer" style-hover="background:#f8fafc">
+                <div style="width:34px;height:34px;border-radius:9px;background:#0b1e3a;color:#fff;font-weight:600;font-size:14px;display:grid;place-items:center">{{c.init}}</div>
+                <div style="font-weight:600;font-size:14px">{{c.name}}</div>
+                <div style="font-size:12.5px;color:#5b6b83">{{c.count}}</div>
+                <div style="margin-left:auto;color:#ff6600;font-weight:600;font-size:13px">Open Workspace →</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{pWebsites}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="All Websites" style="max-width:1060px">
+          <div style="margin-bottom:18px">
+            <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Websites</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-top:2px">All websites across every client</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:1.2fr 1.2fr .6fr .8fr;padding:10px 16px;border-bottom:1px solid #edf0f5;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8b98ab">
+              <span>Website</span><span>Client</span><span>Leads</span><span>Status</span>
+            </div>
+            <sc-for list="{{siteRows}}" as="w" hint-placeholder-count="8">
+              <div onClick="{{w.go}}" style="display:grid;grid-template-columns:1.2fr 1.2fr .6fr .8fr;align-items:center;padding:12px 16px;border-bottom:1px solid #f1f4f8;cursor:pointer;font-size:13.5px" style-hover="background:#f8fafc">
+                <span style="font-weight:600;display:flex;align-items:center;gap:8px"><span style="font-size:13px">🌐</span>{{w.name}}</span>
+                <span style="color:#5b6b83">{{w.client}}</span>
+                <span>{{w.leads}}</span>
+                <span style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px;color:{{w.dot}}"><span style="width:7px;height:7px;border-radius:99px;background:{{w.dot}}"></span>{{w.status}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{pTemplates}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Global Templates" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Global Templates</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">Build once — apply to any number of websites in one click</div>
+            </div>
+            <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">+ New Template</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <sc-for list="{{templates}}" as="t" hint-placeholder-count="5">
+              <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px">
+                <span style="align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0d9488;background:rgba(13,148,136,.1);padding:3px 8px;border-radius:99px">{{t.type}}</span>
+                <div style="font-weight:700;font-size:15px">{{t.name}}</div>
+                <div style="font-size:12.5px;color:#5b6b83">{{t.used}}</div>
+                <div onClick="{{t.apply}}" style="margin-top:4px;border:1.5px solid #ff6600;color:#ff6600;font-weight:600;font-size:13px;padding:7px 12px;border-radius:8px;cursor:pointer;text-align:center" style-hover="background:#ff6600;color:#ffffff">Apply to Websites</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{pOrgs}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Organizations" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Organizations</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">Top level — each organization owns its own clients, websites and billing</div>
+            </div>
+            <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">+ New Organization</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <sc-for list="{{orgs}}" as="o" hint-placeholder-count="3">
+              <div onClick="{{o.go}}" style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px;cursor:pointer" style-hover="border-color:#ff6600;box-shadow:0 8px 24px rgba(255,102,0,.12)">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                  <div style="width:38px;height:38px;border-radius:10px;background:#ff6600;color:#fff;font-weight:700;font-size:15px;display:grid;place-items:center">{{o.init}}</div>
+                  <div style="font-weight:700;font-size:15px">{{o.name}}</div>
+                </div>
+                <div style="font-size:12.5px;color:#5b6b83;margin-bottom:14px">{{o.meta}}</div>
+                <div style="display:flex;align-items:center">
+                  <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;color:{{o.pc}};background:{{o.pb}}">{{o.plan}}</span>
+                  <span style="margin-left:auto;color:#ff6600;font-weight:600;font-size:13px">Open →</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{pSuper}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Super Admin" style="max-width:1060px">
+          <div style="margin-bottom:18px">
+            <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Super Admin</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-top:2px">Full control over every organization, client and website — no access required</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.25);border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:13px">
+            <span style="width:8px;height:8px;border-radius:99px;background:#dc2626;flex:none"></span>
+            <span>Actions here <b>bypass all workspace permissions</b> and are recorded in the enterprise audit log</span>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden;margin-bottom:14px">
+            <div style="padding:13px 16px;border-bottom:1px solid #edf0f5;font-weight:600;font-size:14px">Entities</div>
+            <sc-for list="{{saRows}}" as="r" hint-placeholder-count="6">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f4f8">
+                <span style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:{{r.tc}};background:{{r.tb}};padding:3px 8px;border-radius:99px;width:92px;text-align:center;flex:none">{{r.type}}</span>
+                <div>
+                  <div style="font-weight:600;font-size:13.5px">{{r.name}}</div>
+                  <div style="font-size:12px;color:#5b6b83">{{r.meta}}</div>
+                </div>
+                <div style="margin-left:auto;display:flex;gap:8px">
+                  <div onClick="{{r.edit}}" style="border:1px solid #dbe1ea;color:#3c4c66;font-weight:600;font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer" style-hover="border-color:#ff6600;color:#ff6600">Edit</div>
+                  <div onClick="{{r.cancel}}" style="border:1px solid #dbe1ea;color:#d97706;font-weight:600;font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer" style-hover="border-color:#d97706;background:rgba(217,119,6,.08)">Cancel Service</div>
+                  <div onClick="{{r.del}}" style="border:1px solid rgba(220,38,38,.4);color:#dc2626;font-weight:600;font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer" style-hover="background:#dc2626;color:#ffffff">Delete</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <div style="padding:13px 16px;border-bottom:1px solid #edf0f5;font-weight:600;font-size:14px">Activity Control</div>
+            <sc-for list="{{saActivity}}" as="a" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f4f8">
+                <div>
+                  <div style="font-weight:600;font-size:13.5px">{{a.who}} — {{a.what}}</div>
+                  <div style="font-size:12px;color:#8b98ab">{{a.when}}</div>
+                </div>
+                <div onClick="{{a.block}}" style="margin-left:auto;border:1px solid rgba(220,38,38,.4);color:#dc2626;font-weight:600;font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer" style-hover="background:#dc2626;color:#ffffff">Revoke Access</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{gpShow}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Module Page" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">{{gpTitle}}</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">{{gpSub}}</div>
+            </div>
+            <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">{{gpAct}}</div>
+          </div>
+          <sc-if value="{{gpHasStats}}" hint-placeholder-val="{{true}}">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+              <sc-for list="{{gpStats}}" as="m" hint-placeholder-count="4">
+                <div style="background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px 16px 14px">
+                  <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;color:{{m.c}}">{{m.v}}</div>
+                  <div style="font-size:12.5px;color:#5b6b83;margin-top:3px">{{m.l}}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <sc-for list="{{gpRows}}" as="r" hint-placeholder-count="4">
+              <div onClick="{{r.go}}" style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid #f1f4f8;cursor:pointer" style-hover="background:#f8fafc">
+                <div>
+                  <div style="font-weight:600;font-size:13.5px">{{r.a}}</div>
+                  <div style="font-size:12.5px;color:#5b6b83;margin-top:1px">{{r.b}}</div>
+                </div>
+                <span style="margin-left:auto;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:99px;color:{{r.pc}};background:{{r.pb}};flex:none">{{r.pill}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{wDash}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Website Dashboard" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">{{siteName}} Website — Dashboard</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">Everything on this page belongs to the {{siteName}} website only</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:10px">
+              <div onClick="{{goReports}}" style="border:1.5px solid #ff6600;color:#ff6600;font-weight:600;font-size:13px;padding:8px 14px;border-radius:8px;cursor:pointer" style-hover="background:#ff6600;color:#ffffff">View Reports</div>
+              <div onClick="{{openShare}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">Share Report ↗</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            <sc-for list="{{wMetrics}}" as="m" hint-placeholder-count="8">
+              <div style="background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px 16px 14px">
+                <div style="font-size:24px;font-weight:700;letter-spacing:-0.02em;color:{{m.c}}">{{m.v}}</div>
+                <div style="font-size:12.5px;color:#5b6b83;margin-top:3px">{{m.l}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{wForms}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Forms" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Forms</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">{{siteName}} Website · 12 forms</div>
+            </div>
+            <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">+ New Form</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <sc-for list="{{forms}}" as="f" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #f1f4f8;cursor:pointer" style-hover="background:#f8fafc">
+                <div>
+                  <div style="font-weight:600;font-size:14px">{{f.name}}</div>
+                  <div style="font-size:12.5px;color:#5b6b83;margin-top:1px">{{f.meta}}</div>
+                </div>
+                <span style="margin-left:auto;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:99px;color:{{f.pc}};background:{{f.pb}}">{{f.status}}</span>
+                <span style="color:#c3ccd9">›</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{wReports}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Reports" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Reports &amp; Analytics</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">{{siteName}} Website · traffic, leads, chat and activity in one dashboard — share it via link</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+              <sc-for list="{{exportsList}}" as="x" hint-placeholder-count="4">
+                <div onClick="{{x.go}}" style="border:1px solid #dbe1ea;color:#3c4c66;font-weight:600;font-size:12.5px;padding:7px 12px;border-radius:8px;cursor:pointer;background:#fff;white-space:nowrap;flex:none" style-hover="border-color:#ff6600;color:#ff6600">{{x.f}}</div>
+              </sc-for>
+              <div onClick="{{openShare}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer;white-space:nowrap;flex:none" style-hover="background:#e85d00">Share Link ↗</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px">
+            <sc-for list="{{reportCards}}" as="c" hint-placeholder-count="4">
+              <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <div style="font-weight:700;font-size:15px">{{c.t}}</div>
+                  <span style="margin-left:auto;font-size:11px;font-weight:700;color:#0d9488;background:rgba(13,148,136,.1);padding:3px 9px;border-radius:99px">✓ Included</span>
+                </div>
+                <div style="font-size:12.5px;color:#5b6b83;line-height:1.5">{{c.d}}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <div style="font-weight:700;font-size:14px">Activity Report</div>
+              <span style="font-size:12px;color:#8b98ab">every tracked button click — class, page, purpose, IP</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+              <div style="background:#f8fafc;border:1px solid #edf0f5;border-radius:10px;padding:14px"><div style="font-size:21px;font-weight:700;letter-spacing:-0.02em">125</div><div style="font-size:12px;color:#5b6b83;margin-top:2px">Total Activities</div></div>
+              <div style="background:#f8fafc;border:1px solid #edf0f5;border-radius:10px;padding:14px"><div style="font-size:21px;font-weight:700;letter-spacing:-0.02em;color:#ff6600">62</div><div style="font-size:12px;color:#5b6b83;margin-top:2px">Button Clicks</div></div>
+              <div style="background:#f8fafc;border:1px solid #edf0f5;border-radius:10px;padding:14px"><div style="font-size:21px;font-weight:700;letter-spacing:-0.02em">10</div><div style="font-size:12px;color:#5b6b83;margin-top:2px">Form Submissions</div></div>
+              <div style="background:#f8fafc;border:1px solid #edf0f5;border-radius:10px;padding:14px"><div style="font-size:21px;font-weight:700;letter-spacing:-0.02em;color:#0d9488">66</div><div style="font-size:12px;color:#5b6b83;margin-top:2px">Emails Sent</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.4fr .6fr;gap:12px;margin-bottom:16px">
+              <div style="border:1px solid #edf0f5;border-radius:10px;padding:14px">
+                <div style="font-size:12.5px;font-weight:600;color:#5b6b83;margin-bottom:10px">Activity over time · last 12 days</div>
+                <div style="display:flex;align-items:flex-end;gap:6px;height:110px">
+                  <sc-for list="{{actBars}}" as="b" hint-placeholder-count="12">
+                    <div style="{{b.st}}"></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="border:1px solid #edf0f5;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px;justify-content:center">
+                <div style="font-size:12.5px;font-weight:600;color:#5b6b83">By type</div>
+                <sc-for list="{{actTypes}}" as="t" hint-placeholder-count="3">
+                  <div>
+                    <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:5px"><span style="{{t.dot}}"></span><span>{{t.label}}</span><span style="margin-left:auto;font-weight:700">{{t.n}}</span></div>
+                    <div style="height:6px;border-radius:99px;background:#edf0f5;overflow:hidden"><div style="{{t.bar}}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:18px;border-bottom:1px solid #edf0f5;margin-bottom:12px">
+              <sc-for list="{{actTabs}}" as="t" hint-placeholder-count="4">
+                <div onClick="{{t.go}}" style="{{t.st}}">{{t.tx}}</div>
+              </sc-for>
+            </div>
+            <input value="{{actQ}}" onChange="{{setActQ}}" placeholder="Search by button, class, page, purpose or IP…" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:1.4fr .8fr 1.3fr .9fr .8fr .6fr;gap:10px;padding:8px 10px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#8b98ab;border-bottom:1px solid #edf0f5">
+              <span>Button / Action</span><span>Page</span><span>Purpose</span><span>IP Address</span><span>Date / Time</span><span>Status</span>
+            </div>
+            <sc-for list="{{actRows}}" as="r" hint-placeholder-count="8">
+              <div style="display:grid;grid-template-columns:1.4fr .8fr 1.3fr .9fr .8fr .6fr;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #f1f4f8;font-size:12.5px" style-hover="background:#f8fafc">
+                <div><div style="font-weight:600;font-size:13px">{{r.btn}}</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#ff6600">{{r.cls}}</div></div>
+                <span style="color:#3c4c66">{{r.page}}</span>
+                <span style="color:#5b6b83">{{r.purpose}}</span>
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#3c4c66">{{r.ip}}</span>
+                <span style="color:#8b98ab;font-size:12px">{{r.time}}</span>
+                <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px;color:{{r.pc}};background:{{r.pb}};text-align:center">{{r.pill}}</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{actNone}}" hint-placeholder-val="{{false}}">
+              <div style="padding:18px;text-align:center;color:#8b98ab;font-size:13px">No activity matches this filter</div>
+            </sc-if>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <div style="font-weight:700;font-size:14px">Website Analytics</div>
+              <span style="font-size:12px;color:#8b98ab">traffic, top pages and conversions — this website only</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+              <sc-for list="{{anStats}}" as="m" hint-placeholder-count="4">
+                <div style="background:#f8fafc;border:1px solid #edf0f5;border-radius:10px;padding:14px">
+                  <div style="font-size:21px;font-weight:700;letter-spacing:-0.02em;color:{{m.c}}">{{m.v}}</div>
+                  <div style="font-size:12px;color:#5b6b83;margin-top:2px">{{m.l}}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr .8fr .5fr;gap:10px;padding:8px 10px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#8b98ab;border-bottom:1px solid #edf0f5">
+              <span>Page</span><span>Traffic</span><span>Tag</span>
+            </div>
+            <sc-for list="{{anRows}}" as="r" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:1fr .8fr .5fr;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #f1f4f8;font-size:12.5px" style-hover="background:#f8fafc">
+                <span style="font-weight:600;font-size:13px">{{r.a}}</span>
+                <span style="color:#5b6b83">{{r.b}}</span>
+                <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px;color:{{r.pc}};background:{{r.pb}};text-align:center">{{r.pill}}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <div style="font-weight:700;font-size:14px">White-label Branding</div>
+              <span style="font-size:12px;color:#8b98ab">shows on every shared report — logo, footer credit, contact</span>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr 1fr;gap:14px;align-items:end">
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:#5b6b83">Logo</div>
+                <div onClick="{{uploadLogo}}" style="width:64px;height:64px;border-radius:12px;background:#0b1e3a;color:#fff;font-weight:700;font-size:24px;display:grid;place-items:center;cursor:pointer" style-hover="background:#ff6600">{{clientInit}}</div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:#5b6b83">Footer Credit</div>
+                <input value="{{brandCredit}}" onChange="{{setCredit}}" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit;outline:none">
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:#5b6b83">Phone</div>
+                <input value="{{brandPhone}}" onChange="{{setPhone}}" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit;outline:none">
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:#5b6b83">Email</div>
+                <input value="{{brandEmail}}" onChange="{{setEmail}}" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit;outline:none">
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <div onClick="{{saveBrand}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">Update Branding</div>
+              <div onClick="{{clearBrand}}" style="border:1.5px solid #dc2626;color:#dc2626;font-weight:600;font-size:13px;padding:8px 14px;border-radius:8px;cursor:pointer" style-hover="background:#dc2626;color:#ffffff">Delete Branding</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{wHealth}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Website Health" style="max-width:1060px">
+          <div style="margin-bottom:18px">
+            <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Website Health</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-top:2px">{{siteName}} Website · checked 2 minutes ago · zero third-party dependencies</div>
+          </div>
+          <div style="display:grid;grid-template-columns:280px 1fr;gap:14px;margin-bottom:14px">
+            <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+              <div style="font-size:46px;font-weight:700;letter-spacing:-0.03em;color:#0d9488">96<span style="font-size:20px;color:#8b98ab;font-weight:600"> / 100</span></div>
+              <div style="font-size:13px;color:#5b6b83;margin-top:4px;font-weight:600">Overall Health Score</div>
+              <div style="width:100%;height:7px;border-radius:99px;background:#edf0f5;margin-top:14px;overflow:hidden"><div style="width:96%;height:100%;background:#0d9488"></div></div>
+            </div>
+            <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-content:center">
+              <sc-for list="{{checks}}" as="k" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="font-weight:700;color:{{k.c}}">{{k.i}}</span><span>{{k.t}}</span></div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            <div style="background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px">
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#0d9488"><span style="width:7px;height:7px;border-radius:99px;background:#0d9488"></span>SSL Active</div>
+              <div style="font-size:17px;font-weight:700;margin-top:6px">Expires in 24 Days</div>
+              <div onClick="{{renew}}" style="color:#ff6600;font-weight:600;font-size:12.5px;margin-top:8px;cursor:pointer" style-hover="text-decoration:underline">Renew Now →</div>
+            </div>
+            <div style="background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px">
+              <div style="font-size:12px;font-weight:600;color:#5b6b83">Domain Expiry (WHOIS)</div>
+              <div style="font-size:17px;font-weight:700;margin-top:6px">84 Days</div>
+              <div style="font-size:12px;color:#8b98ab;margin-top:8px">Auto reminder at 30 / 15 / 7 days</div>
+            </div>
+            <div style="background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px">
+              <div style="font-size:12px;font-weight:600;color:#5b6b83">Uptime</div>
+              <div style="font-size:17px;font-weight:700;margin-top:6px;color:#0d9488">99.98%</div>
+              <div style="font-size:12px;color:#8b98ab;margin-top:8px">Ping every 5 minutes</div>
+            </div>
+            <div style="background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px">
+              <div style="font-size:12px;font-weight:600;color:#5b6b83">Last Backup</div>
+              <div style="font-size:17px;font-weight:700;margin-top:6px">2 hours ago</div>
+              <div style="font-size:12px;color:#0d9488;margin-top:8px;font-weight:600">Success · Google Drive</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{wUpdates}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Update Center" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Update Center</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">{{siteName}} Website · 4 updates available · rollback supported</div>
+            </div>
+            <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">Update All</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <sc-for list="{{updates}}" as="u" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #f1f4f8">
+                <span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5b6b83;background:#f1f4f8;padding:3px 8px;border-radius:99px;width:52px;text-align:center">{{u.tag}}</span>
+                <span style="font-weight:600;font-size:14px">{{u.name}}</span>
+                <span style="font-size:12.5px;color:#8b98ab">{{u.ver}}</span>
+                <div onClick="{{u.go}}" style="margin-left:auto;border:1.5px solid #ff6600;color:#ff6600;font-weight:600;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer" style-hover="background:#ff6600;color:#ffffff">Update</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{wAuto}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Automation Center" style="max-width:1060px">
+          <div style="display:flex;align-items:center;margin-bottom:18px">
+            <div>
+              <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Automation Center</h1>
+              <div style="color:#5b6b83;font-size:13px;margin-top:2px">{{siteName}} Website · if this happens, do that — automatically</div>
+            </div>
+            <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 14px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">+ New Rule</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden">
+            <sc-for list="{{rules}}" as="r" hint-placeholder-count="7">
+              <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid #f1f4f8;font-size:13.5px">
+                <span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#ff6600;background:rgba(255,102,0,.1);padding:3px 8px;border-radius:99px">IF</span>
+                <span style="font-weight:600">{{r.when}}</span>
+                <span style="color:#c3ccd9">→</span>
+                <span style="color:#5b6b83">{{r.then}}</span>
+                <span style="margin-left:auto;font-size:11px;font-weight:700;color:#0d9488;background:rgba(13,148,136,.1);padding:3px 10px;border-radius:99px">ON</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{wInteg}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Integrations" style="max-width:1060px">
+          <div style="margin-bottom:18px">
+            <h1 style="margin:0;font-size:20px;letter-spacing:-0.02em">Integrations</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-top:2px">Core works 100% offline — integrations are optional layers on top</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#0d9488;background:rgba(13,148,136,.1);padding:3px 8px;border-radius:99px">LEVEL 1</span>
+              <span style="font-weight:700;font-size:14px">Zero Dependency</span>
+              <span style="font-size:12.5px;color:#8b98ab">100% offline — no third party needed</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{intL1}}" as="x" hint-placeholder-count="12">
+                <span style="display:flex;align-items:center;gap:6px;font-size:12.5px;border:1px solid #e6e9f0;border-radius:99px;padding:5px 11px;background:#f8fafc"><span style="color:#0d9488;font-weight:700">✓</span>{{x}}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:18px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#ff6600;background:rgba(255,102,0,.1);padding:3px 8px;border-radius:99px">LEVEL 2</span>
+              <span style="font-weight:700;font-size:14px">Optional Integrations</span>
+              <span style="font-size:12.5px;color:#8b98ab">enable with your own API key</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+              <sc-for list="{{intL2}}" as="g" hint-placeholder-count="8">
+                <div style="display:flex;align-items:center;gap:10px;border:1px solid #e6e9f0;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:600">
+                  {{g.name}}
+                  <div onClick="{{g.go}}" style="margin-left:auto;font-size:12px;color:#ff6600;font-weight:600;cursor:pointer;border:1.5px solid #ff6600;border-radius:7px;padding:4px 10px" style-hover="background:#ff6600;color:#ffffff">Connect</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:#0b1e3a;border-radius:12px;padding:18px;color:#fff">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#0b1e3a;background:#fff;padding:3px 8px;border-radius:99px">LEVEL 3</span>
+              <span style="font-weight:700;font-size:14px">Enterprise Cloud</span>
+              <span style="font-size:12.5px;color:rgba(255,255,255,.55)">API and cloud powered</span>
+              <div onClick="{{newThing}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">Upgrade</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{intL3}}" as="x" hint-placeholder-count="8">
+                <span style="font-size:12.5px;border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:5px 11px;color:rgba(255,255,255,.85)">{{x}}</span>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      
+    </main>
+  </div>
+  <sc-if value="{{siteMode}}" hint-placeholder-val="{{true}}">
+    <div data-screen-label="Public Website" style="position:fixed;inset:0;background:#f4f6f9;z-index:45;overflow-y:auto">
+      <div style="position:sticky;top:0;background:#ffffff;border-bottom:1px solid #e6e9f0;display:flex;align-items:center;gap:26px;padding:0 28px;height:58px;z-index:5">
+        <div onClick="{{goHomeSite}}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <div style="width:28px;height:28px;border-radius:7px;background:#ff6600;color:#fff;font-weight:700;font-size:15px;display:grid;place-items:center">N</div>
+          <div style="font-weight:700;font-size:15.5px;letter-spacing:-0.01em">Nexus</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px">
+          <sc-for list="{{siteNav}}" as="p" hint-placeholder-count="6">
+            <div onClick="{{p.go}}" style="{{p.st}}" style-hover="color:#0b1e3a">{{p.label}}</div>
+          </sc-for>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+          <div onClick="{{goSignIn}}" style="font-size:13.5px;font-weight:600;color:#5b6b83;cursor:pointer" style-hover="color:#0b1e3a">Sign In</div>
+          <div onClick="{{goSignUp}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 15px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">Sign Up</div>
+        </div>
+      </div>
+      <sc-if value="{{homeP}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Home">
+          <div style="background:#0b1e3a;color:#fff;text-align:center;padding:76px 24px 84px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#ff9a5c;border:1px solid rgba(255,154,92,.35);border-radius:99px;padding:5px 13px">WebsiteOps Platform</span>
+            <h1 style="font-size:46px;letter-spacing:-0.03em;margin:22px auto 14px;max-width:720px;line-height:1.1">Run every website<br>from one platform</h1>
+            <div style="font-size:16px;color:rgba(255,255,255,.65);max-width:560px;margin:0 auto 30px;line-height:1.55">Health, uptime, SSL, backups, updates, leads and AI — for 1 or 500 WordPress websites. Core works 100% offline.</div>
+            <div style="display:flex;gap:12px;justify-content:center">
+              <div onClick="{{goSignUp}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:14px;padding:12px 22px;border-radius:9px;cursor:pointer" style-hover="background:#e85d00">Request Early Access</div>
+              <div onClick="{{goSignIn}}" style="border:1px solid rgba(255,255,255,.3);color:#fff;font-weight:600;font-size:14px;padding:12px 22px;border-radius:9px;cursor:pointer" style-hover="background:rgba(255,255,255,.1)">Sign In</div>
+            </div>
+          </div>
+          <div style="max-width:1000px;margin:-36px auto 0;padding:0 24px 56px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+              <sc-for list="{{homeFeats}}" as="f" hint-placeholder-count="6">
+                <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:20px;box-shadow:0 4px 16px rgba(11,30,58,.05)">
+                  <div style="font-weight:700;font-size:14.5px;margin-bottom:6px">{{f.t}}</div>
+                  <div style="font-size:12.5px;color:#5b6b83;line-height:1.5">{{f.d}}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{featP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Features" style="max-width:1000px;margin:0 auto;padding:48px 24px 56px">
+          <h1 style="margin:0 0 6px;font-size:28px;letter-spacing:-0.02em;text-align:center">Everything a website needs to stay healthy</h1>
+          <div style="color:#5b6b83;font-size:14px;text-align:center;margin-bottom:32px">Level 1 features run with zero third-party dependencies</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <sc-for list="{{features9}}" as="f" hint-placeholder-count="9">
+              <div style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:20px">
+                <div style="font-weight:700;font-size:14.5px;margin-bottom:6px">{{f.t}}</div>
+                <div style="font-size:12.5px;color:#5b6b83;line-height:1.5">{{f.d}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{priceP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Pricing" style="max-width:1020px;margin:0 auto;padding:48px 24px 56px">
+          <h1 style="margin:0 0 6px;font-size:28px;letter-spacing:-0.02em;text-align:center">Pricing that follows the architecture</h1>
+          <div style="color:#5b6b83;font-size:14px;text-align:center;margin-bottom:32px">Three levels — from fully offline to Enterprise Cloud</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start">
+            <sc-for list="{{tiers}}" as="t" hint-placeholder-count="3">
+              <div style="background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px">
+                <div style="font-weight:700;font-size:15px">{{t.name}}</div>
+                <div style="font-size:26px;font-weight:700;letter-spacing:-0.02em">{{t.price}}</div>
+                <div style="font-size:12px;color:#5b6b83">{{t.sub}}</div>
+                <div onClick="{{t.go}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:10px 14px;border-radius:8px;cursor:pointer;text-align:center" style-hover="background:#e85d00">{{t.cta}}</div>
+                <div style="display:flex;flex-direction:column;gap:7px;border-top:1px solid #edf0f5;padding-top:12px">
+                  <sc-for list="{{t.items}}" as="x" hint-placeholder-count="8">
+                    <div style="display:flex;gap:8px;font-size:12.5px;color:#3c4c66"><span style="color:#0d9488;font-weight:700">✓</span>{{x}}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{docsP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Documentation" style="max-width:1000px;margin:0 auto;padding:48px 24px 56px">
+          <h1 style="margin:0 0 6px;font-size:28px;letter-spacing:-0.02em;text-align:center">Documentation</h1>
+          <div style="color:#5b6b83;font-size:14px;text-align:center;margin-bottom:32px">Everything you need to set up and run Nexus</div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+            <sc-for list="{{docsList}}" as="d" hint-placeholder-count="6">
+              <div onClick="{{d.go}}" style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:20px;cursor:pointer" style-hover="border-color:#ff6600;box-shadow:0 8px 24px rgba(255,102,0,.1)">
+                <div style="font-weight:700;font-size:14.5px;margin-bottom:6px">{{d.t}}</div>
+                <div style="font-size:12.5px;color:#5b6b83;line-height:1.5;margin-bottom:10px">{{d.d}}</div>
+                <div style="color:#ff6600;font-weight:600;font-size:12.5px">Read →</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{blogP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Blog" style="max-width:760px;margin:0 auto;padding:48px 24px 56px">
+          <h1 style="margin:0 0 6px;font-size:28px;letter-spacing:-0.02em;text-align:center">Blog</h1>
+          <div style="color:#5b6b83;font-size:14px;text-align:center;margin-bottom:32px">Product updates and multi-site operations thinking</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <sc-for list="{{blogPosts}}" as="p" hint-placeholder-count="3">
+              <div onClick="{{p.go}}" style="background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:22px;cursor:pointer" style-hover="border-color:#ff6600;box-shadow:0 8px 24px rgba(255,102,0,.1)">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ff6600;background:rgba(255,102,0,.1);padding:3px 8px;border-radius:99px">{{p.tag}}</span>
+                  <span style="font-size:12px;color:#8b98ab">{{p.date}}</span>
+                </div>
+                <div style="font-weight:700;font-size:17px;letter-spacing:-0.01em">{{p.t}}</div>
+                <div style="color:#ff6600;font-weight:600;font-size:12.5px;margin-top:10px">Read post →</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{contactP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Contact" style="max-width:860px;margin:0 auto;padding:48px 24px 56px">
+          <h1 style="margin:0 0 6px;font-size:28px;letter-spacing:-0.02em;text-align:center">Contact</h1>
+          <div style="color:#5b6b83;font-size:14px;text-align:center;margin-bottom:32px">Questions about Enterprise Cloud or early access? Write to us.</div>
+          <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:14px">
+            <div style="background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:24px">
+              <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Name</div>
+              <input placeholder="Your name" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px">
+              <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Email</div>
+              <input placeholder="you@company.com" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px">
+              <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Message</div>
+              <textarea placeholder="How can we help?" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:16px;min-height:110px;resize:vertical"></textarea>
+              <div onClick="{{sendMsg}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:14px;padding:11px;border-radius:9px;cursor:pointer;text-align:center" style-hover="background:#e85d00">Send Message</div>
+            </div>
+            <div style="background:#0b1e3a;border-radius:14px;padding:24px;color:#fff;display:flex;flex-direction:column;gap:18px">
+              <div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#ff9a5c;margin-bottom:5px">Email</div>
+                <div style="font-size:14px;font-weight:600">support@nexus.io</div>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#ff9a5c;margin-bottom:5px">Response Time</div>
+                <div style="font-size:14px;font-weight:600">Within 24 hours</div>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#ff9a5c;margin-bottom:5px">Enterprise Sales</div>
+                <div style="font-size:14px;font-weight:600">sales@nexus.io</div>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#ff9a5c;margin-bottom:5px">Office</div>
+                <div style="font-size:14px;font-weight:600;line-height:1.5">Dhaka, Bangladesh<br>UTC+6</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{signinP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Sign In" style="display:grid;place-items:center;padding:64px 24px">
+          <div style="width:380px;background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:28px;box-shadow:0 8px 32px rgba(11,30,58,.06)">
+            <h1 style="margin:0 0 4px;font-size:20px;letter-spacing:-0.02em">Sign In</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-bottom:20px">Welcome back to Nexus</div>
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Email</div>
+            <input placeholder="you@company.com" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px">
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Password</div>
+            <input type="password" placeholder="••••••••" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:18px">
+            <div onClick="{{doSignIn}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:14px;padding:11px;border-radius:9px;cursor:pointer;text-align:center" style-hover="background:#e85d00">Sign In</div>
+            <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:12.5px">
+              <div onClick="{{goForgot}}" style="color:#5b6b83;cursor:pointer;font-weight:500" style-hover="color:#0b1e3a">Forgot password?</div>
+              <div onClick="{{goSignUp}}" style="color:#ff6600;cursor:pointer;font-weight:600" style-hover="text-decoration:underline">Sign Up →</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{signupP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Sign Up" style="display:grid;place-items:center;padding:64px 24px">
+          <div style="width:380px;background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:28px;box-shadow:0 8px 32px rgba(11,30,58,.06)">
+            <h1 style="margin:0 0 4px;font-size:20px;letter-spacing:-0.02em">Create your account</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-bottom:20px">Early access — invitation-based for v1</div>
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Full Name</div>
+            <input placeholder="Your name" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px">
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Email</div>
+            <input placeholder="you@company.com" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px">
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Password</div>
+            <input type="password" placeholder="8+ characters" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:18px">
+            <div onClick="{{doSignUp}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:14px;padding:11px;border-radius:9px;cursor:pointer;text-align:center" style-hover="background:#e85d00">Request Early Access</div>
+            <div style="text-align:center;margin-top:16px;font-size:12.5px;color:#5b6b83">Already have an account? <span onClick="{{goSignIn}}" style="color:#ff6600;cursor:pointer;font-weight:600">Sign In</span></div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{forgotP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Forgot Password" style="display:grid;place-items:center;padding:64px 24px">
+          <div style="width:380px;background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:28px;box-shadow:0 8px 32px rgba(11,30,58,.06)">
+            <h1 style="margin:0 0 4px;font-size:20px;letter-spacing:-0.02em">Forgot Password</h1>
+            <div style="color:#5b6b83;font-size:13px;margin-bottom:20px">We'll email you a reset link</div>
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Email</div>
+            <input placeholder="you@company.com" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:18px">
+            <div onClick="{{sendReset}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:14px;padding:11px;border-radius:9px;cursor:pointer;text-align:center" style-hover="background:#e85d00">Send Reset Link</div>
+            <div onClick="{{goSignIn}}" style="text-align:center;margin-top:16px;font-size:12.5px;color:#5b6b83;cursor:pointer" style-hover="color:#0b1e3a">← Back to Sign In</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{onboardP}}" hint-placeholder-val="{{false}}">
+        <div data-screen-label="Onboarding" style="display:grid;place-items:center;padding:56px 24px">
+          <div style="width:560px;background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:28px;box-shadow:0 8px 32px rgba(11,30,58,.06)">
+            <div style="display:flex;gap:6px;margin-bottom:26px">
+              <sc-for list="{{obSteps}}" as="s" hint-placeholder-count="6">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+                  <div style="{{s.cst}}">{{s.num}}</div>
+                  <div style="{{s.lst}}">{{s.label}}</div>
+                </div>
+              </sc-for>
+            </div>
+            <h1 style="margin:0 0 4px;font-size:19px;letter-spacing:-0.02em">{{obTitle}}</h1>
+            <sc-if value="{{ob1}}" hint-placeholder-val="{{true}}">
+              <div style="color:#5b6b83;font-size:13px;margin-bottom:18px">We sent a 6-digit code to you@company.com</div>
+              <div style="display:flex;gap:8px;margin-bottom:22px">
+                <div style="width:44px;height:50px;border:1px solid #dbe1ea;border-radius:9px;display:grid;place-items:center;font-size:20px;font-weight:700">4</div>
+                <div style="width:44px;height:50px;border:1px solid #dbe1ea;border-radius:9px;display:grid;place-items:center;font-size:20px;font-weight:700">2</div>
+                <div style="width:44px;height:50px;border:1px solid #dbe1ea;border-radius:9px;display:grid;place-items:center;font-size:20px;font-weight:700">8</div>
+                <div style="width:44px;height:50px;border:1.5px solid #ff6600;border-radius:9px"></div>
+                <div style="width:44px;height:50px;border:1px solid #dbe1ea;border-radius:9px"></div>
+                <div style="width:44px;height:50px;border:1px solid #dbe1ea;border-radius:9px"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ob2}}" hint-placeholder-val="{{false}}">
+              <div style="color:#5b6b83;font-size:13px;margin-bottom:18px">Your company — clients and websites live inside it</div>
+              <input placeholder="ABC Dental Clinic" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:11px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:22px">
+            </sc-if>
+            <sc-if value="{{ob3}}" hint-placeholder-val="{{false}}">
+              <div style="color:#5b6b83;font-size:13px;margin-bottom:18px">A workspace groups the websites of one client</div>
+              <input placeholder="Main Workspace" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:11px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:22px">
+            </sc-if>
+            <sc-if value="{{ob4}}" hint-placeholder-val="{{false}}">
+              <div style="color:#5b6b83;font-size:13px;margin-bottom:18px">The WordPress site you want Nexus to manage</div>
+              <input placeholder="houstondental.com" style="width:100%;border:1px solid #dbe1ea;border-radius:8px;padding:11px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:22px">
+            </sc-if>
+            <sc-if value="{{ob5}}" hint-placeholder-val="{{false}}">
+              <div style="color:#5b6b83;font-size:13px;margin-bottom:18px">Install the connector plugin on your WordPress site</div>
+              <div style="background:#0b1e3a;color:#7fe3d8;font-family:ui-monospace,Menlo,monospace;font-size:13px;padding:14px 16px;border-radius:9px;margin-bottom:22px">wp plugin install nexus-connector --activate</div>
+            </sc-if>
+            <sc-if value="{{ob6}}" hint-placeholder-val="{{false}}">
+              <div style="text-align:center;padding:10px 0 24px">
+                <div style="width:56px;height:56px;border-radius:99px;background:rgba(13,148,136,.12);color:#0d9488;font-size:26px;font-weight:700;display:grid;place-items:center;margin:0 auto 12px">✓</div>
+                <div style="font-weight:700;font-size:15px;color:#0d9488">Connected</div>
+                <div style="font-size:13px;color:#5b6b83;margin-top:4px">houstondental.com is now syncing with Nexus</div>
+              </div>
+            </sc-if>
+            <div onClick="{{obNext}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:14px;padding:11px;border-radius:9px;cursor:pointer;text-align:center" style-hover="background:#e85d00">{{obBtnLabel}}</div>
+          </div>
+        </div>
+      </sc-if>
+      <div style="text-align:center;padding:26px;color:#8b98ab;font-size:12.5px;border-top:1px solid #e6e9f0">Nexus — Enterprise Website Operations Platform</div>
+    </div>
+  </sc-if>
+  <sc-if value="{{searchOpen}}" hint-placeholder-val="{{false}}">
+    <div onClick="{{closeSearch}}" style="position:fixed;inset:0;background:rgba(11,30,58,.45);z-index:50;display:flex;justify-content:center;align-items:flex-start;padding-top:110px">
+      <div onClick="{{stop}}" style="width:560px;background:#fff;border-radius:12px;box-shadow:0 24px 64px rgba(11,30,58,.35);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #edf0f5">
+          <span style="color:#ff6600;font-weight:700;font-size:15px">⌘</span>
+          <input autoFocus="{{searchOpen}}" value="{{q}}" onChange="{{setQ}}" placeholder="Search websites, modules, content — across the whole platform" style="border:none;outline:none;flex:1;font-size:14.5px;font-family:inherit;background:transparent;color:#13233c">
+          <span style="font-size:11px;color:#8b98ab;border:1px solid #e6e9f0;border-radius:4px;padding:2px 6px">ESC</span>
+        </div>
+        <div style="max-height:350px;overflow-y:auto;padding:6px">
+          <sc-for list="{{results}}" as="r" hint-placeholder-count="6">
+            <div onClick="{{r.go}}" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer" style-hover="background:#f1f4f8">
+              <span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:{{r.kc}};background:{{r.kb}};padding:3px 8px;border-radius:99px;flex:none;width:64px;text-align:center">{{r.kind}}</span>
+              <span style="font-size:13.5px;font-weight:500">{{r.name}}</span>
+              <span style="margin-left:auto;font-size:12px;color:#8b98ab">{{r.sub}}</span>
+            </div>
+          </sc-for>
+          <sc-if value="{{noResults}}" hint-placeholder-val="{{false}}">
+            <div style="padding:20px;text-align:center;color:#8b98ab;font-size:13px">No results across the platform</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{shareOpen}}" hint-placeholder-val="{{false}}">
+    <div onClick="{{closeShare}}" style="position:fixed;inset:0;background:rgba(11,30,58,.45);z-index:50;display:grid;place-items:center">
+      <div onClick="{{stop}}" style="width:500px;background:#fff;border-radius:12px;box-shadow:0 24px 64px rgba(11,30,58,.35);overflow:hidden">
+        <div style="padding:16px 18px;border-bottom:1px solid #edf0f5">
+          <div style="font-weight:700;font-size:15px">Share Report — {{siteName}} Website</div>
+          <div style="font-size:12.5px;color:#5b6b83;margin-top:2px">Anyone with the link sees the live report dashboard — no login needed</div>
+        </div>
+        <div style="padding:18px">
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <div style="flex:1;border:1px solid #dbe1ea;border-radius:8px;padding:10px 12px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace;color:#3c4c66;background:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{shareLink}}</div>
+            <div onClick="{{copyLink}}" style="background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:10px 16px;border-radius:8px;cursor:pointer;flex:none" style-hover="background:#e85d00">Copy Link</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px;font-size:13px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="color:#0d9488;font-weight:700">✓</span>Public link active · client can view without login<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0d9488;background:rgba(13,148,136,.1);padding:3px 10px;border-radius:99px">ON</span></div>
+            <div style="display:flex;align-items:center;gap:8px"><span style="color:#0d9488;font-weight:700">✓</span>Includes Leads, Chat, Analytics &amp; Monitoring reports</div>
+            <div style="display:flex;align-items:center;gap:8px"><span style="color:#0d9488;font-weight:700">✓</span>Client branding applied — logo, footer credit, contact</div>
+            <div style="display:flex;align-items:center;gap:8px"><span style="color:#0d9488;font-weight:700">✓</span>Data refreshes live · exportable as PDF, Excel, Doc, CSV</div>
+          </div>
+        </div>
+        <div style="display:flex;padding:13px 18px;border-top:1px solid #edf0f5;background:#f8fafc">
+          <div onClick="{{closeShare}}" style="margin-left:auto;font-size:13px;font-weight:600;color:#5b6b83;cursor:pointer;padding:8px 12px" style-hover="color:#13233c">Done</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{applyOpen}}" hint-placeholder-val="{{false}}">
+    <div onClick="{{closeApply}}" style="position:fixed;inset:0;background:rgba(11,30,58,.45);z-index:50;display:grid;place-items:center">
+      <div onClick="{{stop}}" style="width:480px;background:#fff;border-radius:12px;box-shadow:0 24px 64px rgba(11,30,58,.35);overflow:hidden">
+        <div style="padding:16px 18px;border-bottom:1px solid #edf0f5">
+          <div style="font-weight:700;font-size:15px">Apply "{{applyName}}"</div>
+          <div style="font-size:12.5px;color:#5b6b83;margin-top:2px">Choose the websites that should receive this template</div>
+        </div>
+        <div style="max-height:300px;overflow-y:auto;padding:6px">
+          <sc-for list="{{applyRows}}" as="w" hint-placeholder-count="6">
+            <div onClick="{{w.go}}" style="display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:7px;cursor:pointer" style-hover="background:#f1f4f8">
+              <div style="{{w.bst}}">{{w.mark}}</div>
+              <span style="font-size:13.5px;font-weight:600">{{w.name}}</span>
+              <span style="margin-left:auto;font-size:12px;color:#8b98ab">{{w.client}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:13px 18px;border-top:1px solid #edf0f5;background:#f8fafc">
+          <div onClick="{{closeApply}}" style="font-size:13px;font-weight:600;color:#5b6b83;cursor:pointer;padding:8px 12px" style-hover="color:#13233c">Cancel</div>
+          <div onClick="{{doApply}}" style="margin-left:auto;background:#ff6600;color:#fff;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px;cursor:pointer" style-hover="background:#e85d00">{{applyLabel}}</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+    <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#0b1e3a;color:#fff;font-size:13px;font-weight:500;padding:11px 18px;border-radius:9px;box-shadow:0 12px 32px rgba(11,30,58,.35);z-index:60;display:flex;align-items:center;gap:9px">
+      <span style="width:8px;height:8px;border-radius:99px;background:#0d9488;flex:none"></span>{{toast}}
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;environment&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Production&quot;,&quot;Staging&quot;],&quot;default&quot;:&quot;Production&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Context Bar&quot;},&quot;showAlerts&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Platform Dashboard&quot;}}">
+class Component extends DCLogic {
+  state={mode:'site',sitePage:'Home',obStep:1,shareOpen:false,actTab:'All',actQ:'',brandCredit:'Powered by ABC Dental Clinic',brandPhone:'+1 713 555 0142',brandEmail:'reports@abcdental.com',saGone:{},level:'platform',pNav:'Dashboard',client:'ABC Dental Clinic',site:'Houston',sNav:'Dashboard',searchOpen:false,q:'',swOpen:false,applyT:null,applySel:{},toast:''};
+  clients=[{name:'ABC Dental Clinic',sites:['Houston','Dallas','Austin']},{name:'Agency A',sites:['Website 1','Website 2','Website 3']},{name:'Restaurant Group',sites:['Restaurant 1','Restaurant 2','Restaurant 3','Restaurant 4']},{name:'Personal User',sites:['Website 1']}];
+  openSite(site,client){this.setState({level:'website',site,client:client||this.state.client,sNav:'Dashboard',swOpen:false,searchOpen:false});}
+  say(msg){clearTimeout(this._t);this.setState({toast:msg});this._t=setTimeout(()=>this.setState({toast:''}),2600);}
+  componentDidMount(){this._k=e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();this.setState({searchOpen:!this.state.searchOpen,q:''});}else if(e.key==='Escape'){this.setState({searchOpen:false,swOpen:false,applyT:null,shareOpen:false});}};window.addEventListener('keydown',this._k);}
+  componentWillUnmount(){window.removeEventListener('keydown',this._k);clearTimeout(this._t);}
+  renderVals(){
+    const S=this.state,T=this;
+    const navSt=a=>({padding:'7px 12px',borderRadius:'6px',fontSize:'13.5px',cursor:'pointer',color:a?'#fff':'rgba(255,255,255,.62)',background:a?'#ff6600':'transparent',fontWeight:a?600:500});
+    const PNAV=['Dashboard','Organizations','Clients','Websites','Billing','Licenses','Server Health','Updates','Global Templates','Marketplace','Platform Settings','Super Admin'];
+    const SNAV=['Dashboard','Forms','Popup','Buttons','Chat AI','Accessibility','Automation','Email','Insights','Languages','Integrations','Team','Settings'];
+    const isWebsite=S.level==='website';
+    const cur=this.clients.find(c=>c.name===S.client)||this.clients[0];
+    const allSites=[];this.clients.forEach(c=>c.sites.forEach(s=>allSites.push({site:s,client:c.name})));
+    const st={Houston:{leads:'480',status:'Connected'},Dallas:{leads:'312',status:'Connected'},Austin:{leads:'155',status:'Offline'}};
+    const pItems=PNAV.map(l=>({label:l,st:navSt(!isWebsite&&S.pNav===l),go:()=>T.setState({level:'platform',pNav:l})}));
+    const sItems=SNAV.map(l=>({label:l,st:navSt(S.sNav===l),go:()=>T.setState({sNav:l,swOpen:false})}));
+    const S2NAV=['Reports & Analytics','Health','Uptime','Updates','Backups','Security','Error Log','Audit Log'];
+    const s2Items=S2NAV.map(l=>({label:l,st:navSt(S.sNav===l),go:()=>T.setState({sNav:l,swOpen:false})}));
+    const crumbs=isWebsite
+      ?[{sep:'',label:S.client,go:()=>T.setState({level:'client'})},{sep:'›',label:S.site+' Website',go:()=>{}}]
+      :S.level==='client'
+      ?[{sep:'',label:'Nexus Platform',go:()=>T.setState({level:'platform',pNav:'Dashboard'})},{sep:'›',label:'Clients',go:()=>T.setState({level:'platform',pNav:'Clients'})},{sep:'›',label:S.client,go:()=>{}}]
+      :[{sep:'',label:'Nexus Platform',go:()=>T.setState({pNav:'Dashboard'})},{sep:'›',label:S.pNav,go:()=>{}}];
+    const metrics=[{v:'100',l:'Websites',c:'#13233c'},{v:'2.3M',l:'Visitors',c:'#13233c'},{v:'22,000',l:'Leads',c:'#13233c'},{v:'98.2%',l:'Uptime',c:'#0d9488'},{v:'43',l:'AI Models Active',c:'#13233c'},{v:'12',l:'SMTP Errors',c:'#d97706'},{v:'4',l:'Websites Offline',c:'#dc2626'}];
+    const wMetrics=[{v:'96 / 100',l:'Health Score',c:'#0d9488'},{v:'480',l:'Leads',c:'#13233c'},{v:'12',l:'Forms',c:'#13233c'},{v:'4',l:'Popups',c:'#13233c'},{v:'1',l:'Chatbot',c:'#13233c'},{v:'SMTP OK',l:'Email Delivery',c:'#0d9488'},{v:'92',l:'Accessibility Score',c:'#0d9488'},{v:'88',l:'Performance',c:'#d97706'},{v:'Healthy',l:'AI Health',c:'#0d9488'}];
+    const clientRows=this.clients.map(c=>({name:c.name,init:c.name[0],count:c.sites.length+(c.sites.length>1?' Websites':' Website'),go:()=>T.setState({level:'client',client:c.name,pNav:'Clients'})}));
+    const siteCards=cur.sites.map(s=>{const i=st[s]||{leads:'—',status:'Connected'};return {name:s,leads:i.leads,status:i.status,dot:i.status==='Connected'?'#0d9488':'#dc2626',go:()=>T.openSite(s)};});
+    const swItems=cur.sites.map(s=>({name:s,go:()=>T.openSite(s)}));
+    const siteRows=allSites.map(a=>{const i=st[a.site]||{leads:'—',status:'Connected'};return {name:a.site,client:a.client,leads:i.leads,status:i.status,dot:i.status==='Connected'?'#0d9488':'#dc2626',go:()=>T.openSite(a.site,a.client)};});
+    const forms=[{name:'Contact Form',meta:'8 fields · 214 submissions',status:'Active',pc:'#0d9488',pb:'rgba(13,148,136,.1)'},{name:'Newsletter Form',meta:'2 fields · 1,032 submissions',status:'Active',pc:'#0d9488',pb:'rgba(13,148,136,.1)'},{name:'Appointment Request',meta:'11 fields · 96 submissions',status:'Draft',pc:'#8b98ab',pb:'#f1f4f8'}];
+    const templates=[{name:'Welcome Popup',type:'Popup',used:'Used on 25 websites'},{name:'Newsletter Form',type:'Form',used:'Used on 41 websites'},{name:'ADA Accessibility Profile',type:'Accessibility',used:'Used on 63 websites'},{name:'Onboarding Sequence',type:'Email Automation',used:'Used on 18 websites'},{name:'Lead Capture Buttons',type:'Buttons',used:'Used on 12 websites'}].map(t=>({name:t.name,type:t.type,used:t.used,apply:()=>T.setState({applyT:t.name,applySel:{}})}));
+    const KC={Website:['#0d9488','rgba(13,148,136,.1)'],Module:['#ff6600','rgba(255,102,0,.1)'],Content:['#5b6b83','#f1f4f8']};
+    const idx=[
+      ...['Houston','Dallas','Austin'].map(s=>({kind:'Website',name:s,sub:'ABC Dental Clinic',go:()=>T.openSite(s,'ABC Dental Clinic')})),
+      ...['Popup','SMTP','Accessibility','Forms','Automation','Analytics'].map(m=>({kind:'Module',name:m,sub:'Houston Website',go:()=>{T.openSite('Houston','ABC Dental Clinic');T.setState({sNav:m==='SMTP'?'Email':(m==='Analytics'?'Reports & Analytics':m)});}})),
+      ...[['Welcome Popup','Popup · Houston'],['Newsletter Form','Forms · Houston'],['Contact Form','Forms · Houston']].map(c=>({kind:'Content',name:c[0],sub:c[1],go:()=>{T.openSite('Houston','ABC Dental Clinic');T.setState({sNav:c[0].indexOf('Popup')>-1?'Popup':'Forms'});}}))
+    ];
+    const q=S.q.trim().toLowerCase();
+    const results=(q?idx.filter(i=>(i.name+' '+i.sub).toLowerCase().indexOf(q)>-1):idx).slice(0,9).map(i=>({kind:i.kind,name:i.name,sub:i.sub,go:i.go,kc:KC[i.kind][0],kb:KC[i.kind][1]}));
+    const applyRows=allSites.map(a=>{const k=a.client+'/'+a.site,on=!!S.applySel[k];return {name:a.site,client:a.client,mark:on?'✓':'',bst:{width:'18px',height:'18px',borderRadius:'5px',border:on?'none':'1.5px solid #c3ccd9',background:on?'#ff6600':'#fff',color:'#fff',display:'grid',placeItems:'center',fontSize:'12px',fontWeight:700,flex:'none'},go:()=>{const sel=Object.assign({},T.state.applySel);sel[k]=!sel[k];T.setState({applySel:sel});}};});
+    const selCount=Object.keys(S.applySel).filter(k=>S.applySel[k]).length;
+    const sp=S.sitePage,sm=S.mode==='site';
+    const SITE=['Home','Features','Pricing','Documentation','Blog','Contact'];
+    const siteNav=SITE.map(p=>({label:p,st:{cursor:'pointer',fontSize:'13.5px',fontWeight:sp===p?700:500,color:sp===p?'#0b1e3a':'#5b6b83'},go:()=>T.setState({sitePage:p})}));
+    const OB=['Verify Email','Create Organization','Create Workspace','Add First Website','Install Connector','Connected'];
+    const obSteps=OB.map((l,i)=>{const n=i+1,done=S.obStep>n,act=S.obStep===n;return {label:l,num:done?'✓':String(n),cst:{width:'22px',height:'22px',borderRadius:'99px',display:'grid',placeItems:'center',fontSize:'11px',fontWeight:700,flex:'none',background:done?'#0d9488':(act?'#ff6600':'#edf0f5'),color:(done||act)?'#fff':'#8b98ab'},lst:{fontSize:'11px',fontWeight:act?700:500,color:act?'#0b1e3a':(done?'#0d9488':'#8b98ab')}};});
+    const checks=[{i:'✓',t:'SSL Secure',c:'#0d9488'},{i:'✓',t:'Backup OK',c:'#0d9488'},{i:'✓',t:'AI Online',c:'#0d9488'},{i:'✓',t:'SMTP Working',c:'#0d9488'},{i:'⚠',t:'2 Plugin Updates',c:'#d97706'},{i:'⚠',t:'Domain expires in 24 days',c:'#d97706'},{i:'✓',t:'Cache Enabled',c:'#0d9488'},{i:'✓',t:'Cron Working',c:'#0d9488'},{i:'✓',t:'Security OK',c:'#0d9488'}];
+    const updates=[{name:'WordPress Core',ver:'6.5.1 → 6.5.2',tag:'Core'},{name:'Yoast SEO',ver:'22.1 → 22.4',tag:'Plugin'},{name:'WP Rocket',ver:'3.15 → 3.16',tag:'Plugin'},{name:'Astra Theme',ver:'4.6 → 4.7',tag:'Theme'}].map(u=>({name:u.name,ver:u.ver,tag:u.tag,go:()=>T.say(u.name+' updated — rollback point created (prototype)')}));
+    const rules=[['SSL Expiring','Email + Telegram'],['Website Down','WhatsApp Alert'],['Backup Failed','Retry ×3'],['SMTP Failed','Retry + Alert'],['Disk 90%','Alert'],['New Admin Created','Security Alert'],['AI Offline','Switch to Backup AI']].map(r=>({when:r[0],then:r[1]}));
+    const intL1=['Website Health','SSL Monitor','Update Center','Backup Monitor','Audit Log','Error Log','Broken Links','Database Cleaner','Cron Monitor','SMTP Test','Security Monitor (Basic)','Health Score'];
+    const intL2=['Telegram','Slack','Discord','Microsoft Teams','Google Drive Backup','Dropbox','OneDrive','S3 Storage'].map(n=>({name:n,go:()=>T.say(n+' — add an API key to enable (prototype)')}));
+    const intL3=['WhatsApp Business','Google Search Console','PageSpeed','OpenAI / OpenRouter','Multi-site Central Dashboard','Remote Monitoring','Malware Intelligence','AI Analysis'];
+    const features9=[['Website Health Monitor','Green / yellow / red status for SSL, versions, disk, cron, speed and more'],['Instant Alerts','WhatsApp, Telegram, Email, Slack, Discord, Microsoft Teams'],['SSL Monitor','Auto reminders at 30 / 15 / 7 / 3 / 1 days before expiry'],['Uptime Monitor','Ping every 5 minutes — 99.98% uptime tracked'],['Update Center','WordPress, plugins, themes — update and rollback in one place'],['Backup Monitor','Last backup, destination, restore points, failures'],['Security Monitor','File changes, admin creation, login attempts, malware signatures'],['Automation Center','If SSL expiring → notify. If backup fails → retry.'],['Health Score','One number — 96/100 — for every website']].map(f=>({t:f[0],d:f[1]}));
+    const tiers=[{name:'Free',price:'$0',sub:'Level 1 — Zero Dependency · 100% offline',items:intL1,cta:'Start Free'},{name:'Pro',price:'$19/mo',sub:'Level 2 — Optional Integrations',items:['Everything in Free','Telegram','Slack','Discord','Microsoft Teams','Google Drive Backup','Dropbox','OneDrive','S3 Storage'],cta:'Request Early Access'},{name:'Enterprise Cloud',price:'Custom',sub:'Level 3 — Enterprise Cloud',items:['Everything in Pro'].concat(intL3),cta:'Contact Sales'}].map(t=>({name:t.name,price:t.price,sub:t.sub,items:t.items,cta:t.cta,go:()=>T.setState({sitePage:'SignUp'})}));
+    const PC={ok:['#0d9488','rgba(13,148,136,.1)'],warn:['#d97706','rgba(217,119,6,.12)'],bad:['#dc2626','rgba(220,38,38,.1)'],mut:['#5b6b83','#f1f4f8'],acc:['#ff6600','rgba(255,102,0,.1)']};
+    const PAGES={
+      Billing:{sub:'Invoices and subscriptions across all clients',act:'+ New Invoice',stats:[['$4,280','MRR'],['27','Active Subscriptions'],['2','Overdue','#dc2626'],['Aug 1','Next Payout']],rows:[['ABC Dental Clinic','$99/mo · Invoice #1042 · Jul 2026','Paid','ok'],['Agency A','$199/mo · Invoice #1041 · Jul 2026','Paid','ok'],['Restaurant Group','$299/mo · Invoice #1039 · Jun 2026','Overdue','bad'],['Personal User','$19/mo · Invoice #1038 · Jul 2026','Paid','ok']]},
+      Licenses:{sub:'License keys, activations and domains',act:'+ Issue License',stats:[['27','Active Licenses'],['3','Expiring Soon','#d97706'],['100','Activated Domains'],['2','Deactivated','#5b6b83']],rows:[['NX-8842-ABCD','ABC Dental Clinic · 3 domains · renews Sep 2026','Active','ok'],['NX-7731-QRTX','Agency A · 3 domains · renews Aug 2026','Active','ok'],['NX-6690-PLMN','Restaurant Group · 4 domains · expires in 12 days','Expiring','warn'],['NX-5521-ZXCV','Personal User · 1 domain','Active','ok']]},
+      'Server Health':{sub:'Infrastructure running all connected websites',act:'Run Diagnostics',stats:[['34%','Avg CPU'],['61%','Memory'],['72%','Disk','#d97706'],['OK','Load','#0d9488']],rows:[['US-East-1','42 websites · 182ms avg response','Healthy','ok'],['EU-West-1','31 websites · 214ms avg response','Healthy','ok'],['Asia-South-1','27 websites · CPU 82% for 20 min','High CPU','warn'],['Backup Node','Standby · last sync 4 min ago','Standby','mut']]},
+      Updates:{sub:'Pending updates across all 100 websites',act:'Update All Websites',stats:[['38','Updates Available','#d97706'],['12','Auto-updated Today','#0d9488'],['4','Rollbacks Ready'],['96','Websites Up to Date','#0d9488']],rows:[['WordPress 6.5.2','14 websites pending · security release','Pending','warn'],['Yoast SEO 22.4','22 websites pending','Pending','warn'],['WP Rocket 3.16','8 websites · scheduled tonight 02:00','Scheduled','mut'],['Astra Theme 4.7','6 websites pending','Pending','warn']]},
+      Marketplace:{sub:'Templates, add-ons and integrations from the community',act:'Submit to Marketplace',stats:[['128','Items'],['12','Installed'],['4.8','Avg Rating','#0d9488'],['6','New This Week','#ff6600']],rows:[['Dental Clinic Starter Kit','Template Pack · forms, popups, automations','Free','ok'],['Advanced Heatmap','Add-on · visitor click maps','$29','acc'],['WhatsApp Alerts Pack','Integration · instant alerts channel','$19','acc'],['Restaurant Menu Forms','Template Pack · 8 ready forms','$9','acc']]},
+      'Platform Settings':{sub:'Company-wide configuration',act:'Save Changes',stats:[],rows:[['Company Profile','Nexus Digital Agency · nexus.io','Configured','ok'],['Default Timezone','UTC+6 (Dhaka) · applies to reports and cron','Set','ok'],['White Label','Client portal logo and brand colors','Enabled','ok'],['2FA Enforcement','Required for all team members','Enabled','ok'],['API Access','3 active keys · last used 2h ago','Manage','acc']]},
+      Popup:{sub:'Popups shown on this website only',act:'+ New Popup',stats:[['4','Popups'],['18,204','Views'],['1,214','Conversions','#0d9488'],['6.7%','Conversion Rate','#0d9488']],rows:[['Welcome Popup','Exit intent · 8,412 views · 612 conversions','Active','ok'],['Summer Offer','Timed 5s · 6,010 views · 402 conversions','Active','ok'],['Newsletter Popup','Scroll 50% · 3,782 views · 200 conversions','Paused','mut'],['Holiday Notice','All pages · not yet published','Draft','mut']]},
+      Buttons:{sub:'Floating and CTA buttons',act:'+ New Button',stats:[['6','Buttons'],['4,102','Clicks'],['312','Calls Started','#0d9488'],['218','Chats Opened','#0d9488']],rows:[['Call Now','Floating bottom-left · 1,842 clicks','Active','ok'],['WhatsApp Chat','Floating bottom-right · 1,260 clicks','Active','ok'],['Book Appointment','Header CTA · 1,000 clicks','Active','ok'],['Get Directions','Footer · 0 clicks','Paused','mut']]},
+      'Chat AI':{sub:'AI chatbot for this website',act:'Train Bot',stats:[['3,214','Conversations'],['78%','Resolved by AI','#0d9488'],['412','Leads Captured','#0d9488'],['1.2s','Avg Latency']],rows:[['Dental Assistant Bot','GPT-4o · trained on 42 pages · updated 2d ago','Online','ok'],['Backup Model','Claude · switches automatically if primary fails','Standby','mut'],['Human Handoff','Office hours 9:00–18:00 · 3 agents','Enabled','ok'],['Token Usage','48,210 tokens today · $1.82','Within Budget','ok']]},
+      Accessibility:{sub:'Compliance and accessibility profile',act:'Run Scan',stats:[['92','Score','#0d9488'],['AA','WCAG 2.1'],['3','Open Issues','#d97706'],['ADA','Profile Applied']],rows:[['Contrast Checker','2 low-contrast elements on /pricing','Warning','warn'],['Alt Text','All 214 images covered','Pass','ok'],['Keyboard Navigation','Full support · skip links present','Pass','ok'],['Screen Reader Profile','ADA + WCAG corporate profile','Active','ok']]},
+      Email:{sub:'SMTP, notifications and delivery',act:'Send Test Email',stats:[['OK','SMTP Status','#0d9488'],['98.6%','Delivery Rate','#0d9488'],['1,204','Sent · 30 days'],['3','Failed','#dc2626']],rows:[['SMTP Connection','smtp.postmark.com · TLS · port 587','Connected','ok'],['Lead Notification','Sends to 2 recipients instantly','Active','ok'],['Welcome Email','Auto-sends to new leads','Active','ok'],['Failed Queue','3 emails · timeout · auto-retry in 10 min','Retrying','warn']]},
+      Analytics:{sub:'Traffic and conversions for this website',act:'Export Report',stats:[['24,812','Visitors · This Month'],['480','Leads','#0d9488'],['1.9%','Conversion Rate'],['42s','Avg Time on Page']],rows:[['/ (Home)','9,214 views · 118 leads','Top Page','acc'],['/services','4,182 views · 86 leads','Rising','ok'],['/contact','2,914 views · 214 leads','Best CVR','ok'],['/blog/teeth-whitening','1,842 views · organic search','New','mut']]},
+      Insights:{sub:'AI-detected opportunities for this website',act:'Refresh Insights',stats:[['4','New Insights','#ff6600'],['2','Suggested Actions'],['+12%','Leads vs Last Month','#0d9488'],['3','Applied This Month']],rows:[['Contact Form converts 2.4× better on mobile','Consider a mobile-first popup variant','Suggestion','acc'],['Welcome Popup fatigue after 3 views','Cap frequency at 2 views per visitor','Fix Available','warn'],['Tuesday 10:00 is your peak lead hour','Schedule campaigns around this window','Insight','mut'],['Chatbot resolves 78% without handoff','Extend bot to /pricing page','Insight','mut']]},
+      Languages:{sub:'Translations for this website',act:'+ Add Language',stats:[['3','Languages'],['On','Auto-detect','#0d9488'],['214','Pages Translated'],['86%','Coverage']],rows:[['English','Default language','Active','ok'],['Spanish','214 pages · reviewed','Active','ok'],['Bengali','86% translated · 12 pages remaining','In Progress','warn']]},
+      Team:{sub:'People with access to this website',act:'+ Invite Member',stats:[['5','Members'],['3','Roles'],['2FA','Enforced','#0d9488'],['1','Pending Invite','#d97706']],rows:[['Sarah Khan','sarah@abcdental.com · Owner','Owner','acc'],['James Lee','james@nexus.io · full access','Admin','ok'],['Maria Gomez','maria@nexus.io · content only','Editor','ok'],['alex@nexus.io','Invited 2 days ago','Pending','warn']]},
+      Settings:{sub:'Configuration for this website',act:'Save Changes',stats:[],rows:[['Site URL','houstondental.com · SSL active','Connected','ok'],['Environment','Production · protected from test changes','Locked','mut'],['Connector Plugin','v2.4.1 · auto-updates on','Up to Date','ok'],['Cache & CDN','Brotli + GZIP · edge cache enabled','Active','ok'],['Danger Zone','Disconnect this website from Nexus','Caution','bad']]},
+      Uptime:{sub:'Pinged every 5 minutes from 3 regions',act:'Pause Monitoring',stats:[['99.98%','Uptime · 30 days','#0d9488'],['2','Incidents'],['4m','Total Downtime'],['182ms','Avg Response']],rows:[['Jul 14 — 3 min down','Server restart during update window','Resolved','ok'],['Jul 02 — 1 min down','DNS propagation delay','Resolved','ok'],['US-East probe','182ms · last check 40s ago','OK','ok'],['EU-West probe','214ms · last check 40s ago','OK','ok']]},
+      Backups:{sub:'Automatic daily backups to Google Drive',act:'Backup Now',stats:[['2h ago','Last Backup','#0d9488'],['30','Restore Points'],['4.2 GB','Backup Size'],['Drive','Destination']],rows:[['Jul 17 · 04:00','Full backup · 4.2 GB · Google Drive','Success','ok'],['Jul 16 · 04:00','Full backup · 4.1 GB','Success','ok'],['Jul 15 · 04:00','Failed — storage timeout · auto-retried 04:20','Recovered','warn'],['Jul 14 · 04:00','Full backup · 4.1 GB','Success','ok']]},
+      Security:{sub:'Monitoring files, logins and malware',act:'Run Scan',stats:[['OK','Security Status','#0d9488'],['0','Malware Found','#0d9488'],['14','Blocked Logins','#d97706'],['On','Firewall','#0d9488']],rows:[['Malware Scan','Last run 3h ago · 8,412 files checked','Clean','ok'],['Login Attempts','14 blocked this week · 2 IPs banned','Monitored','warn'],['File Changes','wp-config.php and core unchanged','OK','ok'],['Admin Accounts','2 admins · no new accounts created','OK','ok'],['XMLRPC','Disabled to prevent abuse','Protected','ok']]},
+      'Error Log':{sub:'PHP, database and API errors in one place',act:'Clear Log',stats:[['2','Fatal Errors','#dc2626'],['14','Warnings','#d97706'],['31','Notices'],['1','DB Errors','#dc2626']],rows:[['PHP Fatal Error','Allowed memory exhausted · functions.php:214','2h ago','bad'],['PHP Warning','Deprecated function in old-plugin.php','5h ago','warn'],['Database Error','Slow query 4.2s on wp_postmeta','Yesterday','bad'],['SMTP Error','Connection timeout · auto-retried','Jul 14','warn']]},
+      'Audit Log':{sub:'Every action on this website, logged',act:'Export Log',stats:[['214','Events · 30 days'],['5','Users'],['0','Suspicious','#0d9488'],['90d','Retention']],rows:[['Sarah Khan logged in','Chrome · Houston, US','09:14','mut'],['James Lee updated Welcome Popup','Changed trigger to exit intent','08:52','mut'],['Sarah Khan changed AI model','GPT-4o set as primary','Yesterday','mut'],['System auto-updated Yoast SEO','22.1 → 22.4 · rollback point created','Yesterday','ok'],['Maria Gomez restored backup','Restore point Jul 14 04:00','Jul 15','warn']]}
+    };
+    const gpKey=isWebsite?S.sNav:S.pNav;
+    const gp=PAGES[gpKey];
+    const gpStats=gp?gp.stats.map(s=>({v:s[0],l:s[1],c:s[2]||'#13233c'})):[];
+    const gpRows=gp?gp.rows.map(r=>({a:r[0],b:r[1],pill:r[2],pc:PC[r[3]][0],pb:PC[r[3]][1],go:()=>T.say(r[0]+' — details (prototype)')})):[];
+    const gpSub=(isWebsite?S.site+' Website · ':'')+(gp?gp.sub:'');
+    const pOtherV=!isWebsite&&S.level==='platform'&&['Dashboard','Organizations','Clients','Websites','Global Templates','Super Admin'].indexOf(S.pNav)<0;
+    const wOtherV=isWebsite&&['Dashboard','Forms','Health','Updates','Automation','Integrations','Reports & Analytics'].indexOf(S.sNav)<0;
+    const an=PAGES['Analytics'];
+    const anStats=an.stats.map(s=>({v:s[0],l:s[1],c:s[2]||'#13233c'}));
+    const anRows=an.rows.map(r=>({a:r[0],b:r[1],pill:r[2],pc:PC[r[3]][0],pb:PC[r[3]][1]}));
+    const reportCards=[['Leads Report','480 leads · sources, forms, conversion timeline'],['Chat Report','3,214 conversations · 78% AI-resolved · full transcripts'],['Website Analytics','24,812 visitors · pages, devices, referrers'],['Monitoring Report','Uptime 99.98% · SSL, backups, security events']].map(c=>({t:c[0],d:c[1]}));
+    const exportsList=['PDF','Excel','Doc','CSV'].map(f=>({f:f,go:()=>T.say('Report exported as '+f+' (prototype)')}));
+    const shareLink='https://reports.nexus.io/r/'+S.site.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-4f8a2c';
+    const saTC={Organization:['#ff6600','rgba(255,102,0,.1)'],Client:['#0d9488','rgba(13,148,136,.1)'],Website:['#5b6b83','#f1f4f8']};
+    const saRows=[['Organization','Nexus Digital Agency','4 clients · 11 websites'],['Organization','Sunrise Media','2 clients · 5 websites'],['Client','ABC Dental Clinic','3 websites · $99/mo'],['Client','Restaurant Group','4 websites · $299/mo'],['Website','Houston','ABC Dental Clinic · Production'],['Website','Austin','ABC Dental Clinic · Offline']].filter(r=>!S.saGone[r[1]]).map(r=>({type:r[0],name:r[1],meta:r[2],tc:saTC[r[0]][0],tb:saTC[r[0]][1],edit:()=>T.say('Editing '+r[1]+' as Super Admin (prototype)'),cancel:()=>T.say('Service cancelled for '+r[1]+' (prototype)'),del:()=>{const g=Object.assign({},T.state.saGone);g[r[1]]=1;T.setState({saGone:g});T.say(r[1]+' deleted by Super Admin');}}));
+    const saActivity=[['Sarah Khan','Logged in to Houston workspace','2 min ago'],['James Lee','Exported Leads Report (PDF)','18 min ago'],['Restaurant Group','Changed SMTP settings','1h ago'],['Maria Gomez','Created popup on Dallas','3h ago']].map(a=>({who:a[0],what:a[1],when:a[2],block:()=>T.say('Access revoked for '+a[0]+' (prototype)')}));
+    const actTabs=[['All','125'],['Buttons','62'],['Forms','10'],['Chat','53']].map(t=>({tx:t[0]+' · '+t[1],st:{cursor:'pointer',fontSize:'13px',fontWeight:S.actTab===t[0]?700:500,color:S.actTab===t[0]?'#ff6600':'#5b6b83',borderBottom:S.actTab===t[0]?'2px solid #ff6600':'2px solid transparent',padding:'6px 2px'},go:()=>T.setState({actTab:t[0]})}));
+    const actAll=[['Book Appointment','.nx-track-book','Button','/pricing','Appointment booking CTA','103.120.44.18','Jul 17, 09:42','Lead','ok'],['Call Now','.nx-track-call','Button','/ (Home)','Start phone call','172.68.10.92','Jul 17, 09:31','Call','ok'],['WhatsApp Chat','.nx-track-wa','Button','/services','Open WhatsApp chat','45.114.85.6','Jul 17, 08:58','Chat','ok'],['Contact Form','.nx-form-contact','Form','/contact','New patient inquiry','103.120.44.18','Jul 17, 08:44','Sent','ok'],['ai_lead','.nx-chat-lead','Chat','/ (Home)','Lead captured by chatbot','66.249.72.14','Jul 16, 17:23','No Email','mut'],['Grocery Shop','.nx-track-link','Button','/blog/offers','Clicked outbound link','118.179.40.201','Jul 16, 17:16','Sent','ok'],['Newsletter Form','.nx-form-news','Form','/blog','Newsletter signup','92.40.100.77','Jul 16, 16:02','Sent','ok'],['Get Directions','.nx-track-map','Button','/contact','Open Google Maps','103.67.158.3','Jul 16, 15:47','Ignored','warn']].map(r=>({btn:r[0],cls:r[1],type:r[2],page:r[3],purpose:r[4],ip:r[5],time:r[6],pill:r[7],pc:PC[r[8]][0],pb:PC[r[8]][1]}));
+    const tmap={Buttons:'Button',Forms:'Form',Chat:'Chat'};
+    const aq=S.actQ.trim().toLowerCase();
+    const actRows=actAll.filter(r=>(S.actTab==='All'||r.type===tmap[S.actTab])&&(!aq||(r.btn+' '+r.cls+' '+r.page+' '+r.purpose+' '+r.ip).toLowerCase().indexOf(aq)>-1));
+    const actBars=[38,26,18,6,22,30,8,34,10,64,42,28].map(h=>({st:{flex:1,height:h+'%',background:h===64?'#ff6600':'#b9c7dd',borderRadius:'4px 4px 0 0',minHeight:'3px'}}));
+    const actTypes=[['Button Clicks','62','#ff6600','100%'],['Consultations','53','#0d9488','85%'],['Forms','10','#0b1e3a','16%']].map(t=>({label:t[0],n:t[1],dot:{width:'8px',height:'8px',borderRadius:'99px',background:t[2],flex:'none'},bar:{width:t[3],height:'100%',background:t[2]}}));
+    const docsList=[['Getting Started','Install, connect and see your first health score in 10 minutes'],['Install the Connector Plugin','One plugin — zero third-party dependencies'],['Health Score Explained','How the 100-point score is calculated'],['Automation Rules','If SSL expiring → notify. Build your own rules'],['Global Templates','Build once, apply to 25 websites in one click'],['API Reference','REST endpoints for websites, leads and alerts']].map(d=>({t:d[0],d:d[1],go:()=>T.say(d[0]+' — docs article (prototype)')}));
+    const blogPosts=[['Why Website Context is everything in multi-site platforms','Product','Jul 12, 2026'],['Introducing the Website Health Score','Release','Jun 28, 2026'],['From Lead Suite to WebsiteOps — the Nexus roadmap','Company','Jun 10, 2026']].map(p=>({t:p[0],tag:p[1],date:p[2],go:()=>T.say(p[0]+' (prototype)')}));
+    const obBtnLabel=['Verify Email','Create Organization','Create Workspace','Add Website',"I've Installed It",'Go to Dashboard →'][S.obStep-1];
+    return {
+      siteMode:sm,homeP:sm&&sp==='Home',featP:sm&&sp==='Features',priceP:sm&&sp==='Pricing',sitePlain:sm&&['Documentation','Blog','Contact'].indexOf(sp)>-1,
+      signinP:sm&&sp==='SignIn',signupP:sm&&sp==='SignUp',forgotP:sm&&sp==='Forgot',onboardP:sm&&sp==='Onboard',
+      ob1:S.obStep===1,ob2:S.obStep===2,ob3:S.obStep===3,ob4:S.obStep===4,ob5:S.obStep===5,ob6:S.obStep===6,
+      siteNav,obSteps,obTitle:OB[S.obStep-1],obBtnLabel,checks,updates,rules,intL1,intL2,intL3,s2Items,features9,homeFeats:features9.slice(0,6),tiers,sitePageName:sp,
+      goHomeSite:()=>T.setState({sitePage:'Home'}),goSignIn:()=>T.setState({sitePage:'SignIn'}),goSignUp:()=>T.setState({sitePage:'SignUp'}),goForgot:()=>T.setState({sitePage:'Forgot'}),
+      doSignIn:()=>T.setState({mode:'app'}),doSignUp:()=>T.setState({sitePage:'Onboard',obStep:1}),
+      obNext:()=>{if(S.obStep>=6){T.setState({mode:'app',level:'platform',pNav:'Dashboard'});}else{T.setState({obStep:S.obStep+1});}},
+      sendReset:()=>T.say('Password reset link sent (prototype)'),renew:()=>T.say('SSL renewal started (prototype)'),
+      signOut:()=>T.setState({mode:'site',sitePage:'Home'}),
+
+      isWebsite,showPlatSide:!isWebsite,crumbs,pItems,sItems,swItems,siteCards,clientRows,siteRows,metrics,wMetrics,forms,templates,results,applyRows,
+      clientName:S.client,clientInit:S.client[0],siteName:S.site,siteCount:String(cur.sites.length),moduleName:S.sNav,pageName:S.pNav,q:S.q,toast:S.toast,hasToast:!!S.toast,
+      swOpen:S.swOpen,searchOpen:S.searchOpen,noResults:results.length===0,
+      applyOpen:!!S.applyT,applyName:S.applyT||'',applyLabel:selCount>0?('Apply to '+selCount+(selCount>1?' Websites':' Website')):'Select websites',
+      isProd:(this.props.environment??'Production')==='Production',isStaging:(this.props.environment??'Production')==='Staging',showAlerts:this.props.showAlerts??true,
+      pDash:!isWebsite&&S.level==='platform'&&S.pNav==='Dashboard',
+      clientWs:!isWebsite&&S.level==='client',
+      pClients:!isWebsite&&S.level==='platform'&&S.pNav==='Clients',
+      pWebsites:!isWebsite&&S.level==='platform'&&S.pNav==='Websites',
+      pTemplates:!isWebsite&&S.level==='platform'&&S.pNav==='Global Templates',
+      pOrgs:!isWebsite&&S.level==='platform'&&S.pNav==='Organizations',
+      orgs:[{name:'Nexus Digital Agency',init:'N',meta:'4 Clients · 11 Websites',plan:'Enterprise',pc:'#ff6600',pb:'rgba(255,102,0,.1)',go:()=>T.setState({level:'platform',pNav:'Clients'})},{name:'Sunrise Media',init:'S',meta:'2 Clients · 5 Websites',plan:'Pro',pc:'#0d9488',pb:'rgba(13,148,136,.1)',go:()=>T.say('Switch organization (prototype)')},{name:'Delta Ventures',init:'D',meta:'1 Client · 2 Websites',plan:'Free',pc:'#5b6b83',pb:'#f1f4f8',go:()=>T.say('Switch organization (prototype)')}],
+      pOther:pOtherV,
+      wDash:isWebsite&&S.sNav==='Dashboard',wForms:isWebsite&&S.sNav==='Forms',
+      wHealth:isWebsite&&S.sNav==='Health',wUpdates:isWebsite&&S.sNav==='Updates',wAuto:isWebsite&&S.sNav==='Automation',wInteg:isWebsite&&S.sNav==='Integrations',
+      wOther:wOtherV,gpShow:(pOtherV||wOtherV)&&!!gp,gpTitle:gpKey,gpSub,gpAct:gp?gp.act:'',gpStats,gpRows,gpHasStats:gpStats.length>0,
+      docsP:sm&&sp==='Documentation',blogP:sm&&sp==='Blog',contactP:sm&&sp==='Contact',docsList,blogPosts,
+      sendMsg:()=>T.say('Message sent — we reply within 24 hours (prototype)'),
+      wReports:isWebsite&&S.sNav==='Reports & Analytics',anStats,anRows,pSuper:!isWebsite&&S.level==='platform'&&S.pNav==='Super Admin',
+      reportCards,exportsList,shareLink,saRows,saActivity,shareOpen:S.shareOpen,
+      brandCredit:S.brandCredit,brandPhone:S.brandPhone,brandEmail:S.brandEmail,
+      setCredit:e=>T.setState({brandCredit:e.target.value}),setPhone:e=>T.setState({brandPhone:e.target.value}),setEmail:e=>T.setState({brandEmail:e.target.value}),
+      saveBrand:()=>T.say('Branding updated — applies to all shared reports'),
+      clearBrand:()=>{T.setState({brandCredit:'',brandPhone:'',brandEmail:''});T.say('Branding removed from shared reports');},
+      uploadLogo:()=>T.say('Upload logo (prototype)'),
+      openShare:()=>T.setState({shareOpen:true}),closeShare:()=>T.setState({shareOpen:false}),
+      copyLink:()=>{try{navigator.clipboard.writeText(shareLink);}catch(e){}T.say('Link copied — client can view without login');},
+      goReports:()=>T.setState({sNav:'Reports & Analytics'}),
+      actTabs,actRows,actBars,actTypes,actQ:S.actQ,setActQ:e=>T.setState({actQ:e.target.value}),actNone:actRows.length===0,
+      goHome:()=>T.setState({level:'platform',pNav:'Dashboard'}),
+      backToClient:()=>T.setState({level:'client',swOpen:false}),
+      toggleSw:()=>T.setState({swOpen:!S.swOpen}),
+      openSearch:()=>T.setState({searchOpen:true,q:''}),
+      closeSearch:()=>T.setState({searchOpen:false}),
+      setQ:e=>T.setState({q:e.target.value}),
+      stop:e=>e.stopPropagation(),
+      newSite:()=>T.say('New Website — connect a domain to get started (prototype)'),
+      goClients:()=>T.setState({level:'platform',pNav:'Clients'}),
+      goWebsites:()=>T.setState({level:'platform',pNav:'Websites'}),
+      goTemplates:()=>T.setState({level:'platform',pNav:'Global Templates'}),
+      closeApply:()=>T.setState({applyT:null}),
+      doApply:()=>{if(selCount<1)return;const n=selCount,name=S.applyT;T.setState({applyT:null,applySel:{}});T.say('"'+name+'" applied to '+n+(n>1?' websites':' website'));},
+      newThing:()=>T.say('Create flow (prototype)')
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -56,7 +56,7 @@ function subscription(opts: {
           // Current API versions carry the period on the item, not the
           // subscription — reading the old path yields undefined silently.
           current_period_end: opts.periodEnd ?? Math.floor(Date.now() / 1000) + 30 * 86400,
-          price: { id: opts.priceId ?? process.env.STRIPE_PRICE_PRO ?? "price_pro_test" },
+          price: { id: opts.priceId ?? process.env.STRIPE_PRICE_PROFESSIONAL ?? "price_professional_test" },
         },
       ],
     },
@@ -107,7 +107,7 @@ async function main() {
     "../src/lib/billing/stripe"
   );
 
-  process.env.STRIPE_PRICE_PRO ??= "price_pro_test";
+  process.env.STRIPE_PRICE_PROFESSIONAL ??= "price_professional_test";
   process.env.STRIPE_PRICE_AGENCY ??= "price_agency_test";
 
   const agencyId = crypto.randomUUID();
@@ -119,7 +119,7 @@ async function main() {
       id: agencyId,
       name: "Billing Test",
       slug: `billing-${randomBytes(4).toString("hex")}`,
-      plan: "free",
+      plan: "starter",
       status: "trialing",
     });
   });
@@ -141,7 +141,7 @@ async function main() {
   console.log("Field mapping");
   const sub = subscription({ customerId });
   check("reads the period from the subscription item", periodEndOf(sub as never) !== null);
-  check("maps the configured price to a plan", planForPrice("price_pro_test") === "pro");
+  check("maps the configured price to a plan", planForPrice("price_professional_test") === "professional");
   check("leaves an unknown price unmapped", planForPrice("price_mystery") === null);
   check("past_due keeps access rather than cutting it off", statusForSubscription("past_due" as never) === "past_due");
   check("incomplete counts as cancelled", statusForSubscription("incomplete" as never) === "canceled");
@@ -149,7 +149,7 @@ async function main() {
   console.log("\nBefore the customer is linked");
   const orphan = await syncSubscription(subscription({ customerId }) as never, new Date());
   check("an unknown customer is not applied", !orphan.applied, JSON.stringify(orphan));
-  check("and the plan is untouched", (await readAgency()).plan === "free");
+  check("and the plan is untouched", (await readAgency()).plan === "starter");
 
   console.log("\nUpgrade");
   await linkCustomer(agencyId, customerId);
@@ -157,7 +157,7 @@ async function main() {
   check("applies once the customer is linked", upgraded.applied, JSON.stringify(upgraded));
 
   const afterUpgrade = await readAgency();
-  check("the plan becomes pro", afterUpgrade.plan === "pro", afterUpgrade.plan);
+  check("the plan becomes professional", afterUpgrade.plan === "professional", afterUpgrade.plan);
   check("the status becomes active", afterUpgrade.status === "active", afterUpgrade.status);
   check("the renewal date is stored", Boolean(afterUpgrade.periodEnd));
 
@@ -168,7 +168,7 @@ async function main() {
     stale,
   );
   check("an older event is discarded", !late.applied, JSON.stringify(late));
-  check("so the newer plan survives", (await readAgency()).plan === "pro");
+  check("so the newer plan survives", (await readAgency()).plan === "professional");
 
   console.log("\nUnrecognised price");
   await syncSubscription(
@@ -177,7 +177,7 @@ async function main() {
   );
   check(
     "a price we do not know does not downgrade a payer",
-    (await readAgency()).plan === "pro",
+    (await readAgency()).plan === "professional",
     (await readAgency()).plan,
   );
 
@@ -188,14 +188,14 @@ async function main() {
   );
   const cancelling = await readAgency();
   check("cancel-at-period-end is recorded", cancelling.cancelling === true);
-  check("but access continues until the period ends", cancelling.plan === "pro");
+  check("but access continues until the period ends", cancelling.plan === "professional");
 
   await syncSubscription(
     subscription({ customerId, status: "canceled" }) as never,
     new Date(),
   );
   const cancelled = await readAgency();
-  check("a cancelled subscription drops to free", cancelled.plan === "free", cancelled.plan);
+  check("a cancelled subscription drops to starter", cancelled.plan === "starter", cancelled.plan);
   check("and the status is canceled", cancelled.status === "canceled", cancelled.status);
 
   console.log("\nWebhook signature");
@@ -231,7 +231,7 @@ async function main() {
       id: otherId,
       name: "Other",
       slug: `other-${randomBytes(4).toString("hex")}`,
-      plan: "free",
+      plan: "starter",
     });
   });
 
@@ -239,7 +239,7 @@ async function main() {
   const other = await withAgency(otherId, (tx) =>
     tx.select({ plan: agencies.plan }).from(agencies).where(eq(agencies.id, otherId)),
   );
-  check("does not upgrade an unrelated agency", other[0].plan === "free", other[0].plan);
+  check("does not upgrade an unrelated agency", other[0].plan === "starter", other[0].plan);
 
   await db.delete(billingEvents).where(eq(billingEvents.stripeEventId, event.id as string));
   await withAgency(agencyId, (tx) => tx.delete(agencies).where(eq(agencies.id, agencyId)));

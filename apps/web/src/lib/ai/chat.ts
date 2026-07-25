@@ -1,32 +1,34 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { withAgency } from "@/lib/db";
-import { agencies, aiUsageDaily, conversations, messages } from "@/lib/db/schema";
+import {
+  agencies,
+  aiUsageDaily,
+  conversations,
+  messages,
+  textToBlocks,
+  type CepAiConfig,
+  type CepChatBlock,
+} from "@/lib/db/schema";
 import { limitsFor } from "@/lib/plans";
 import { retrieve, type Retrieved } from "./index-site";
+import { completeChat, configuredAiProviders } from "./router";
 
-const MODEL = "claude-sonnet-5";
-const MAX_TOKENS = 800;
 const HISTORY_TURNS = 10;
 
-let client: Anthropic | null = null;
-function anthropic(): Anthropic | null {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return null;
-  client ??= new Anthropic({ apiKey: key });
-  return client;
-}
-
 export type AnswerResult =
-  | { ok: true; reply: string; capturedEmail: boolean }
+  | {
+      ok: true;
+      reply: string;
+      blocks: CepChatBlock[];
+      model: string;
+      provider: string;
+      capturedEmail: boolean;
+    }
   | { ok: false; error: string; status: number };
 
 /**
- * Answer a visitor's question from the client's own site content.
- *
- * `claude-sonnet-5` rather than Opus: this runs once per visitor message on a
- * public widget, so cost scales with traffic rather than with usage of the app.
- * Sonnet is the right tier for grounded question-answering over retrieved text.
+ * Answer a visitor's question from the client's own site content (ADR-011).
+ * Routes through OpenRouter by default with Anthropic fallback.
  */
 export async function answerVisitor(opts: {
   agencyId: string;
@@ -35,9 +37,10 @@ export async function answerVisitor(opts: {
   conversationId: string;
   clientName: string;
   question: string;
+  ai?: CepAiConfig | null;
+  systemPromptOverride?: string | null;
 }): Promise<AnswerResult> {
-  const claude = anthropic();
-  if (!claude) {
+  if (configuredAiProviders().length === 0) {
     return { ok: false, error: "AI chat is not configured.", status: 503 };
   }
 
@@ -57,48 +60,45 @@ export async function answerVisitor(opts: {
       .limit(HISTORY_TURNS * 2),
   );
 
-  const system = buildSystemPrompt(opts.clientName, passages);
+  const baseSystem = buildSystemPrompt(opts.clientName, passages);
+  const system = opts.systemPromptOverride?.trim()
+    ? `${opts.systemPromptOverride.trim()}\n\n${baseSystem}`
+    : baseSystem;
 
-  try {
-    const response = await claude.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      // The site content is identical across every visitor on this website, so
-      // caching it turns the largest part of each request into a cache read at
-      // roughly a tenth of the input price. On a per-visitor-message product
-      // this is the difference between a viable free tier and an unpayable bill
-      // (ADR-004).
-      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-      messages: [
-        ...history.map((m) => ({
-          role: m.author === "visitor" ? ("user" as const) : ("assistant" as const),
-          content: m.body,
-        })),
-        { role: "user" as const, content: opts.question },
-      ],
-    });
+  const result = await completeChat({
+    system,
+    ai: opts.ai,
+    messages: [
+      ...history.map((m) => ({
+        role:
+          m.author === "visitor"
+            ? ("user" as const)
+            : ("assistant" as const),
+        content: m.body,
+      })),
+      { role: "user", content: opts.question },
+    ],
+  });
 
-    const reply = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("")
-      .trim();
-
-    await recordUsage(opts.agencyId, {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-      cachedInputTokens: response.usage.cache_read_input_tokens ?? 0,
-    });
-
-    if (!reply) {
-      return { ok: false, error: "The assistant had no answer.", status: 502 };
-    }
-
-    return { ok: true, reply, capturedEmail: false };
-  } catch (e) {
-    console.error("answerVisitor failed", e);
-    return { ok: false, error: "The assistant is unavailable right now.", status: 502 };
+  if (!result.ok) {
+    return { ok: false, error: result.error, status: result.status };
   }
+
+  await recordUsage(opts.agencyId, result.model, {
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    cachedInputTokens: result.cachedInputTokens,
+  });
+
+  const blocks = textToBlocks(result.text);
+  return {
+    ok: true,
+    reply: result.text,
+    blocks,
+    model: result.model,
+    provider: result.provider,
+    capturedEmail: false,
+  };
 }
 
 /**
@@ -170,12 +170,12 @@ async function checkQuota(agencyId: string): Promise<{ ok: true } | { ok: false;
  */
 async function recordUsage(
   agencyId: string,
+  model: string,
   usage: { inputTokens: number; outputTokens: number; cachedInputTokens: number },
 ) {
   const day = new Date().toISOString().slice(0, 10);
 
-  // Prices in micro-dollars per token: claude-sonnet-5 at $3/$15 per MTok, with
-  // cache reads at roughly a tenth of the input rate.
+  // Rough micro-dollar estimate; provider-specific pricing refined later.
   const cost =
     usage.inputTokens * 3 + usage.outputTokens * 15 + usage.cachedInputTokens * 0.3;
 
@@ -185,7 +185,7 @@ async function recordUsage(
       .values({
         agencyId,
         day,
-        model: MODEL,
+        model,
         requests: 1,
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,

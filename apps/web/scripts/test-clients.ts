@@ -34,7 +34,7 @@ async function main() {
   // Bootstrap an agency the same way the app does (see lib/agency/create.ts).
   await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT set_config('app.agency_id', ${id}, true)`);
-    await tx.insert(agencies).values({ id, name: "Client Test Agency", slug, plan: "free" });
+    await tx.insert(agencies).values({ id, name: "Client Test Agency", slug, plan: "starter" });
   });
 
   console.log("Validation");
@@ -72,7 +72,7 @@ async function main() {
   // Must go through withAgency: an unscoped update matches no rows under RLS,
   // which is the policy working, not a bug.
   await withAgency(id, (tx) =>
-    tx.update(agencies).set({ plan: "pro" }).where(eq(agencies.id, id)),
+    tx.update(agencies).set({ plan: "professional" }).where(eq(agencies.id, id)),
   );
   const afterUpgrade = await createClientForAgency(id, { name: "Second Client" });
   check("Pro plan allows it", afterUpgrade.ok, JSON.stringify(afterUpgrade));
@@ -81,7 +81,7 @@ async function main() {
   const otherId = crypto.randomUUID();
   await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT set_config('app.agency_id', ${otherId}, true)`);
-    await tx.insert(agencies).values({ id: otherId, name: "Other Agency", slug: `other-${otherId.slice(0, 8)}`, plan: "pro" });
+    await tx.insert(agencies).values({ id: otherId, name: "Other Agency", slug: `other-${otherId.slice(0, 8)}`, plan: "professional" });
   });
   await createClientForAgency(otherId, { name: "Other Agency Client" });
 

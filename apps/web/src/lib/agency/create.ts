@@ -5,6 +5,10 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { agencies, memberships } from "@/lib/db/schema";
+import type { BillingInterval } from "@/lib/billing/catalog";
+import { startCheckoutForAgency } from "@/lib/billing/actions";
+import { assertNotPlatformOwnerForOrg } from "@/lib/platform/owner";
+import { writeActiveOrgCookie } from "@/lib/auth/active-org";
 
 function slugify(name: string) {
   return (
@@ -16,8 +20,24 @@ function slugify(name: string) {
   );
 }
 
+/** Self-serve purchasable plans (Enterprise is sales-assisted). */
+export const SELF_SERVE_PLANS = [
+  "starter",
+  "professional",
+  "agency",
+] as const;
+
+export type SelfServePlan = (typeof SELF_SERVE_PLANS)[number];
+
+export type CreateAgencyResult =
+  | { ok: true; agencyId: string; checkoutUrl: string }
+  | { ok: false; error: string };
+
 /**
- * Create the caller's agency and make them its owner.
+ * Create the caller's agency and send them to Stripe Checkout.
+ *
+ * Self-serve accounts require purchasing a plan — there is no free create path.
+ * Platform Owners provision complimentary orgs via `/platform/workspaces/new`.
  *
  * THE BOOTSTRAP PROBLEM: the policy on `agencies` is `id = current_agency_id()`,
  * so an insert with no tenant set fails its WITH CHECK — you cannot create the
@@ -25,15 +45,38 @@ function slugify(name: string) {
  *
  * The fix is not to weaken the policy or reach for the admin role. We mint the
  * uuid here and set it as the tenant *before* inserting, so the new row
- * satisfies the same check every other row does. The transaction can therefore
- * create exactly one agency: the one it declared up front.
+ * satisfies the same check every other row does.
  */
-export async function createAgency(formData: FormData) {
+export async function createAgency(formData: FormData): Promise<CreateAgencyResult> {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) return { error: "Not signed in." };
+  if (!session?.user) return { ok: false, error: "Not signed in." };
+  if (!session.user.emailVerified) {
+    return {
+      ok: false,
+      error: "Confirm your email before creating an agency.",
+    };
+  }
+
+  const platformGate = await assertNotPlatformOwnerForOrg(session.user.id);
+  if (!platformGate.ok) return platformGate;
 
   const name = String(formData.get("name") ?? "").trim();
-  if (name.length < 2) return { error: "Give your agency a name." };
+  if (name.length < 2) {
+    return { ok: false, error: "Give your organization a name." };
+  }
+
+  const planRaw = String(formData.get("plan") ?? "").trim();
+  if (!SELF_SERVE_PLANS.includes(planRaw as SelfServePlan)) {
+    return {
+      ok: false,
+      error: "Select a plan to continue. Enterprise accounts are set up by sales.",
+    };
+  }
+  const plan = planRaw as SelfServePlan;
+
+  const intervalRaw = String(formData.get("interval") ?? "month").trim();
+  const interval: BillingInterval =
+    intervalRaw === "year" ? "year" : "month";
 
   const agencyId = crypto.randomUUID();
   const base = slugify(name);
@@ -49,9 +92,8 @@ export async function createAgency(formData: FormData) {
         id: agencyId,
         name,
         slug,
-        plan: "free",
-        status: "trialing",
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        plan,
+        status: "active",
       });
 
       await tx.insert(memberships).values({
@@ -63,8 +105,32 @@ export async function createAgency(formData: FormData) {
     });
   } catch (e) {
     console.error("createAgency failed", e);
-    return { error: "Could not create the agency. Try again." };
+    return {
+      ok: false,
+      error: "Could not create the organization. Try again.",
+    };
   }
 
-  return { agencyId };
+  // Preference cookie so checkout / paid gate resolve this tenant.
+  await writeActiveOrgCookie(agencyId);
+
+  const successUrl =
+    String(formData.get("successUrl") ?? "").trim() ||
+    "/onboarding/billing?upgraded=1";
+  const cancelUrl =
+    String(formData.get("cancelUrl") ?? "").trim() || "/onboarding/billing";
+
+  const checkout = await startCheckoutForAgency(agencyId, plan, interval, {
+    successUrl,
+    cancelUrl,
+  });
+
+  if (!checkout.ok) {
+    return {
+      ok: false,
+      error: checkout.error,
+    };
+  }
+
+  return { ok: true, agencyId, checkoutUrl: checkout.url };
 }

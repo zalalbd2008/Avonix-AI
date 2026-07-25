@@ -6,9 +6,11 @@ import { deliverReply } from "./deliver";
 import {
   isContactStatus,
   moveContactToStage,
+  releaseToAi,
   replyToConversation,
   setContactStatus,
   setConversationStatus,
+  takeOverConversation,
 } from "./service";
 
 export async function updateContactStatus(
@@ -75,5 +77,25 @@ export async function moveCard(
   const ctx = await requireAgency();
   const result = await moveContactToStage(ctx.agencyId, contactId, stageId);
   if (result.ok) revalidatePath(`/clients/${clientId}/pipeline`);
+  return result;
+}
+
+export async function takeOverChat(clientId: string, conversationId: string) {
+  const ctx = await requireAgency();
+  const result = await takeOverConversation(ctx.agencyId, conversationId);
+  if (result.ok) {
+    revalidatePath(`/clients/${clientId}/inbox/${conversationId}`);
+    revalidatePath(`/clients/${clientId}/inbox`);
+  }
+  return result;
+}
+
+export async function releaseChatToAi(clientId: string, conversationId: string) {
+  const ctx = await requireAgency();
+  const result = await releaseToAi(ctx.agencyId, conversationId);
+  if (result.ok) {
+    revalidatePath(`/clients/${clientId}/inbox/${conversationId}`);
+    revalidatePath(`/clients/${clientId}/inbox`);
+  }
   return result;
 }

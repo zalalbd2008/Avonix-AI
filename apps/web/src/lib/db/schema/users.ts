@@ -1,4 +1,4 @@
-import { index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, uniqueIndex, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { primaryId, timestamps } from "./_shared";
 import { agencies } from "./agencies";
 import { user } from "./auth";
@@ -12,7 +12,7 @@ import { user } from "./auth";
  * "on whose behalf?", and only the second one decides what rows are visible.
  */
 
-/** ADR-003: only `owner` exists in v1. The enum is wider so v2 needs no migration. */
+/** Coarse seat. Fine-grained keys live on `org_roles` via `customRoleId` (ADR-013). */
 export const memberRoleEnum = pgEnum("member_role", ["owner", "admin", "member"]);
 
 export const memberships = pgTable(
@@ -26,6 +26,8 @@ export const memberships = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: memberRoleEnum("role").notNull().default("owner"),
+    /** Custom org role for `member` (and optionally `admin`). Null for owners. */
+    customRoleId: uuid("custom_role_id"),
     invitedAt: timestamp("invited_at", { withTimezone: true }),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     ...timestamps,
@@ -33,6 +35,16 @@ export const memberships = pgTable(
   (t) => [
     index("memberships_agency_idx").on(t.agencyId),
     index("memberships_user_idx").on(t.userId),
+    index("memberships_custom_role_idx").on(t.customRoleId),
+    // One membership per person per organization.
+    //
+    // Without this a second enrolment — an invite accepted twice, a retried
+    // request — silently creates a duplicate. Nothing errors: the organization
+    // list shows the same one twice and `organizationCount` is wrong. The
+    // constraint is also what makes `ON CONFLICT DO NOTHING` on this table mean
+    // anything; with no target to conflict on, it does nothing at all and
+    // inserts every time.
+    uniqueIndex("memberships_agency_user_key").on(t.agencyId, t.userId),
   ],
 );
 

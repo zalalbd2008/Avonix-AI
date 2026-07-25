@@ -7,20 +7,31 @@ import { PageHeader } from "@/components/shell/page-header";
 import { ConnectorKeyPanel } from "@/components/connector-key";
 import { Field, FormError, SubmitButton } from "@/components/ui/field";
 import { createWebsite } from "@/lib/websites/actions";
+import { isValidWebsiteUrl, WEBSITE_URL_ERROR } from "@/lib/websites/url";
 
 /** Route: /clients/[clientId]/websites/new */
 export default function NewWebsitePage() {
   const { clientId } = useParams<{ clientId: string }>();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [created, setCreated] = useState<{ id: string; key: string } | null>(null);
+  const [created, setCreated] = useState<{ id: string; key: string } | null>(
+    null,
+  );
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const url = String(fd.get("url") ?? "");
+    if (!isValidWebsiteUrl(url)) {
+      setError(WEBSITE_URL_ERROR);
+      return;
+    }
+
     setPending(true);
     setError(null);
 
-    const result = await createWebsite(clientId, new FormData(e.currentTarget));
+    const result = await createWebsite(clientId, fd);
     if (!result.ok) {
       setError(result.error);
       setPending(false);
@@ -35,7 +46,10 @@ export default function NewWebsitePage() {
   if (created) {
     return (
       <div className="max-w-xl">
-        <PageHeader title="Website added" subtitle="One step left — install the plugin" />
+        <PageHeader
+          title="Website added"
+          subtitle="One step left — install the plugin"
+        />
         <ConnectorKeyPanel value={created.key} />
         <Link
           href={`/clients/${clientId}/websites/${created.id}` as never}
@@ -53,15 +67,38 @@ export default function NewWebsitePage() {
         title="Add website"
         subtitle="A WordPress site belonging to this client. Leads from it land in this client's inbox."
       />
-      <form onSubmit={onSubmit} className="rounded-xl border border-line bg-white p-5">
+      <form
+        onSubmit={onSubmit}
+        className="rounded-xl border border-line bg-white p-5"
+      >
         <FormError message={error} />
-        <Field label="Website name" name="name" required autoFocus placeholder="Main site" />
-        <Field label="Address" name="url" required placeholder="harbourdental.com" />
+        <Field
+          label="Website name"
+          name="name"
+          required
+          autoFocus
+          placeholder="Main site"
+        />
+        <Field
+          label="Address"
+          name="url"
+          required
+          placeholder="harbourdental.com"
+          inputMode="url"
+          autoComplete="url"
+        />
+        <p className="mb-3.5 -mt-2 text-[12px] text-muted">
+          Must be a valid domain (e.g. harbourdental.com). Without it the site
+          will not be added to the dashboard.
+        </p>
         <div className="flex items-center gap-3">
           <div className="w-44">
             <SubmitButton pending={pending}>Add website</SubmitButton>
           </div>
-          <Link href={`/clients/${clientId}` as never} className="text-[13px] font-medium text-muted hover:text-ink">
+          <Link
+            href={`/clients/${clientId}` as never}
+            className="text-[13px] font-medium text-muted hover:text-ink"
+          >
             Cancel
           </Link>
         </div>

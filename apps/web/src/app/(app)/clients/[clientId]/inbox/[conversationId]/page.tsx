@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
-import { ReplyBox } from "@/components/reply-box";
+import { AgentChatConsole } from "@/components/cep/agent-chat-console";
 import { DeliveryBadge } from "@/components/delivery-badge";
 import { StatusPill, timeAgo } from "@/components/ui/status-pill";
 import { requireAgency } from "@/lib/auth/session";
@@ -24,6 +24,7 @@ export default async function ConversationPage({
         id: conversations.id,
         channel: conversations.channel,
         status: conversations.status,
+        handoffStatus: conversations.handoffStatus,
         contactId: conversations.contactId,
         contactName: contacts.name,
         contactEmail: contacts.email,
@@ -65,14 +66,18 @@ export default async function ConversationPage({
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title={conversation.contactName ?? conversation.contactEmail ?? "Conversation"}
+        title={
+          conversation.contactName ?? conversation.contactEmail ?? "Conversation"
+        }
         subtitle={`${conversation.channel} conversation`}
         action={
           <div className="flex items-center gap-3">
             <StatusPill value={conversation.status} />
             {conversation.contactId && (
               <Link
-                href={`/clients/${clientId}/contacts/${conversation.contactId}` as never}
+                href={
+                  `/clients/${clientId}/contacts/${conversation.contactId}` as never
+                }
                 className="text-[13px] font-semibold text-brand hover:underline"
               >
                 View contact →
@@ -84,7 +89,10 @@ export default async function ConversationPage({
 
       <div className="mb-4 flex flex-col gap-3">
         {thread.map((m) => (
-          <div key={m.id} className={`max-w-[80%] rounded-xl px-3.5 py-2.5 ${bubble[m.author]}`}>
+          <div
+            key={m.id}
+            className={`max-w-[80%] rounded-xl px-3.5 py-2.5 ${bubble[m.author]}`}
+          >
             <div className="text-[13px] whitespace-pre-wrap">{m.body}</div>
             <div
               className={`mt-1 text-[11px] ${m.author === "agent" ? "text-white/70" : "text-faint"}`}
@@ -102,10 +110,12 @@ export default async function ConversationPage({
         ))}
       </div>
 
-      <ReplyBox
+      <AgentChatConsole
         clientId={clientId}
         conversationId={conversationId}
         status={conversation.status}
+        handoffStatus={conversation.handoffStatus}
+        channel={conversation.channel}
         deliversTo={conversation.contactEmail}
       />
     </div>

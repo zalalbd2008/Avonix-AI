@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
@@ -25,7 +25,9 @@ export default async function ClientWebsitesPage({
         version: websites.connectorVersion,
       })
       .from(websites)
-      .where(eq(websites.clientId, clientId))
+      .where(
+        and(eq(websites.clientId, clientId), isNull(websites.deletedAt)),
+      )
       .orderBy(desc(websites.createdAt)),
   );
 

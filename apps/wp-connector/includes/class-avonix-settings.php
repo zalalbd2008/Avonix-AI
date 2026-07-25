@@ -30,7 +30,7 @@ class Avonix_Settings
             'default'           => '',
         ]);
         register_setting('avonix', AVONIX_OPT_ENDPOINT, [
-            'sanitize_callback' => 'esc_url_raw',
+            'sanitize_callback' => [$this, 'sanitize_endpoint'],
             'default'           => 'https://app.avonix.ai',
         ]);
         register_setting('avonix', AVONIX_OPT_CHAT_ENABLED, [
@@ -49,6 +49,24 @@ class Avonix_Settings
             'sanitize_callback' => 'sanitize_hex_color',
             'default'           => '#ff6600',
         ]);
+    }
+
+    /**
+     * Ensure the endpoint is an absolute http(s) URL. Users often paste
+     * `localhost:3000` during local dev — Requests then throws
+     * "Only HTTP(S) requests are handled."
+     */
+    public function sanitize_endpoint($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return 'https://app.avonix.ai';
+        }
+        if (!preg_match('#^https?://#i', $value)) {
+            $value = 'http://' . $value;
+        }
+        $clean = esc_url_raw($value);
+        return $clean !== '' ? untrailingslashit($clean) : 'https://app.avonix.ai';
     }
 
     /**
@@ -120,7 +138,15 @@ class Avonix_Settings
                         <td>
                             <input type="url" id="avonix_endpoint" class="regular-text"
                                    name="<?php echo esc_attr(AVONIX_OPT_ENDPOINT); ?>"
-                                   value="<?php echo esc_attr(get_option(AVONIX_OPT_ENDPOINT, 'https://app.avonix.ai')); ?>">
+                                   value="<?php echo esc_attr(get_option(AVONIX_OPT_ENDPOINT, 'https://app.avonix.ai')); ?>"
+                                   placeholder="http://127.0.0.1:3000">
+                            <p class="description">
+                                Must start with <code>http://</code> or <code>https://</code>.
+                                On <strong>Local WP</strong> use <code>http://127.0.0.1:3000</code>
+                                (same Mac as Avonix). Do not use a LAN IP like
+                                <code>192.168.x.x</code> — Local often cannot reach it.
+                                Avonix must be running (<code>npm run dev</code>).
+                            </p>
                         </td>
                     </tr>
                 </table>

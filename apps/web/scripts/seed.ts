@@ -33,12 +33,12 @@ async function main() {
 
   const [northwind] = await sql`
     INSERT INTO agencies (name, slug, plan, status)
-    VALUES ('Northwind Digital', 'northwind', 'pro', 'active')
+    VALUES ('Northwind Digital', 'northwind', 'professional', 'active')
     RETURNING id`;
 
   const [bluewave] = await sql`
     INSERT INTO agencies (name, slug, plan, status)
-    VALUES ('Bluewave Studio', 'bluewave', 'free', 'trialing')
+    VALUES ('Bluewave Studio', 'bluewave', 'starter', 'trialing')
     RETURNING id`;
 
   // Northwind: three clients, one with two sites — exercises the "one CRM per

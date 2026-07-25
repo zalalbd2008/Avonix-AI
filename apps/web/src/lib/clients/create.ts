@@ -24,6 +24,7 @@ export async function createClient(
     if (result.ok) {
       revalidatePath("/clients");
       revalidatePath("/dashboard");
+      revalidatePath("/launchpad");
     }
     return result;
   } catch (e) {

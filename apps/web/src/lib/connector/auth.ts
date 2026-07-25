@@ -60,7 +60,7 @@ export async function authenticateConnector(
  * are real.
  */
 export function connectorError(
-  code: "unauthorized" | "rate_limited" | "bad_request" | "too_large",
+  code: string,
   status: number,
   message: string,
   extra?: Record<string, unknown>,

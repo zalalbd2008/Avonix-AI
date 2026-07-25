@@ -62,7 +62,7 @@ async function main() {
   for (const [tag, o] of [["conn-a", a], ["conn-b", b]] as const) {
     const suffix = randomBytes(4).toString("hex");
     await sql`DELETE FROM agencies WHERE slug = ${`${tag}-${suffix}`}`;
-    const [ag] = await sql`INSERT INTO agencies (name, slug, plan, status) VALUES (${tag}, ${`${tag}-${suffix}`}, 'pro', 'active') RETURNING id`;
+    const [ag] = await sql`INSERT INTO agencies (name, slug, plan, status) VALUES (${tag}, ${`${tag}-${suffix}`}, 'professional', 'active') RETURNING id`;
     const [cl] = await sql`INSERT INTO clients (agency_id, name) VALUES (${ag.id}, ${`${tag} client`}) RETURNING id`;
     const [ws] = await sql`
       INSERT INTO websites (agency_id, client_id, name, url, status)

@@ -3,7 +3,12 @@ import { agencies } from "./agencies";
 import { clients } from "./clients";
 import { contacts } from "./contacts";
 import { conversations } from "./conversations";
-import { forms, formSubmissions } from "./forms";
+import { forms, formSubmissions, formAnalyticsEvents } from "./forms";
+import { formTemplates, formTemplateVersions, formTemplateFavorites, formTemplateCollections, formTemplateCollectionItems, formTemplateShares } from "./form-templates";
+import { formComponents, formSections, formAssets } from "./form-org-assets";
+import { ctaButtonGroups, ctaButtons } from "./cta";
+import { marketplaceListings, marketplaceInstalls } from "./marketplace";
+import { reportShares, trackedEvents } from "./tracking";
 import { user } from "./auth";
 import { memberships } from "./users";
 import { messages } from "./messages";
@@ -140,7 +145,132 @@ export const formsRelations = relations(forms, ({ one, many }) => ({
     references: [websites.id],
   }),
   submissions: many(formSubmissions),
+  analyticsEvents: many(formAnalyticsEvents),
 }));
+
+export const formTemplatesRelations = relations(
+  formTemplates,
+  ({ one, many }) => ({
+    client: one(clients, {
+      fields: [formTemplates.clientId],
+      references: [clients.id],
+    }),
+    website: one(websites, {
+      fields: [formTemplates.websiteId],
+      references: [websites.id],
+    }),
+    sourceForm: one(forms, {
+      fields: [formTemplates.sourceFormId],
+      references: [forms.id],
+    }),
+    versions: many(formTemplateVersions),
+  }),
+);
+
+export const formTemplateVersionsRelations = relations(
+  formTemplateVersions,
+  ({ one }) => ({
+    template: one(formTemplates, {
+      fields: [formTemplateVersions.templateId],
+      references: [formTemplates.id],
+    }),
+  }),
+);
+
+export const formTemplateFavoritesRelations = relations(
+  formTemplateFavorites,
+  ({ one }) => ({
+    template: one(formTemplates, {
+      fields: [formTemplateFavorites.templateId],
+      references: [formTemplates.id],
+    }),
+  }),
+);
+
+export const formTemplateCollectionsRelations = relations(
+  formTemplateCollections,
+  ({ many }) => ({
+    items: many(formTemplateCollectionItems),
+  }),
+);
+
+export const formTemplateCollectionItemsRelations = relations(
+  formTemplateCollectionItems,
+  ({ one }) => ({
+    collection: one(formTemplateCollections, {
+      fields: [formTemplateCollectionItems.collectionId],
+      references: [formTemplateCollections.id],
+    }),
+    template: one(formTemplates, {
+      fields: [formTemplateCollectionItems.templateId],
+      references: [formTemplates.id],
+    }),
+  }),
+);
+
+export const formTemplateSharesRelations = relations(
+  formTemplateShares,
+  ({ one }) => ({
+    template: one(formTemplates, {
+      fields: [formTemplateShares.templateId],
+      references: [formTemplates.id],
+    }),
+  }),
+);
+
+export const formComponentsRelations = relations(formComponents, ({ one }) => ({
+  client: one(clients, {
+    fields: [formComponents.clientId],
+    references: [clients.id],
+  }),
+  website: one(websites, {
+    fields: [formComponents.websiteId],
+    references: [websites.id],
+  }),
+}));
+
+export const formSectionsRelations = relations(formSections, ({ one }) => ({
+  client: one(clients, {
+    fields: [formSections.clientId],
+    references: [clients.id],
+  }),
+  website: one(websites, {
+    fields: [formSections.websiteId],
+    references: [websites.id],
+  }),
+}));
+
+export const formAssetsRelations = relations(formAssets, ({ one }) => ({
+  client: one(clients, {
+    fields: [formAssets.clientId],
+    references: [clients.id],
+  }),
+  website: one(websites, {
+    fields: [formAssets.websiteId],
+    references: [websites.id],
+  }),
+}));
+
+export const marketplaceListingsRelations = relations(
+  marketplaceListings,
+  ({ many }) => ({
+    installs: many(marketplaceInstalls),
+  }),
+);
+
+export const marketplaceInstallsRelations = relations(
+  marketplaceInstalls,
+  ({ one }) => ({
+    listing: one(marketplaceListings, {
+      fields: [marketplaceInstalls.listingId],
+      references: [marketplaceListings.id],
+    }),
+    template: one(formTemplates, {
+      fields: [marketplaceInstalls.installedTemplateId],
+      references: [formTemplates.id],
+    }),
+  }),
+);
 
 export const formSubmissionsRelations = relations(
   formSubmissions,
@@ -155,3 +285,53 @@ export const formSubmissionsRelations = relations(
     }),
   }),
 );
+
+export const formAnalyticsEventsRelations = relations(
+  formAnalyticsEvents,
+  ({ one }) => ({
+    form: one(forms, {
+      fields: [formAnalyticsEvents.formId],
+      references: [forms.id],
+    }),
+    website: one(websites, {
+      fields: [formAnalyticsEvents.websiteId],
+      references: [websites.id],
+    }),
+  }),
+);
+
+export const trackedEventsRelations = relations(trackedEvents, ({ one }) => ({
+  website: one(websites, {
+    fields: [trackedEvents.websiteId],
+    references: [websites.id],
+  }),
+}));
+
+export const ctaButtonGroupsRelations = relations(
+  ctaButtonGroups,
+  ({ one, many }) => ({
+    client: one(clients, {
+      fields: [ctaButtonGroups.clientId],
+      references: [clients.id],
+    }),
+    website: one(websites, {
+      fields: [ctaButtonGroups.websiteId],
+      references: [websites.id],
+    }),
+    buttons: many(ctaButtons),
+  }),
+);
+
+export const ctaButtonsRelations = relations(ctaButtons, ({ one }) => ({
+  group: one(ctaButtonGroups, {
+    fields: [ctaButtons.groupId],
+    references: [ctaButtonGroups.id],
+  }),
+}));
+
+export const reportSharesRelations = relations(reportShares, ({ one }) => ({
+  website: one(websites, {
+    fields: [reportShares.websiteId],
+    references: [websites.id],
+  }),
+}));

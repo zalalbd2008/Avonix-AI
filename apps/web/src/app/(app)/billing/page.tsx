@@ -1,171 +1,241 @@
-import { count, eq } from "drizzle-orm";
-import { PageHeader } from "@/components/shell/page-header";
-import { ManageBillingButton, UpgradeButton } from "@/components/billing-actions";
+import {
+  ManageBillingButton,
+  PortalActionButton,
+  UpgradeButton,
+} from "@/components/billing-actions";
+import {
+  BillingAlert,
+  BillingCard,
+  BillingShell,
+  InfoRow,
+  StatusPill,
+  UsageMeter,
+} from "@/components/billing/billing-ui";
+import { OwnerBillingTools } from "@/components/billing/owner-tools";
 import { requireAgency } from "@/lib/auth/session";
-import { withAgency } from "@/lib/db";
-import { agencies, clients, websites } from "@/lib/db/schema";
-import { billingConfigured } from "@/lib/billing/stripe";
-import { PLANS, formatLimit, limitsFor } from "@/lib/plans";
+import { canManageBilling } from "@/lib/billing/access";
+import { loadStripeBillingExtras } from "@/lib/billing/customer-data";
+import {
+  formatBillingDate,
+  loadBillingSnapshot,
+  type BillingStatus,
+} from "@/lib/billing/snapshot";
+import { nextUpgradeablePlan } from "@/lib/plans";
 
-/**
- * Route: /billing
- *
- * This page used to be a stub while the clients list already offered an
- * "Upgrade to add more" button that led here — a promise the product could not
- * keep. That is the gap this closes.
- */
-export default async function BillingPage({
+function statusTone(status: BillingStatus): "ok" | "warn" | "bad" | "muted" {
+  if (status === "active" || status === "trialing") return "ok";
+  if (status === "past_due" || status === "cancelling") return "warn";
+  if (status === "suspended" || status === "expired") return "bad";
+  return "muted";
+}
+
+function cycleLabel(cycle: string) {
+  if (cycle === "month") return "Monthly";
+  if (cycle === "year") return "Yearly";
+  if (cycle === "trial") return "Trial";
+  return "—";
+}
+
+/** Route: /billing — Overview */
+export default async function BillingOverviewPage({
   searchParams,
 }: {
   searchParams: Promise<{ upgraded?: string }>;
 }) {
   const { upgraded } = await searchParams;
   const ctx = await requireAgency();
-
-  const data = await withAgency(ctx.agencyId, async (tx) => {
-    const [[agency], [clientCount], [websiteCount]] = await Promise.all([
-      tx
-        .select({
-          plan: agencies.plan,
-          status: agencies.status,
-          periodEnd: agencies.currentPeriodEnd,
-          cancelling: agencies.cancelAtPeriodEnd,
-          trialEndsAt: agencies.trialEndsAt,
-          customerId: agencies.stripeCustomerId,
-        })
-        .from(agencies)
-        .where(eq(agencies.id, ctx.agencyId))
-        .limit(1),
-      tx.select({ n: count() }).from(clients),
-      tx.select({ n: count() }).from(websites),
-    ]);
-    return { agency, clients: clientCount.n, websites: websiteCount.n };
-  });
-
-  const limits = limitsFor(data.agency.plan);
-  const configured = billingConfigured();
+  const snap = await loadBillingSnapshot(ctx.agencyId);
+  const extras = await loadStripeBillingExtras(ctx.agencyId);
+  const canEdit = canManageBilling(ctx);
+  const upgradePlan = nextUpgradeablePlan(snap.plan);
+  const canUpgrade = Boolean(upgradePlan);
 
   return (
-    <div className="max-w-4xl">
-      <PageHeader
-        title="Billing"
-        subtitle={`You are on the ${limits.label} plan`}
-        action={data.agency.customerId ? <ManageBillingButton /> : undefined}
-      />
+    <BillingShell
+      icon="overview"
+      eyebrow="Plan & Subscription"
+      title="Overview"
+      subtitle={`Subscription summary for ${snap.agencyName}`}
+      action={
+        snap.hasStripeCustomer && canEdit ? (
+          <ManageBillingButton label="Open Stripe portal" />
+        ) : undefined
+      }
+    >
+      {upgraded ? (
+        <BillingAlert tone="ok">
+          Payment received. Your plan updates when Stripe confirms the
+          subscription.
+        </BillingAlert>
+      ) : null}
 
-      {upgraded && (
-        <p className="mb-4 rounded-xl border border-[#bfe9e2] bg-[#f0fdf9] px-4 py-3 text-[13px] text-ok">
-          Payment received. If the plan below still looks wrong, give it a moment —
-          it updates when Stripe confirms the subscription.
-        </p>
-      )}
+      {!snap.billingReady ? (
+        <BillingAlert>
+          <b>Billing is not connected yet.</b> Set Stripe keys and price IDs to
+          enable checkout.
+        </BillingAlert>
+      ) : null}
 
-      {!configured && (
-        <p className="mb-4 rounded-xl border border-[#ffd9bd] bg-[#fff8f3] px-4 py-3 text-[13px]">
-          <b>Billing is not connected yet.</b> Set STRIPE_SECRET_KEY,
-          STRIPE_WEBHOOK_SECRET and the price ids to take payments. Upgrading will
-          not work until then.
-        </p>
-      )}
+      {snap.status === "past_due" ? (
+        <BillingAlert tone="warn">
+          <b>A payment did not go through.</b> Update your card from Payment
+          Methods or the Stripe portal.
+        </BillingAlert>
+      ) : null}
 
-      {data.agency.status === "past_due" && (
-        <p className="mb-4 rounded-xl border border-[#f5d0a9] bg-[#fef6e7] px-4 py-3 text-[13px] text-warn">
-          <b>A payment did not go through.</b> Your plan is still active while
-          Stripe retries — update the card from “Manage billing”.
-        </p>
-      )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <BillingCard title="Subscription" icon="plan">
+          <InfoRow icon="plan" label="Current plan" value={snap.catalogLabel} />
+          <InfoRow
+            icon="check"
+            label="Status"
+            value={
+              <StatusPill tone={statusTone(snap.status)}>
+                {snap.statusLabel}
+              </StatusPill>
+            }
+          />
+          <InfoRow
+            icon="calendar"
+            label="Billing cycle"
+            value={cycleLabel(snap.billingCycle)}
+          />
+          <InfoRow
+            icon="refresh"
+            label="Renewal date"
+            value={formatBillingDate(snap.renewalDate)}
+          />
+          <InfoRow icon="money" label="Next charge" value={snap.nextCharge} />
+          <InfoRow
+            icon="calendar"
+            label="Plan started"
+            value={formatBillingDate(snap.planStarted)}
+          />
+          <InfoRow
+            icon="calendar"
+            label="Plan expires"
+            value={formatBillingDate(snap.planExpires)}
+          />
+        </BillingCard>
 
-      {data.agency.cancelling && data.agency.periodEnd && (
-        <p className="mb-4 rounded-xl border border-line bg-white px-4 py-3 text-[13px]">
-          This subscription ends on{" "}
-          <b>{new Date(data.agency.periodEnd).toLocaleDateString()}</b> and then
-          drops to Free.
-        </p>
-      )}
+        <BillingCard title="Payment" icon="card">
+          <InfoRow
+            icon="card"
+            label="Default payment method"
+            value={extras.defaultMethodLabel}
+          />
+          <InfoRow icon="history" label="Last payment" value={extras.lastPayment} />
+          <InfoRow
+            icon="calendar"
+            label="Next payment"
+            value={
+              snap.renewalDate ? formatBillingDate(snap.renewalDate) : "—"
+            }
+          />
+          <InfoRow
+            icon="money"
+            label="Outstanding balance"
+            value={extras.outstandingBalance}
+          />
+          <InfoRow
+            icon="refresh"
+            label="Auto renewal"
+            value={
+              snap.cancelling
+                ? "Off (cancelling)"
+                : !snap.hasSubscription
+                  ? "—"
+                  : "On"
+            }
+          />
+        </BillingCard>
+      </div>
 
-      <section className="mb-5 overflow-hidden rounded-xl border border-line bg-white">
-        <h2 className="border-b border-[#edf0f5] px-4 py-3 text-sm font-semibold">
-          Current usage
-        </h2>
-        <div className="grid grid-cols-2 gap-4 px-4 py-4 text-[13px]">
-          <Usage label="Clients" used={data.clients} allowed={limits.maxClients} />
-          <Usage label="Websites" used={data.websites} allowed={Number.POSITIVE_INFINITY} />
+      <BillingCard title="Quick actions" icon="arrowUp">
+        <div className="flex flex-wrap gap-2">
+          {canUpgrade && upgradePlan && canEdit ? (
+            <UpgradeButton
+              plan={upgradePlan}
+              label="Upgrade"
+              disabled={!snap.billingReady}
+              className=""
+              interval={snap.billingCycle === "year" ? "year" : "month"}
+            />
+          ) : null}
+          <PortalActionButton
+            label="Change plan"
+            disabled={!snap.hasStripeCustomer || !canEdit}
+          />
+          <PortalActionButton
+            label="Cancel"
+            variant="danger"
+            disabled={!snap.hasStripeCustomer || !canEdit}
+          />
+          <PortalActionButton
+            label="Download invoice"
+            disabled={!snap.hasStripeCustomer || !canEdit}
+          />
+          <PortalActionButton
+            label="Update payment method"
+            disabled={!snap.hasStripeCustomer || !canEdit}
+          />
         </div>
-      </section>
+        <p className="mt-3 text-[12px] text-muted">
+          Choose plan → Stripe Checkout → Payment success → Subscription
+          activated. PayPal is not wired yet.
+        </p>
+      </BillingCard>
 
-      <div className="grid grid-cols-3 gap-3">
-        {(Object.keys(PLANS) as (keyof typeof PLANS)[]).map((key) => {
-          const plan = PLANS[key];
-          const current = data.agency.plan === key;
-          return (
-            <div
-              key={key}
-              className={`flex flex-col gap-2.5 rounded-xl border bg-white p-4 ${
-                current ? "border-brand" : "border-line"
-              }`}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <BillingCard
+          title="Usage"
+          icon="chart"
+          action={
+            <a
+              href="/billing/usage"
+              className="text-[12.5px] font-semibold text-brand hover:underline"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-[15px] font-bold">{plan.label}</span>
-                {current && (
-                  <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">
-                    current
-                  </span>
-                )}
-              </div>
-              <ul className="flex flex-col gap-1 text-[12.5px] text-muted">
-                <li>{formatLimit(plan.maxClients)} clients</li>
-                <li>{formatLimit(plan.maxWebsitesPerClient)} websites per client</li>
-                <li>{plan.maxAiMessagesPerMonth.toLocaleString()} AI messages a month</li>
-                <li>{plan.whiteLabel ? "White-label" : "No white-label"}</li>
-              </ul>
-              <div className="mt-auto pt-2">
-                {current ? (
-                  <div className="rounded-lg bg-[#f1f4f8] py-2.5 text-center text-[13px] font-semibold text-muted">
-                    Your plan
-                  </div>
-                ) : key === "free" ? (
-                  <div className="rounded-lg bg-[#f1f4f8] py-2.5 text-center text-[12.5px] text-faint">
-                    Cancel from Manage billing
-                  </div>
-                ) : (
-                  <UpgradeButton
-                    plan={key}
-                    label={`Upgrade to ${plan.label}`}
-                    disabled={!configured}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              View all
+            </a>
+          }
+        >
+          <UsageMeter
+            icon="building"
+            label="Workspaces"
+            used={snap.usage.clients.used}
+            limit={snap.usage.clients.limit}
+          />
+          <UsageMeter
+            icon="globe"
+            label="Websites"
+            used={snap.usage.websites.used}
+            limit={snap.usage.websites.limit}
+          />
+          <UsageMeter
+            icon="users"
+            label="Users"
+            used={snap.usage.users.used}
+            limit={snap.usage.users.limit}
+          />
+        </BillingCard>
 
-      {/* Prices deliberately absent: ADR-003 sets them after ten paying customers. */}
-      <p className="mt-4 text-[12px] text-faint">
-        Plans are billed through Stripe. Cancel any time from Manage billing.
-      </p>
-    </div>
-  );
-}
-
-function Usage({ label, used, allowed }: { label: string; used: number; allowed: number }) {
-  const pct = Number.isFinite(allowed) ? Math.min(100, (used / allowed) * 100) : 0;
-  const atLimit = Number.isFinite(allowed) && used >= allowed;
-
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="font-semibold">{label}</span>
-        <span className={`ml-auto text-[12.5px] ${atLimit ? "text-warn" : "text-muted"}`}>
-          {used} of {formatLimit(allowed)}
-        </span>
+        {ctx.role === "owner" ? (
+          <BillingCard
+            title="Owner tools"
+            subtitle="Not visible to members"
+            icon="shield"
+          >
+            <OwnerBillingTools overrides={snap.overrides} />
+          </BillingCard>
+        ) : (
+          <BillingCard title="Need help?" icon="help">
+            <p className="text-[13px] leading-relaxed text-muted">
+              Plan changes and invoices are managed through Stripe. Ask an
+              organization owner if you need billing access.
+            </p>
+          </BillingCard>
+        )}
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-[#edf0f5]">
-        <div
-          className={`h-full ${atLimit ? "bg-warn" : "bg-ok"}`}
-          style={{ width: `${Number.isFinite(allowed) ? pct : 6}%` }}
-        />
-      </div>
-    </div>
+    </BillingShell>
   );
 }

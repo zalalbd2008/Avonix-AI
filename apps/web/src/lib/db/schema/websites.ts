@@ -1,5 +1,6 @@
 import {
   index,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -15,6 +16,29 @@ export const websiteStatusEnum = pgEnum("website_status", [
   "connected",
   "disconnected",
 ]);
+
+export type WebsiteFontSettings = {
+  primaryFamily?: string;
+  headingFamily?: string;
+  weights?: number[];
+};
+
+import type { AccessibilitySettings } from "@/lib/accessibility/types";
+import type { LanguageSettings } from "@/lib/languages/types";
+import type { UpdatesSettings } from "@/lib/updates/types";
+import type { UptimeSettings } from "@/lib/uptime/types";
+
+export type WebsiteSettings = {
+  fonts?: WebsiteFontSettings;
+  /** Site-wide accessibility widget + statement (see lib/accessibility). */
+  accessibility?: AccessibilitySettings;
+  /** Multilingual / translation settings (see lib/languages). */
+  languages?: LanguageSettings;
+  /** Availability monitor configuration (see lib/uptime). */
+  uptime?: UptimeSettings;
+  /** WordPress update watching preferences (see lib/updates). */
+  updates?: UpdatesSettings;
+};
 
 /**
  * A WordPress site belonging to a Client. A lead *source*, not a CRM boundary
@@ -38,6 +62,9 @@ export const websites = pgTable(
     status: websiteStatusEnum("status").notNull().default("pending"),
     connectorVersion: text("connector_version"),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+
+    /** Per-website branding / fonts (Google CDN links, etc.) */
+    settings: jsonb("settings").$type<WebsiteSettings>().notNull().default({}),
 
     ...timestamps,
     ...softDelete,

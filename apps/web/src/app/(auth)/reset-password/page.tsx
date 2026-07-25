@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Field, FormError, SubmitButton } from "@/components/ui/field";
+import { FormError, SubmitButton } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 import { authClient } from "@/lib/auth/client";
 
 /**
@@ -73,18 +74,16 @@ function ResetPasswordForm() {
       </p>
       <form onSubmit={onSubmit}>
         <FormError message={error} />
-        <Field
+        <PasswordField
           label="New password"
           name="password"
-          type="password"
           required
           minLength={8}
           autoComplete="new-password"
         />
-        <Field
+        <PasswordField
           label="Confirm password"
           name="confirm"
-          type="password"
           required
           minLength={8}
           autoComplete="new-password"

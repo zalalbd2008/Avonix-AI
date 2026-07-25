@@ -16,6 +16,13 @@ export const conversationStatusEnum = pgEnum("conversation_status", [
   "closed",
 ]);
 
+/** Who is driving the chat thread (CEP P1 dual brain). */
+export const conversationHandoffEnum = pgEnum("conversation_handoff", [
+  "ai",
+  "queued",
+  "agent",
+]);
+
 /** One thread in the unified inbox. Scoped to the Client. */
 export const conversations = pgTable(
   "conversations",
@@ -28,6 +35,10 @@ export const conversations = pgTable(
 
     channel: conversationChannelEnum("channel").notNull(),
     status: conversationStatusEnum("status").notNull().default("open"),
+    /** ai = bot answers; queued = waiting for human; agent = human owns replies. */
+    handoffStatus: conversationHandoffEnum("handoff_status")
+      .notNull()
+      .default("ai"),
 
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
     /** Null means nobody on the agency side has replied yet — drives "unworked". */
@@ -39,6 +50,7 @@ export const conversations = pgTable(
     index("conversations_agency_idx").on(t.agencyId),
     index("conversations_client_status_idx").on(t.clientId, t.status),
     index("conversations_last_message_idx").on(t.lastMessageAt),
+    index("conversations_handoff_idx").on(t.handoffStatus, t.lastMessageAt),
   ],
 );
 

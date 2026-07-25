@@ -2,27 +2,13 @@ import { and, count, eq, isNull } from "drizzle-orm";
 import { withAgency } from "@/lib/db";
 import { agencies, connectorKeys, websites } from "@/lib/db/schema";
 import { generateConnectorKey } from "@/lib/connector/keys";
-import { limitsFor } from "@/lib/plans";
+import { effectivePlanLimits } from "@/lib/plans";
+import { mergeBillingOverrides } from "@/lib/billing/profile";
+import { parseWebsiteUrl, WEBSITE_URL_ERROR } from "./url";
 
 export type CreateWebsiteResult =
   | { ok: true; websiteId: string; connectorKey: string }
   | { ok: false; error: string };
-
-function normaliseUrl(input: string): string | null {
-  let raw = input.trim();
-  if (!raw) return null;
-  if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
-
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    if (!url.hostname.includes(".")) return null;
-    // Strip path, query and hash: this identifies a site, not a page.
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Register a website and issue its connector key.
@@ -36,27 +22,39 @@ export async function createWebsiteForClient(
   input: { name: string; url: string },
 ): Promise<CreateWebsiteResult> {
   const name = input.name.trim();
-  const url = normaliseUrl(input.url);
+  const url = parseWebsiteUrl(input.url);
 
   if (name.length < 2) return { ok: false, error: "Give the website a name." };
-  if (!url) return { ok: false, error: "That does not look like a website address." };
+  if (!url) return { ok: false, error: WEBSITE_URL_ERROR };
 
   return withAgency(agencyId, async (tx) => {
     // Confirms the client belongs to this agency: under RLS a client id from
     // another agency simply is not here.
     const [[agency], [existing]] = await Promise.all([
-      tx.select({ plan: agencies.plan }).from(agencies).where(eq(agencies.id, agencyId)).limit(1),
+      tx
+        .select({
+          plan: agencies.plan,
+          billingOverrides: agencies.billingOverrides,
+        })
+        .from(agencies)
+        .where(eq(agencies.id, agencyId))
+        .limit(1),
       tx
         .select({ n: count() })
         .from(websites)
         .where(and(eq(websites.clientId, clientId), isNull(websites.deletedAt))),
     ]);
 
-    const limits = limitsFor(agency.plan);
+    const limits = effectivePlanLimits(
+      agency.plan,
+      mergeBillingOverrides(agency.billingOverrides),
+    );
     if (existing.n >= limits.maxWebsitesPerClient) {
       return {
         ok: false as const,
-        error: `The ${limits.label} plan allows ${limits.maxWebsitesPerClient} website per client. Upgrade to add more.`,
+        error: Number.isFinite(limits.maxWebsitesPerClient)
+          ? `This organization allows ${limits.maxWebsitesPerClient} website${limits.maxWebsitesPerClient === 1 ? "" : "s"} per client.`
+          : `Website limit reached.`,
       };
     }
 
@@ -75,6 +73,32 @@ export async function createWebsiteForClient(
     });
 
     return { ok: true as const, websiteId: site.id, connectorKey: generated.key };
+  });
+}
+
+/** Update the registered address — must pass the same URL rules as create. */
+export async function updateWebsiteUrlForClient(
+  agencyId: string,
+  websiteId: string,
+  rawUrl: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const url = parseWebsiteUrl(rawUrl);
+  if (!url) return { ok: false, error: WEBSITE_URL_ERROR };
+
+  return withAgency(agencyId, async (tx) => {
+    const [site] = await tx
+      .select({ id: websites.id })
+      .from(websites)
+      .where(eq(websites.id, websiteId))
+      .limit(1);
+    if (!site) return { ok: false as const, error: "Website not found." };
+
+    await tx
+      .update(websites)
+      .set({ url, updatedAt: new Date() })
+      .where(eq(websites.id, websiteId));
+
+    return { ok: true as const, url };
   });
 }
 

@@ -1,7 +1,8 @@
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { withAgency } from "@/lib/db";
 import { agencies, clients, pipelineStages, pipelines } from "@/lib/db/schema";
-import { limitsFor } from "@/lib/plans";
+import { effectivePlanLimits } from "@/lib/plans";
+import { mergeBillingOverrides } from "@/lib/billing/profile";
 
 export type CreateClientInput = {
   name: string;
@@ -43,18 +44,26 @@ export async function createClientForAgency(
   return withAgency(agencyId, async (tx) => {
     const [[agency], [existing]] = await Promise.all([
       tx
-        .select({ plan: agencies.plan })
+        .select({
+          plan: agencies.plan,
+          billingOverrides: agencies.billingOverrides,
+        })
         .from(agencies)
         .where(eq(agencies.id, agencyId))
         .limit(1),
-      tx.select({ n: count() }).from(clients),
+      tx.select({ n: count() }).from(clients).where(isNull(clients.deletedAt)),
     ]);
 
-    const limits = limitsFor(agency.plan);
+    const limits = effectivePlanLimits(
+      agency.plan,
+      mergeBillingOverrides(agency.billingOverrides),
+    );
     if (existing.n >= limits.maxClients) {
       return {
         ok: false as const,
-        error: `The ${limits.label} plan includes ${limits.maxClients} client. Upgrade to add more.`,
+        error: Number.isFinite(limits.maxClients)
+          ? `This organization is limited to ${limits.maxClients} client${limits.maxClients === 1 ? "" : "s"}.`
+          : `Client limit reached.`,
       };
     }
 

@@ -7,6 +7,8 @@ export function Field({
       <span className="mb-1.5 block text-[12.5px] font-semibold">{label}</span>
       <input
         {...props}
+        // Browser extensions (e.g. temp-mail) inject attrs/styles before hydrate.
+        suppressHydrationWarning
         className="w-full rounded-lg border border-[#dbe1ea] px-3 py-2.5 text-sm outline-none focus:border-brand"
       />
     </label>
@@ -16,17 +18,29 @@ export function Field({
 export function SubmitButton({
   children,
   pending,
+  pendingLabel = "Saving…",
+  className,
+  type = "submit",
+  onClick,
 }: {
   children: React.ReactNode;
   pending?: boolean;
+  pendingLabel?: string;
+  className?: string;
+  type?: "submit" | "button";
+  onClick?: () => void;
 }) {
   return (
     <button
-      type="submit"
+      type={type}
+      onClick={onClick}
       disabled={pending}
-      className="w-full rounded-lg bg-brand py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+      className={
+        className ??
+        "w-full rounded-lg bg-brand py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+      }
     >
-      {pending ? "Working…" : children}
+      {pending ? pendingLabel : children}
     </button>
   );
 }

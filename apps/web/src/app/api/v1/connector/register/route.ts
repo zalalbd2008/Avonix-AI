@@ -1,19 +1,39 @@
 import { eq } from "drizzle-orm";
 import { authenticateConnector, connectorError } from "@/lib/connector/auth";
 import { rateLimit } from "@/lib/connector/rate-limit";
+import {
+  hashConnectorKey,
+  looksLikeConnectorKey,
+  readConnectorKey,
+} from "@/lib/connector/keys";
 import { withAgency } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
+import {
+  consumeUninstallToken,
+  hasUninstallToken,
+} from "@/lib/delete/entities";
 
 /**
  * POST /api/v1/connector/register
  *
- * The plugin's handshake: proves it holds the key, reports where it is installed
- * and which version it runs, and flips the site to `connected`.
- *
- * Called on plugin activation and periodically as a heartbeat, so it must be
- * idempotent.
+ * Handshake + heartbeat. If the website was hard-deleted, a queued uninstall
+ * token makes this endpoint return `action: delete_plugin` so the WP plugin
+ * can remove itself.
  */
 export async function POST(request: Request) {
+  const key = readConnectorKey(request);
+  if (key && looksLikeConnectorKey(key)) {
+    const hash = hashConnectorKey(key);
+    if (await hasUninstallToken(hash)) {
+      await consumeUninstallToken(hash);
+      return Response.json({
+        status: "uninstall",
+        action: "delete_plugin",
+        message: "This site was removed in Avonix. Uninstall the connector.",
+      });
+    }
+  }
+
   const identity = await authenticateConnector(request);
   if (!identity) {
     return connectorError("unauthorized", 401, "Invalid connector key.");
@@ -59,8 +79,6 @@ export async function POST(request: Request) {
   return Response.json({
     status: "connected",
     website_id: identity.websiteId,
-    // Echoed so the plugin can warn when it is installed on a different domain
-    // than the one registered — a common cause of "why are no leads arriving".
     registered_url: site?.url ?? null,
   });
 }

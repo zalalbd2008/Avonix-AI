@@ -58,16 +58,29 @@ export async function replyToConversation(
 
   return withAgency(agencyId, async (tx) => {
     const [conversation] = await tx
-      .select({ id: conversations.id, firstHumanReplyAt: conversations.firstHumanReplyAt })
+      .select({
+        id: conversations.id,
+        firstHumanReplyAt: conversations.firstHumanReplyAt,
+        channel: conversations.channel,
+      })
       .from(conversations)
       .where(eq(conversations.id, conversationId))
       .limit(1);
 
     if (!conversation) return { ok: false as const, error: "Conversation not found." };
 
+    const { textToBlocks } = await import("@/lib/db/schema");
+    const blocks = textToBlocks(text);
+
     const [message] = await tx
       .insert(messages)
-      .values({ agencyId, conversationId, author: "agent", body: text })
+      .values({
+        agencyId,
+        conversationId,
+        author: "agent",
+        body: text,
+        blocks,
+      })
       .returning({ id: messages.id });
 
     await tx
@@ -75,11 +88,63 @@ export async function replyToConversation(
       .set({
         lastMessageAt: new Date(),
         firstHumanReplyAt: conversation.firstHumanReplyAt ?? new Date(),
+        // Agent reply claims the dual-brain thread for chat channels
+        ...(conversation.channel === "chat"
+          ? { handoffStatus: "agent" as const }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(conversations.id, conversationId));
 
     return { ok: true as const, messageId: message.id };
+  });
+}
+
+export async function takeOverConversation(
+  agencyId: string,
+  conversationId: string,
+): Promise<Result> {
+  return withAgency(agencyId, async (tx) => {
+    const [updated] = await tx
+      .update(conversations)
+      .set({ handoffStatus: "agent", updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId))
+      .returning({ id: conversations.id });
+    if (!updated) return { ok: false as const, error: "Conversation not found." };
+
+    const { textToBlocks } = await import("@/lib/db/schema");
+    await tx.insert(messages).values({
+      agencyId,
+      conversationId,
+      author: "system",
+      body: "A teammate joined the chat.",
+      blocks: textToBlocks("A teammate joined the chat."),
+    });
+    return { ok: true as const };
+  });
+}
+
+export async function releaseToAi(
+  agencyId: string,
+  conversationId: string,
+): Promise<Result> {
+  return withAgency(agencyId, async (tx) => {
+    const [updated] = await tx
+      .update(conversations)
+      .set({ handoffStatus: "ai", updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId))
+      .returning({ id: conversations.id });
+    if (!updated) return { ok: false as const, error: "Conversation not found." };
+
+    const { textToBlocks } = await import("@/lib/db/schema");
+    await tx.insert(messages).values({
+      agencyId,
+      conversationId,
+      author: "system",
+      body: "AI assistant is handling this chat again.",
+      blocks: textToBlocks("AI assistant is handling this chat again."),
+    });
+    return { ok: true as const };
   });
 }
 

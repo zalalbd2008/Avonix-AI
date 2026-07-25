@@ -1,0 +1,1081 @@
+<?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+/**
+ * Popup Experience injector (ADR-010).
+ *
+ * Cloud owns rules; this file evaluates published config and renders one winner.
+ */
+class Avonix_Popup
+{
+    public function __construct()
+    {
+        add_action('wp_enqueue_scripts', [$this, 'enqueue'], 35);
+    }
+
+    public function enqueue()
+    {
+        $client = new Avonix_Client();
+        if (!$client->is_configured()) {
+            return;
+        }
+
+        $config = $client->get_popups_config();
+        if (!$config || empty($config['popups']) || !is_array($config['popups'])) {
+            return;
+        }
+
+        // Form Builder HTML comes from the cloud (embedSnippet). Do not use
+        // the legacy [avonix_form] shortcode — that is a different, bare form.
+        $popups = [];
+        foreach ($config['popups'] as $pop) {
+            if (!is_array($pop)) {
+                continue;
+            }
+            if (empty($pop['form_html'])) {
+                $pop['form_html'] = '';
+            }
+            if (empty($pop['form_embed_url']) || !is_string($pop['form_embed_url'])) {
+                $pop['form_embed_url'] = '';
+            } else {
+                $embed = esc_url_raw($pop['form_embed_url']);
+                $pop['form_embed_url'] = (strpos($embed, 'http://') === 0 || strpos($embed, 'https://') === 0)
+                    ? $embed
+                    : '';
+            }
+            $popups[] = $pop;
+        }
+
+        $handle = 'avonix-popup';
+        wp_register_script($handle, false, [], AVONIX_VERSION, true);
+        wp_enqueue_script($handle);
+
+        $payload = [
+            'popups'            => $popups,
+            'fonts'             => isset($config['fonts']) && is_array($config['fonts']) ? $config['fonts'] : null,
+            'google_font_urls'  => isset($config['google_font_urls']) && is_array($config['google_font_urls'])
+                ? array_values(array_filter($config['google_font_urls'], 'is_string'))
+                : [],
+            'path'              => $this->current_path(),
+            'surface'           => $this->current_surface(),
+            'logged_in'         => is_user_logged_in(),
+            'returning'         => isset($_COOKIE['avonix_returning']) && $_COOKIE['avonix_returning'] === '1',
+        ];
+
+        if (!isset($_COOKIE['avonix_returning'])) {
+            setcookie('avonix_returning', '1', time() + YEAR_IN_SECONDS, COOKIEPATH ?: '/', COOKIE_DOMAIN, is_ssl(), true);
+        }
+
+        // Google Fonts CDN only — never host font files on this WordPress site.
+        foreach ($payload['google_font_urls'] as $i => $font_url) {
+            if (!is_string($font_url) || strpos($font_url, 'fonts.googleapis.com') === false) {
+                continue;
+            }
+            $font_handle = 'avonix-gfont-' . $i;
+            wp_enqueue_style($font_handle, esc_url_raw($font_url), [], null);
+        }
+
+        wp_add_inline_script(
+            $handle,
+            // JSON_HEX_TAG prevents </script> inside form_html from breaking the
+            // inline <script> block (Form Builder embeds include <script> tags).
+            'window.AVONIX_POPUPS = ' . wp_json_encode($payload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) . ';' . "\n" . $this->runtime_js(),
+            'after'
+        );
+
+        wp_register_style($handle, false, [], AVONIX_VERSION);
+        wp_enqueue_style($handle);
+        wp_add_inline_style($handle, $this->runtime_css());
+    }
+
+    private function current_path()
+    {
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? (string) wp_unslash($_SERVER['REQUEST_URI'])
+            : '/';
+        $path = (string) (parse_url($uri, PHP_URL_PATH) ?: '/');
+        return $path === '' ? '/' : $path;
+    }
+
+    private function current_surface()
+    {
+        if (is_front_page()) {
+            return 'homepage';
+        }
+        if (function_exists('is_shop') && is_shop()) {
+            return 'shop';
+        }
+        if (function_exists('is_product') && is_product()) {
+            return 'product';
+        }
+        if (function_exists('is_cart') && is_cart()) {
+            return 'cart';
+        }
+        if (function_exists('is_checkout') && is_checkout()) {
+            return 'checkout';
+        }
+        if (function_exists('is_account_page') && is_account_page()) {
+            return 'account';
+        }
+        if (is_singular('post')) {
+            return 'single_post';
+        }
+        if (is_home() || is_category() || is_tag()) {
+            return 'blog';
+        }
+        if (is_404()) {
+            return '404';
+        }
+        if (is_search()) {
+            return 'search';
+        }
+        return '';
+    }
+
+    private function runtime_css()
+    {
+        return <<<'CSS'
+.avonix-popup-root {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(11, 30, 58, 0.55);
+  backdrop-filter: blur(2px);
+}
+.avonix-popup-root--bottom { align-items: flex-end; }
+.avonix-popup-root--top { align-items: flex-start; }
+.avonix-popup-root--left { justify-content: flex-start; }
+.avonix-popup-root--right { justify-content: flex-end; }
+.avonix-popup-card {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: min(90vh, 720px);
+  overflow: auto;
+  border-radius: 16px;
+  background: #fff;
+  color: #13233c;
+  box-shadow: 0 24px 60px rgba(11, 30, 58, 0.35);
+  padding: 24px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  animation: avonix-pop-in 0.28s ease;
+}
+@keyframes avonix-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.avonix-popup-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.avonix-popup-card p {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+  color: #5b6b7c;
+  line-height: 1.45;
+}
+.avonix-popup-card .avonix-popup-cta {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #ff6600;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none !important;
+}
+.avonix-popup-card .avonix-popup-cta-secondary {
+  display: inline-block;
+  margin-top: 12px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #444;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.avonix-popup-card--grid-media {
+  display: flex;
+  flex-direction: row;
+  padding: 0 !important;
+  overflow: hidden;
+  max-width: min(720px, 100%);
+  width: min(720px, 100%);
+}
+.avonix-popup-card--grid-media.avonix-popup-card--media-right {
+  flex-direction: row-reverse;
+}
+.avonix-popup-media {
+  flex: 0 0 48%;
+  min-height: 280px;
+  background: #e8e4ef center / cover no-repeat;
+}
+.avonix-popup-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  justify-content: center;
+}
+.avonix-popup-card--grid-banner {
+  background: linear-gradient(180deg, #0b1220 50%, #c9a227 50%);
+}
+.avonix-popup-card--grid-banner .avonix-popup-body {
+  padding: 28px;
+}
+.avonix-popup-logo {
+  max-height: 36px;
+  width: auto;
+  margin: 0 auto 4px;
+  display: block;
+  object-fit: contain;
+}
+.avonix-popup-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: #8a97a8;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+.avonix-popup-components { margin-top: 4px; width: 100%; }
+.avonix-popup-comp { margin-top: 8px; font-size: 12px; color: #5b6b7c; }
+.avonix-popup-columns {
+  display: grid;
+  width: 100%;
+  gap: 16px;
+}
+.avonix-popup-column { min-width: 0; }
+@media (max-width: 640px) {
+  .avonix-popup-columns.avonix-popup-columns--stack {
+    grid-template-columns: 1fr !important;
+  }
+}
+.avonix-popup-form-wrap { margin-top: 0; }
+.avonix-popup-form {
+  margin-top: 0;
+}
+.avonix-popup-form [data-avx-ultimate],
+.avonix-popup-form .avonix-form,
+.avonix-popup-form .avx-form {
+  max-width: 100% !important;
+  margin-inline: 0 !important;
+}
+/* Honeypot must never paint inside the card */
+.avonix-popup-form input[name="hp"],
+.avonix-popup-form-wrap input[name="hp"] {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+/* Form CSS uses display:flex which overrides the HTML hidden attribute */
+.avonix-popup-form-wrap .avx-logic-bar[hidden],
+.avonix-popup-form-wrap .avx-draft-banner[hidden],
+.avonix-popup-form-wrap .avx-budget[hidden],
+.avonix-popup-form-wrap .avx-prev[hidden],
+.avonix-popup-form-wrap .avx-next[hidden],
+.avonix-popup-form-wrap .avx-otp[hidden],
+.avonix-popup-form-wrap [hidden] {
+  display: none !important;
+}
+/* Draft resume is page UX — hide in popup shell */
+.avonix-popup-form-wrap .avx-draft {
+  display: none !important;
+}
+.avonix-popup-card--form-only {
+  width: min(640px, 100%);
+  padding: 20px;
+}
+.avonix-popup-card--form-only .avonix-popup-form-wrap {
+  margin-top: 14px;
+}
+.avonix-popup-form-wrap.avonix-popup-form-wrap--no-nav .avx-nav {
+  display: none !important;
+}
+.avonix-popup-form--override {
+  --avx-radius: inherit;
+}
+.avonix-popup-bar {
+  width: min(960px, 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .avonix-popup-card { width: 100%; border-radius: 14px; }
+  .avonix-popup-card--grid-media.avonix-popup-card--stack-mobile {
+    flex-direction: column !important;
+  }
+  .avonix-popup-card--grid-media.avonix-popup-card--stack-mobile .avonix-popup-media {
+    flex: none;
+    width: 100%;
+    min-height: 180px;
+  }
+}
+CSS;
+    }
+
+    private function runtime_js()
+    {
+        return <<<'JS'
+(function () {
+  var cfg = window.AVONIX_POPUPS;
+  if (!cfg || !cfg.popups || !cfg.popups.length) return;
+
+  function matchRule(path, rule) {
+    if (!rule || !rule.value) return false;
+    var v = rule.value;
+    switch (rule.op) {
+      case "equals": return path === v;
+      case "starts_with": return path.indexOf(v) === 0;
+      case "ends_with": return path.slice(-v.length) === v;
+      case "contains": return path.indexOf(v) !== -1;
+      case "regex":
+        try { return new RegExp(v).test(path); } catch (e) { return false; }
+      default: return false;
+    }
+  }
+
+  function pageMatches(audience) {
+    var t = (audience && audience.pageTarget) || { mode: "everywhere" };
+    var path = cfg.path || "/";
+    var surface = cfg.surface || "";
+    var excludes = t.excludePaths || [];
+    for (var i = 0; i < excludes.length; i++) {
+      if (path.indexOf(excludes[i]) !== -1) return false;
+    }
+    if (t.mode === "everywhere" || !t.mode) return true;
+    var ok = false;
+    (t.surfaces || []).forEach(function (s) { if (s === surface) ok = true; });
+    (t.rules || []).forEach(function (r) { if (matchRule(path, r)) ok = true; });
+    if (t.mode === "include") return ok;
+    if (t.mode === "exclude") return !ok;
+    return true;
+  }
+
+  function deviceKind() {
+    var w = window.innerWidth || 1200;
+    if (w < 768) return "mobile";
+    if (w < 1024) return "tablet";
+    return "desktop";
+  }
+
+  function deviceMatches(pop) {
+    var devices = (pop.payload && pop.payload.devices) || [];
+    if (!devices.length) return true;
+    return devices.indexOf(deviceKind()) !== -1;
+  }
+
+  function visitorMatches(audience) {
+    var types = (audience && audience.visitorTypes) || [];
+    if (!types.length) return true;
+    var isNew = !cfg.returning;
+    var logged = !!cfg.logged_in;
+    for (var i = 0; i < types.length; i++) {
+      var t = types[i];
+      if (t === "new" && isNew) return true;
+      if (t === "returning" && !isNew) return true;
+      if (t === "logged_in" && logged) return true;
+      if (t === "guest" && !logged) return true;
+    }
+    return false;
+  }
+
+  function utmMatches(audience) {
+    var utm = audience && audience.utm;
+    if (!utm || (!utm.source && !utm.campaign && !utm.medium)) return true;
+    var q = {};
+    try {
+      window.location.search.replace(/^\?/, "").split("&").forEach(function (pair) {
+        var p = pair.split("=");
+        if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || "");
+      });
+    } catch (e) {}
+    if (utm.source && q.utm_source !== utm.source) return false;
+    if (utm.campaign && q.utm_campaign !== utm.campaign) return false;
+    if (utm.medium && q.utm_medium !== utm.medium) return false;
+    return true;
+  }
+
+  function scheduleMatches(schedule) {
+    if (!schedule) return true;
+    var now = Date.now();
+    if (schedule.startAt) {
+      var s = Date.parse(schedule.startAt);
+      if (!isNaN(s) && now < s) return false;
+    }
+    if (schedule.endAt) {
+      var e = Date.parse(schedule.endAt);
+      if (!isNaN(e) && now > e) return false;
+    }
+    return true;
+  }
+
+  function conflictOk(conflicts) {
+    conflicts = conflicts || {};
+    if (conflicts.suppressIfChatOpen) {
+      var chat = document.querySelector(".avonix-chat-open, .avonix-chat-panel.is-open, [data-avonix-chat-open='1']");
+      if (chat) return false;
+    }
+    if (conflicts.suppressIfFormOpen) {
+      var focus = document.activeElement;
+      if (focus && (focus.tagName === "INPUT" || focus.tagName === "TEXTAREA" || focus.tagName === "SELECT")) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function freqKey(id) { return "avonix_popup_seen_" + id; }
+
+  function allowedByFrequency(pop) {
+    var freq = (pop.payload && pop.payload.frequency) || { mode: "once" };
+    var mode = freq.mode || "once";
+    if (mode === "always") return true;
+    try {
+      var raw = localStorage.getItem(freqKey(pop.id));
+      if (!raw) return true;
+      var data = JSON.parse(raw);
+      var now = Date.now();
+      if (mode === "never_repeat" || mode === "once") return false;
+      if (mode === "every_session") return !sessionStorage.getItem(freqKey(pop.id));
+      if (mode === "once_daily") return !data.at || now - data.at > 86400000;
+      if (mode === "once_weekly") return !data.at || now - data.at > 7 * 86400000;
+      if (mode === "once_monthly") return !data.at || now - data.at > 30 * 86400000;
+    } catch (e) {}
+    return true;
+  }
+
+  function markSeen(pop) {
+    try {
+      localStorage.setItem(freqKey(pop.id), JSON.stringify({ at: Date.now() }));
+      sessionStorage.setItem(freqKey(pop.id), "1");
+    } catch (e) {}
+  }
+
+  function track(pop, action) {
+    try {
+      if (window.AvonixTrack && typeof window.AvonixTrack.push === "function") {
+        window.AvonixTrack.push({
+          type: "popup",
+          popup_id: pop.id,
+          action: action,
+          name: pop.name,
+          analytics_id: (pop.payload && pop.payload.analyticsId) || null
+        });
+      }
+    } catch (e) {}
+  }
+
+  function fireAutomation(pop, action) {
+    var auto = (pop.payload && pop.payload.automation) || {};
+    var detail = {
+      popupId: pop.id,
+      action: action,
+      tags: auto.tags || [],
+      notifyEmail: auto.notifyEmail || null
+    };
+    try {
+      document.dispatchEvent(new CustomEvent("avonix:popup-automation", { detail: detail }));
+    } catch (e) {}
+    if (auto.webhookUrl && (auto.onSubmitZapier || action === "view" === false)) {
+      if (auto.onSubmitZapier || action === "cta" || action === "submit") {
+        try {
+          fetch(auto.webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(detail),
+            mode: "no-cors",
+            keepalive: true
+          });
+        } catch (e) {}
+      }
+    }
+  }
+
+  function candidates() {
+    return cfg.popups
+      .filter(function (p) {
+        var payload = p.payload || {};
+        return pageMatches(payload.audience)
+          && deviceMatches(p)
+          && visitorMatches(payload.audience)
+          && utmMatches(payload.audience)
+          && scheduleMatches(payload.schedule)
+          && conflictOk(payload.conflicts)
+          && allowedByFrequency(p);
+      })
+      .sort(function (a, b) {
+        return (a.priority_rank || 100) - (b.priority_rank || 100);
+      });
+  }
+
+  var shown = false;
+
+  function layoutClass(layout) {
+    if (layout === "bottom_bar") return "avonix-popup-root--bottom";
+    if (layout === "top_bar") return "avonix-popup-root--top";
+    if (layout === "slide_left" || layout === "drawer") return "avonix-popup-root--left";
+    if (layout === "slide_right") return "avonix-popup-root--right";
+    return "";
+  }
+
+  function youtubeEmbed(url) {
+    if (!url) return "";
+    var m = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (m && m[1]) return "https://www.youtube.com/embed/" + m[1];
+    if (/youtube\.com\/embed\//.test(url)) return url;
+    return "";
+  }
+
+  function injectHtml(host, html) {
+    host.innerHTML = html || "";
+    // <link> from innerHTML does not load — hoist Google Fonts to <head>
+    var links = host.querySelectorAll('link[rel="stylesheet"]');
+    links.forEach(function (old) {
+      var href = old.getAttribute("href") || "";
+      if (href.indexOf("fonts.googleapis.com") === -1) return;
+      if (document.querySelector('link[href="' + href.replace(/"/g, "") + '"]')) {
+        old.remove();
+        return;
+      }
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      if (old.getAttribute("data-avonix-gfont")) {
+        link.setAttribute("data-avonix-gfont", "1");
+      }
+      document.head.appendChild(link);
+      old.remove();
+    });
+    var scripts = host.querySelectorAll("script");
+    scripts.forEach(function (old) {
+      var s = document.createElement("script");
+      if (old.src) {
+        s.src = old.src;
+        s.async = old.async;
+      } else {
+        s.textContent = old.textContent;
+      }
+      Array.prototype.forEach.call(old.attributes || [], function (attr) {
+        if (attr.name !== "src") s.setAttribute(attr.name, attr.value);
+      });
+      old.parentNode.replaceChild(s, old);
+    });
+  }
+
+  function showPopup(pop) {
+    if (shown || !pop) return;
+    shown = true;
+    markSeen(pop);
+    track(pop, "view");
+
+    var content = (pop.payload && pop.payload.content) || {};
+    var close = (pop.payload && pop.payload.close) || {};
+    var design = (pop.payload && pop.payload.design) || {};
+    var behavior = (pop.payload && pop.payload.behavior) || {};
+    var components = (pop.payload && pop.payload.components) || [];
+
+    var root = document.createElement("div");
+    root.className = ("avonix-popup-root " + layoutClass(design.layout)).trim();
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-label", content.headline || pop.name || "Popup");
+
+    var hasForm = Boolean(pop.form_html);
+    var hasEmbed = !hasForm && Boolean(pop.form_embed_url);
+    var hasFormSurface = hasForm || hasEmbed;
+    var replaceFormButtons = Boolean(content.replaceFormButtons);
+    var grid = design.grid || {};
+    var theme = design.theme || {};
+    var gridMode = grid.mode || "stack";
+    var gridAlign = grid.align || "left";
+    var mediaPct = grid.mediaWidthPercent != null ? grid.mediaWidthPercent : 48;
+    var mediaSide = grid.mediaSide || "left";
+    var stackMobile = grid.stackOnMobile !== false;
+
+    var card = document.createElement("div");
+    card.className = "avonix-popup-card"
+      + (design.layout === "bottom_bar" || design.layout === "top_bar" ? " avonix-popup-bar" : "")
+      + (hasFormSurface && gridMode === "stack" ? " avonix-popup-card--form-only" : "")
+      + (gridMode === "media_split" ? " avonix-popup-card--grid-media" : "")
+      + (gridMode === "media_split" && mediaSide === "right" ? " avonix-popup-card--media-right" : "")
+      + (gridMode === "media_split" && stackMobile ? " avonix-popup-card--stack-mobile" : "")
+      + (gridMode === "banner_split" ? " avonix-popup-card--grid-banner" : "");
+    if (design.maxWidth) card.style.width = "min(" + design.maxWidth + "px, 100%)";
+    else if (hasFormSurface) card.style.width = "min(640px, 100%)";
+    if (design.minHeight) card.style.minHeight = design.minHeight + "px";
+    if (design.radius != null) card.style.borderRadius = design.radius + "px";
+    if (gridMode !== "media_split" && design.padding != null) card.style.padding = design.padding + "px";
+    if (theme.backgroundColor && gridMode !== "banner_split") card.style.background = theme.backgroundColor;
+    if (theme.textColor) card.style.color = theme.textColor;
+    if (gridMode === "banner_split") {
+      var topC = theme.splitTopColor || "#0b1220";
+      var botC = theme.splitBottomColor || "#c9a227";
+      card.style.background = "linear-gradient(180deg, " + topC + " 50%, " + botC + " 50%)";
+    }
+    if (design.shadow === false) card.style.boxShadow = "none";
+    if (design.customCss) {
+      try {
+        var style = document.createElement("style");
+        style.textContent = design.customCss;
+        document.head.appendChild(style);
+      } catch (e) {}
+    }
+
+    function dismiss(reason) {
+      track(pop, reason || "dismiss");
+      root.remove();
+    }
+
+    function applyTextStyle(el, styleObj, defaults) {
+      var s = styleObj || {};
+      el.style.fontSize = (s.fontSize || defaults.fontSize) + "px";
+      el.style.fontWeight = String(s.fontWeight || defaults.fontWeight);
+      el.style.color = s.color || defaults.color;
+      el.style.textAlign = s.align || defaults.align || gridAlign || "left";
+      el.style.margin = "0";
+      if (s.lineHeight) el.style.lineHeight = String(s.lineHeight);
+      if (s.letterSpacing != null) el.style.letterSpacing = s.letterSpacing + "px";
+      if (s.textTransform) el.style.textTransform = s.textTransform;
+      var family = s.fontFamily || defaults.fontFamily;
+      if (family && family !== "system") {
+        el.style.fontFamily = "'" + String(family).replace(/'/g, "") + "', system-ui, sans-serif";
+      }
+    }
+
+    function siteFont(kind) {
+      var fonts = cfg.fonts || {};
+      if (kind === "heading") {
+        return fonts.headingFamily || fonts.primaryFamily || "";
+      }
+      return fonts.primaryFamily || "";
+    }
+
+    function wireCta(btn, cta) {
+      btn.addEventListener("click", function (ev) {
+        track(pop, "click");
+        fireAutomation(pop, "cta");
+        var act = (cta && cta.action) || (replaceFormButtons ? "submit_form" : "close_popup");
+        if (act === "submit_form") {
+          ev.preventDefault();
+          if (formEl) {
+            if (typeof formEl.requestSubmit === "function") formEl.requestSubmit();
+            else {
+              var submitBtn = formEl.querySelector('button[type="submit"], .avx-submit');
+              if (submitBtn) submitBtn.click();
+              else formEl.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+            }
+          }
+          return;
+        }
+        if (act === "close" || act === "close_popup") {
+          ev.preventDefault();
+          dismiss("close");
+        }
+        if (act === "live_chat" || act === "chat_now") {
+          ev.preventDefault();
+          var launcher = document.querySelector(".avonix-chat-launcher, #avonix-chat-open, [data-avonix-chat]");
+          if (launcher) launcher.click();
+          dismiss("chat");
+        }
+        if (act === "copy_coupon" && content.couponCode) {
+          ev.preventDefault();
+          try { navigator.clipboard.writeText(content.couponCode); } catch (e2) {}
+        }
+        if (act === "open_url" && cta && cta.url) {
+          return;
+        }
+        try {
+          document.dispatchEvent(new CustomEvent("avonix:popup", { detail: { popupId: pop.id, action: act } }));
+        } catch (e3) {}
+      });
+    }
+
+    if (close.showCloseButton !== false && !close.neverClose) {
+      var x = document.createElement("button");
+      x.type = "button";
+      x.className = "avonix-popup-close";
+      x.setAttribute("aria-label", "Close");
+      x.textContent = "×";
+      x.addEventListener("click", function () { dismiss("close"); });
+      card.appendChild(x);
+    }
+
+    var bodyFamily = design.googleFont || siteFont("body");
+    if (bodyFamily && bodyFamily !== "system") {
+      card.style.fontFamily = "'" + String(bodyFamily).replace(/'/g, "") + "', system-ui, sans-serif";
+    }
+
+    var bodyCol = document.createElement("div");
+    bodyCol.className = "avonix-popup-body";
+    bodyCol.style.textAlign = gridAlign;
+    bodyCol.style.alignItems = gridAlign === "center" ? "center" : (gridAlign === "right" ? "flex-end" : "stretch");
+    if (grid.gap != null) bodyCol.style.gap = grid.gap + "px";
+    if (gridMode === "media_split" && design.padding != null) {
+      bodyCol.style.padding = design.padding + "px";
+    }
+
+    if (content.logoUrl) {
+      var logo = document.createElement("img");
+      logo.className = "avonix-popup-logo";
+      logo.src = content.logoUrl;
+      logo.alt = "";
+      bodyCol.appendChild(logo);
+    }
+
+    if (content.headline || (!hasFormSurface && pop.name)) {
+      var h = document.createElement("h2");
+      h.textContent = content.headline || pop.name || "Hello";
+      applyTextStyle(h, content.headlineStyle, {
+        fontSize: 20,
+        fontWeight: 700,
+        color: theme.textColor || "#13233c",
+        align: gridAlign,
+        fontFamily: (content.headlineStyle && content.headlineStyle.fontFamily) || design.headingFont || design.googleFont || siteFont("heading"),
+      });
+      bodyCol.appendChild(h);
+    }
+
+    if (content.description) {
+      var p = document.createElement("p");
+      p.textContent = content.description;
+      applyTextStyle(p, content.descriptionStyle, {
+        fontSize: 14,
+        fontWeight: 400,
+        color: "#5b6b7c",
+        align: gridAlign,
+        fontFamily: (content.descriptionStyle && content.descriptionStyle.fontFamily) || design.googleFont || siteFont("body"),
+      });
+      bodyCol.appendChild(p);
+    }
+
+    if (content.imageUrl && gridMode === "stack") {
+      var img = document.createElement("img");
+      img.src = content.imageUrl;
+      img.alt = "";
+      img.style.cssText = "margin-top:4px;max-width:100%;border-radius:10px;display:block;";
+      bodyCol.appendChild(img);
+    }
+
+    if (components.length) {
+      var wrap = document.createElement("div");
+      wrap.className = "avonix-popup-components";
+      if (gridMode === "multi_column") {
+        wrap.className += " avonix-popup-columns";
+        wrap.style.gridTemplateColumns = "repeat(" + (grid.columnCount || 2) + ", minmax(0, 1fr))";
+        wrap.style.gap = (grid.gap != null ? grid.gap : 16) + "px";
+        if (stackMobile) wrap.className += " avonix-popup-columns--stack";
+      }
+      function renderComp(c) {
+        var el = document.createElement("div");
+        el.className = "avonix-popup-comp";
+        var props = c.props || {};
+        if (c.kind === "columns") {
+          el.className = "avonix-popup-columns";
+          if (props.stackOnMobile !== false) el.className += " avonix-popup-columns--stack";
+          var count = props.count || (c.children && c.children.length) || 2;
+          el.style.gridTemplateColumns = "repeat(" + count + ", minmax(0, 1fr))";
+          el.style.gap = (props.gap != null ? props.gap : 16) + "px";
+          (c.children || []).forEach(function (col) {
+            var colEl = document.createElement("div");
+            colEl.className = "avonix-popup-column";
+            if (col.colSpan) colEl.style.gridColumn = "span " + Math.min(12, Math.max(1, col.colSpan));
+            (col.children || []).forEach(function (child) {
+              colEl.appendChild(renderComp(child));
+            });
+            el.appendChild(colEl);
+          });
+          return el;
+        }
+        if (c.kind === "column") {
+          el.className = "avonix-popup-column";
+          (c.children || []).forEach(function (child) {
+            el.appendChild(renderComp(child));
+          });
+          return el;
+        }
+        if (c.kind === "divider") {
+          el.style.borderTop = "1px solid #e6e9f0";
+          el.style.margin = "12px 0";
+        } else if (c.kind === "spacer") {
+          el.style.height = (props.height || 12) + "px";
+        } else if (c.kind === "headline") {
+          el.style.fontWeight = "700";
+          el.style.fontSize = "18px";
+          el.style.color = "inherit";
+          el.textContent = props.text || props.label || "";
+        } else if (c.kind === "paragraph") {
+          el.style.fontSize = "14px";
+          el.textContent = props.text || props.label || "";
+        } else if (c.kind === "image" && props.src) {
+          var imgEl = document.createElement("img");
+          imgEl.src = String(props.src);
+          imgEl.alt = props.alt ? String(props.alt) : "";
+          imgEl.style.cssText = "max-width:100%;border-radius:10px;display:block;";
+          el.appendChild(imgEl);
+        } else if (c.kind === "video" || c.kind === "youtube") {
+          var vurl = String(props.url || props.src || content.youtubeUrl || "");
+          var embed = youtubeEmbed(vurl);
+          if (embed) {
+            var ifr = document.createElement("iframe");
+            ifr.src = embed;
+            ifr.title = "Video";
+            ifr.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+            ifr.allowFullscreen = true;
+            ifr.style.cssText = "width:100%;aspect-ratio:16/9;border:0;border-radius:10px;";
+            el.appendChild(ifr);
+          } else if (vurl) {
+            el.textContent = vurl;
+          }
+        } else if (c.kind === "custom_html" && props.html) {
+          injectHtml(el, String(props.html));
+        } else if (c.kind === "countdown" && content.countdownEndsAt) {
+          el.textContent = "Ends: " + content.countdownEndsAt;
+        } else if (c.kind === "coupon" && content.couponCode) {
+          el.style.fontWeight = "700";
+          el.textContent = (content.discountLabel ? content.discountLabel + " · " : "") + content.couponCode;
+        } else if (c.kind === "live_visitors") {
+          el.textContent = (12 + Math.floor(Math.random() * 40)) + " people viewing this offer";
+        } else {
+          el.textContent = props.label ? String(props.label) : (props.text ? String(props.text) : String(c.kind || ""));
+        }
+        return el;
+      }
+      components.forEach(function (c) {
+        if (gridMode === "multi_column" && c.kind === "columns") {
+          var full = renderComp(c);
+          full.style.gridColumn = "1 / -1";
+          wrap.appendChild(full);
+        } else {
+          wrap.appendChild(renderComp(c));
+        }
+      });
+      bodyCol.appendChild(wrap);
+    }
+
+    if (content.couponCode && !components.some(function (c) { return c.kind === "coupon"; })) {
+      var code = document.createElement("p");
+      code.style.fontWeight = "700";
+      code.style.margin = "0";
+      code.style.textAlign = gridAlign;
+      code.textContent = (content.discountLabel ? content.discountLabel + ": " : "") + content.couponCode;
+      bodyCol.appendChild(code);
+    }
+
+    var formEl = null;
+    if (hasForm) {
+      var formWrap = document.createElement("div");
+      formWrap.className = "avonix-popup-form-wrap" + (replaceFormButtons ? " avonix-popup-form-wrap--no-nav" : "");
+      formWrap.style.width = "100%";
+      injectHtml(formWrap, pop.form_html);
+      try {
+        formEl = formWrap.querySelector("form.avonix-form, form[data-avx-ultimate], form");
+        if (formEl) {
+          var draftBtn = formEl.querySelector(".avx-draft");
+          if (draftBtn) draftBtn.hidden = true;
+          if (formEl.getAttribute("data-mode") === "single") {
+            var nextBtn = formEl.querySelector(".avx-next");
+            if (nextBtn) nextBtn.hidden = true;
+          }
+          if (replaceFormButtons) {
+            var nav = formEl.querySelector(".avx-nav");
+            if (nav) nav.hidden = true;
+          }
+        }
+      } catch (e) {}
+      formWrap.addEventListener("submit", function () {
+        track(pop, "convert");
+        fireAutomation(pop, "submit");
+        if (behavior.redirectUrl) {
+          setTimeout(function () { window.location.href = behavior.redirectUrl; }, 400);
+        }
+      }, true);
+      bodyCol.appendChild(formWrap);
+    } else if (hasEmbed) {
+      var embedWrap = document.createElement("div");
+      embedWrap.className = "avonix-popup-form-wrap avonix-popup-form-wrap--embed";
+      embedWrap.style.width = "100%";
+      var frame = document.createElement("iframe");
+      frame.src = pop.form_embed_url;
+      frame.title = content.headline || pop.name || "Form";
+      frame.loading = "lazy";
+      frame.referrerPolicy = "no-referrer-when-downgrade";
+      frame.setAttribute("allow", "clipboard-write; payment");
+      frame.style.cssText = "width:100%;min-height:360px;border:0;border-radius:12px;background:#fff;";
+      embedWrap.appendChild(frame);
+      bodyCol.appendChild(embedWrap);
+    }
+
+    var showPopupCta = !hasFormSurface || (hasForm && replaceFormButtons);
+    if (showPopupCta) {
+      var cta = content.primaryCta || {
+        label: replaceFormButtons ? "Send" : "Continue",
+        action: replaceFormButtons ? "submit_form" : "close_popup",
+      };
+      var btn = document.createElement(cta.url && cta.action !== "submit_form" ? "a" : "button");
+      if (cta.url && cta.action !== "submit_form") btn.href = cta.url;
+      else btn.type = "button";
+      btn.className = "avonix-popup-cta";
+      btn.textContent = cta.label || "Continue";
+      btn.style.width = "100%";
+      if (theme.buttonBackground) btn.style.background = theme.buttonBackground;
+      if (theme.buttonTextColor) btn.style.color = theme.buttonTextColor;
+      if (theme.buttonRadius != null) btn.style.borderRadius = theme.buttonRadius + "px";
+      if (theme.buttonBorderColor) {
+        btn.style.border = "2px solid " + theme.buttonBorderColor;
+        if (!theme.buttonBackground) btn.style.background = "#fff";
+      }
+      wireCta(btn, cta);
+      bodyCol.appendChild(btn);
+    }
+
+    if (content.secondaryCta && content.secondaryCta.label) {
+      var sec = content.secondaryCta;
+      var sbtn = document.createElement(sec.url && sec.action === "open_url" ? "a" : "button");
+      if (sec.url && sec.action === "open_url") sbtn.href = sec.url;
+      else sbtn.type = "button";
+      sbtn.className = "avonix-popup-cta-secondary";
+      sbtn.textContent = sec.label;
+      if (theme.secondaryLinkColor) sbtn.style.color = theme.secondaryLinkColor;
+      wireCta(sbtn, sec);
+      bodyCol.appendChild(sbtn);
+    }
+
+    if (gridMode === "media_split") {
+      var media = document.createElement("div");
+      media.className = "avonix-popup-media";
+      media.style.flex = "0 0 " + mediaPct + "%";
+      if (theme.mediaBackgroundColor) media.style.backgroundColor = theme.mediaBackgroundColor;
+      if (content.imageUrl) {
+        media.style.backgroundImage = 'url("' + String(content.imageUrl).replace(/"/g, "%22") + '")';
+      }
+      card.appendChild(media);
+      card.appendChild(bodyCol);
+    } else {
+      card.appendChild(bodyCol);
+    }
+
+    root.appendChild(card);
+    if (close.clickOutside !== false && !close.neverClose) {
+      root.addEventListener("click", function (ev) {
+        if (ev.target === root) dismiss("outside");
+      });
+    }
+    if (close.esc !== false && !close.neverClose) {
+      document.addEventListener("keydown", function onKey(ev) {
+        if (ev.key === "Escape") {
+          dismiss("esc");
+          document.removeEventListener("keydown", onKey);
+        }
+      });
+    }
+    if (close.autoCloseMs) {
+      setTimeout(function () { if (document.body.contains(root)) dismiss("auto"); }, close.autoCloseMs);
+    }
+    document.body.appendChild(root);
+  }
+
+  function arm(pop) {
+    var triggers = (pop.payload && pop.payload.triggers) || {};
+    var fired = false;
+    function fire() {
+      if (fired || shown) return;
+      fired = true;
+      showPopup(pop);
+    }
+
+    var hasAny =
+      triggers.onLoad ||
+      (triggers.delayMs && triggers.delayMs[0]) ||
+      (triggers.scrollPercent && triggers.scrollPercent[0]) ||
+      (triggers.inactivityMs && triggers.inactivityMs[0]) ||
+      (triggers.clickSelectors && triggers.clickSelectors[0]) ||
+      (triggers.exitIntent && (triggers.exitIntent.desktop || triggers.exitIntent.mobileBack || triggers.exitIntent.closeTab));
+
+    // Empty triggers → treat as on-load (so published popups always have a path)
+    if (!hasAny) {
+      setTimeout(fire, 600);
+      return;
+    }
+
+    if (triggers.onLoad) {
+      setTimeout(fire, (triggers.delayMs && triggers.delayMs[0]) || 400);
+      return;
+    }
+    if (triggers.delayMs && triggers.delayMs[0]) setTimeout(fire, triggers.delayMs[0]);
+    if (triggers.scrollPercent && triggers.scrollPercent[0]) {
+      var target = Number(triggers.scrollPercent[0]) || 50;
+      function onScroll() {
+        var doc = document.documentElement;
+        var max = (doc.scrollHeight - window.innerHeight) || 1;
+        var pct = (window.scrollY / max) * 100;
+        if (pct >= target) {
+          window.removeEventListener("scroll", onScroll);
+          fire();
+        }
+      }
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    }
+    if (triggers.inactivityMs && triggers.inactivityMs[0]) {
+      var idle = Number(triggers.inactivityMs[0]) || 30000;
+      var timer = setTimeout(fire, idle);
+      ["mousemove", "keydown", "scroll", "click", "touchstart"].forEach(function (evt) {
+        window.addEventListener(evt, function () {
+          clearTimeout(timer);
+          timer = setTimeout(fire, idle);
+        }, { passive: true });
+      });
+    }
+    if (triggers.clickSelectors && triggers.clickSelectors[0]) {
+      document.addEventListener("click", function (ev) {
+        try {
+          if (ev.target && ev.target.closest && ev.target.closest(triggers.clickSelectors[0])) fire();
+        } catch (e) {}
+      });
+    }
+    if (triggers.exitIntent && triggers.exitIntent.desktop) {
+      function onExit(ev) {
+        if (ev.clientY <= 0) {
+          document.removeEventListener("mouseout", onExit);
+          fire();
+        }
+      }
+      document.addEventListener("mouseout", onExit);
+    }
+  }
+
+  var list = candidates();
+  if (!list.length) {
+    try { console.info("[Avonix Popup] no matching popups for this page/session"); } catch (e) {}
+    return;
+  }
+  arm(list[0]);
+})();
+JS;
+    }
+}

@@ -89,7 +89,7 @@ async function main() {
       id: agencyId,
       name: "Inbound Test",
       slug: `inbound-${randomBytes(4).toString("hex")}`,
-      plan: "pro",
+      plan: "professional",
     });
   });
 
@@ -219,7 +219,7 @@ async function main() {
       id: otherId,
       name: "Other",
       slug: `other-${randomBytes(4).toString("hex")}`,
-      plan: "pro",
+      plan: "professional",
     });
   });
   const otherClient = await createClientForAgency(otherId, { name: "Other Client" });

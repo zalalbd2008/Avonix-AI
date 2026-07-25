@@ -1,7 +1,8 @@
-import { index, integer, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { primaryId, timestamps } from "./_shared";
 import { agencyId } from "./_tenant";
 import { conversations } from "./conversations";
+import type { CepChatBlock } from "./cep";
 
 export const messageAuthorEnum = pgEnum("message_author", [
   "visitor",
@@ -34,6 +35,11 @@ export const messages = pgTable(
 
     author: messageAuthorEnum("author").notNull(),
     body: text("body").notNull(),
+    /**
+     * Typed CEP blocks (ADR-011). When null, clients fall back to `body` as
+     * a single plain_text block.
+     */
+    blocks: jsonb("blocks").$type<CepChatBlock[]>(),
 
     delivery: messageDeliveryEnum("delivery").notNull().default("not_applicable"),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),

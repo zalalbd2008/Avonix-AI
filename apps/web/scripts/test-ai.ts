@@ -89,7 +89,7 @@ async function main() {
       id: agencyId,
       name: "AI Test",
       slug: `ai-${randomBytes(4).toString("hex")}`,
-      plan: "pro",
+      plan: "professional",
     });
   });
 
@@ -136,7 +136,7 @@ async function main() {
       id: otherAgency,
       name: "Other",
       slug: `other-${randomBytes(4).toString("hex")}`,
-      plan: "pro",
+      plan: "professional",
     });
   });
   const crossHits = await retrieve(otherAgency, site.id, "saturday opening");

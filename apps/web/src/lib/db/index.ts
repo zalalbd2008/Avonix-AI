@@ -6,7 +6,11 @@ import * as schema from "./schema";
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
 
-const client = postgres(connectionString, { max: 10 });
+const client = postgres(connectionString, {
+  max: 10,
+  connect_timeout: 10,
+  idle_timeout: 20,
+});
 
 /**
  * Unscoped handle. Row-level security still applies, so with no tenant set

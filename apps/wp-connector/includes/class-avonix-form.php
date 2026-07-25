@@ -22,8 +22,12 @@ class Avonix_Form
 
     public function render($atts)
     {
-        $atts = shortcode_atts(['title' => 'Get in touch'], $atts, 'avonix_form');
+        $atts = shortcode_atts([
+            'title' => 'Get in touch',
+            'id'    => '',
+        ], $atts, 'avonix_form');
         $sent = isset($_GET['avonix_sent']) ? sanitize_text_field(wp_unslash($_GET['avonix_sent'])) : '';
+        $form_id = sanitize_text_field((string) $atts['id']);
 
         ob_start();
 
@@ -35,8 +39,11 @@ class Avonix_Form
             echo '<p class="avonix-error">Sorry, that did not send. Please try again.</p>';
         }
         ?>
-        <form class="avonix-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <form class="avonix-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"<?php echo $form_id !== '' ? ' data-form-id="' . esc_attr($form_id) . '"' : ''; ?>>
             <input type="hidden" name="action" value="avonix_submit">
+            <?php if ($form_id !== '') : ?>
+                <input type="hidden" name="avonix_form_id" value="<?php echo esc_attr($form_id); ?>">
+            <?php endif; ?>
             <?php wp_nonce_field('avonix_submit', 'avonix_nonce'); ?>
             <input type="hidden" name="avonix_page" value="<?php echo esc_attr(home_url(add_query_arg([], $GLOBALS['wp']->request ?? ''))); ?>">
 

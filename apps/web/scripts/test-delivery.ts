@@ -50,7 +50,7 @@ async function main() {
       id: agencyId,
       name: "Delivery Test",
       slug: `delivery-${randomBytes(4).toString("hex")}`,
-      plan: "pro",
+      plan: "professional",
     });
   });
 
@@ -161,7 +161,7 @@ async function main() {
       id: otherId,
       name: "Other",
       slug: `other-${randomBytes(4).toString("hex")}`,
-      plan: "pro",
+      plan: "professional",
     });
   });
 

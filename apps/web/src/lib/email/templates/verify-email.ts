@@ -19,7 +19,8 @@ export function verifyEmail({
       heading: "Confirm your email",
       body: [
         greeting,
-        "Confirm this address so we can send you lead notifications and password resets.",
+        "Confirm this address to finish creating your Avonix AI account. You can’t set up your agency until this is done.",
+        "Temporary or disposable inboxes can’t be used — this must be a permanent email you can open.",
       ],
       cta: { label: "Confirm email", url },
       footer:

@@ -1,47 +1,101 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Field, FormError, SubmitButton } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 import { signUp } from "@/lib/auth/client";
+import { validateSignupEmail } from "@/lib/email/email-policy";
 
 export default function SignUpPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (pending) return;
     setPending(true);
     setError(null);
 
     const data = new FormData(e.currentTarget);
-    const { error } = await signUp.email({
-      name: String(data.get("name")),
-      email: String(data.get("email")),
-      password: String(data.get("password")),
-    });
+    const name = String(data.get("name") ?? "").trim();
+    const emailRaw = String(data.get("email") ?? "");
+    const password = String(data.get("password") ?? "");
 
-    if (error) {
-      setError(error.message ?? "Could not create the account.");
+    if (name.length < 2) {
+      setError("Enter your name.");
       setPending(false);
       return;
     }
-    // A new user has no agency yet, so onboarding is the only sensible landing.
-    router.push("/onboarding/agency");
-    router.refresh();
+
+    const emailCheck = validateSignupEmail(emailRaw);
+    if (!emailCheck.ok) {
+      setError(emailCheck.error);
+      setPending(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      setPending(false);
+      return;
+    }
+
+    const { error: signUpError } = await signUp.email({
+      name,
+      email: emailCheck.email,
+      password,
+      callbackURL: "/onboarding/agency",
+    });
+
+    if (signUpError) {
+      setError(signUpError.message ?? "Could not create the account.");
+      setPending(false);
+      return;
+    }
+
+    // No agency setup until the address is confirmed — hard nav to the
+    // check-email screen (session may be absent until they click the link).
+    window.location.assign(
+      `/check-email?email=${encodeURIComponent(emailCheck.email)}`,
+    );
   }
 
   return (
     <>
       <h1 className="text-xl font-bold tracking-tight">Create your account</h1>
-      <p className="mt-0.5 mb-5 text-[13px] text-muted">Start with one client, free</p>
+      <p className="mt-0.5 mb-5 text-[13px] text-muted">
+        Use a real email — you&apos;ll confirm it before setup
+      </p>
       <form onSubmit={onSubmit}>
         <FormError message={error} />
-        <Field label="Your name" name="name" required autoComplete="name" placeholder="Your name" />
-        <Field label="Email" name="email" type="email" required autoComplete="email" placeholder="you@agency.com" />
-        <Field label="Password" name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="At least 8 characters" />
+        <Field
+          label="Your name"
+          name="name"
+          required
+          autoComplete="name"
+          placeholder="Your name"
+        />
+        <Field
+          label="Work email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="you@agency.com"
+        />
+        <p className="mb-3 -mt-2 text-[11.5px] text-muted">
+          Temporary / disposable addresses (Mailinator, Yopmail, 10MinuteMail,
+          etc.) are blocked.
+        </p>
+        <PasswordField
+          label="Password"
+          name="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+        />
         <SubmitButton pending={pending}>Create account</SubmitButton>
       </form>
       <p className="mt-4 text-center text-[12.5px] text-muted">

@@ -43,7 +43,7 @@ async function main() {
         id,
         name: "CRM test",
         slug: `crm-${randomBytes(4).toString("hex")}`,
-        plan: "pro",
+        plan: "professional",
       });
     });
   }

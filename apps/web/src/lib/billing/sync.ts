@@ -2,7 +2,31 @@ import type Stripe from "stripe";
 import { eq } from "drizzle-orm";
 import { db, withAgency } from "@/lib/db";
 import { agencies, billingCustomers, billingEvents } from "@/lib/db/schema";
-import { periodEndOf, planForPrice, priceIdOf, statusForSubscription } from "./stripe";
+import {
+  intervalOf,
+  periodEndOf,
+  planForPriceResolved,
+  priceIdOf,
+  statusForSubscription,
+} from "./stripe";
+import type { Agency } from "@/lib/db/schema";
+
+const PLANS = new Set<Agency["plan"]>([
+  "starter",
+  "professional",
+  "agency",
+  "enterprise",
+]);
+
+function planFromMetadata(
+  subscription: Stripe.Subscription,
+): Agency["plan"] | null {
+  const raw = subscription.metadata?.plan;
+  if (raw && PLANS.has(raw as Agency["plan"])) {
+    return raw as Agency["plan"];
+  }
+  return null;
+}
 
 export type SyncResult =
   | { applied: true; agencyId: string; plan: string; status: string }
@@ -94,14 +118,15 @@ export async function syncSubscription(
   if (!agencyId) return { applied: false, reason: "No agency for that customer." };
 
   const priceId = priceIdOf(subscription);
-  const plan = planForPrice(priceId);
+  const plan =
+    planFromMetadata(subscription) ?? (await planForPriceResolved(priceId));
   const status = statusForSubscription(subscription.status);
 
-  // A cancelled subscription drops to free; an unrecognised price is left alone
+  // A cancelled subscription drops to Starter; an unrecognised price is left alone
   // rather than guessed at, so a new price added in the dashboard before it is
   // configured here cannot downgrade a paying customer.
   const nextPlan =
-    status === "canceled" ? "free" : (plan ?? null);
+    status === "canceled" ? "starter" : (plan ?? null);
 
   return withAgency(agencyId, async (tx) => {
     const [current] = await tx
@@ -116,6 +141,8 @@ export async function syncSubscription(
       return { applied: false as const, reason: "Older event ignored." };
     }
 
+    const interval = intervalOf(subscription);
+
     await tx
       .update(agencies)
       .set({
@@ -124,6 +151,7 @@ export async function syncSubscription(
         stripeSubscriptionId: subscription.id,
         currentPeriodEnd: periodEndOf(subscription),
         cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+        ...(interval ? { billingInterval: interval } : {}),
         billingSyncedAt: occurredAt,
         updatedAt: new Date(),
       })

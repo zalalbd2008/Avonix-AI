@@ -276,23 +276,17 @@ class Avonix_Backup
     }
 
     /**
-     * Create the final backup package (one zip / folder of component archives).
+     * Create UpdraftPlus-compatible component backups in one package folder.
      *
-     * Layout (Updraft-style components, single package):
-     *   {name}/
-     *     RESTORE.txt
-     *     {name}-db.sql
-     *     {name}-plugins.zip
-     *     {name}-themes.zip
-     *     {name}-uploads.zip
-     *     {name}-mu-plugins.zip
-     *     {name}-others.zip   (core + remaining wp-content + root files)
-     *
-     * @param bool          $include_db
-     * @param bool          $include_uploads
-     * @param bool          $include_full
-     * @param callable|null $on_progress function(int $pct, string $label)
-     * @param string        $archive_name optional base name without .zip
+     * Outer: {UserName}-{Ymd-His}.zip
+     * Inner folder files (Updraft naming — restore via UpdraftPlus):
+     *   backup_{Y-m-d-Hi}_{Site}_{nonce}-db.gz
+     *   backup_{...}-plugins.zip      (contains plugins/…)
+     *   backup_{...}-themes.zip
+     *   backup_{...}-uploads.zip
+     *   backup_{...}-mu-plugins.zip
+     *   backup_{...}-others.zip       (ABSPATH-relative: wp-admin, wp-includes, …)
+     *   RESTORE.txt
      */
     private function create_backup_zip($include_db, $include_uploads, $include_full = true, $on_progress = null, $archive_name = '')
     {
@@ -307,16 +301,24 @@ class Avonix_Backup
         };
 
         $backup_dir = $this->backup_directory();
-        $safe = $this->sanitize_archive_name($archive_name);
-        if ($safe === '') {
-            $safe = $this->sanitize_archive_name(get_bloginfo('name'));
+
+        $user_label = $this->sanitize_archive_name($archive_name);
+        if ($user_label === '') {
+            $user_label = $this->sanitize_archive_name(get_bloginfo('name'));
         }
-        if ($safe === '') {
-            $safe = 'avonix-backup';
+        if ($user_label === '') {
+            $user_label = 'website';
         }
-        $stamp = date('Ymd-His');
-        $folder = $safe . '-' . $stamp;
-        $filename = $folder . '.zip';
+
+        // UpdraftPlus uses: backup_YYYY-MM-DD-HHmm_SiteName_hexnonce
+        $updraft_site = $this->updraft_site_label($user_label);
+        $nonce = bin2hex(random_bytes(6));
+        $updraft_when = date('Y-m-d-Hi');
+        $updraft_base = 'backup_' . $updraft_when . '_' . $updraft_site . '_' . $nonce;
+
+        $pack_stamp = date('Ymd-His');
+        $pack_folder = $user_label . '-' . $pack_stamp;
+        $filename = $pack_folder . '.zip';
         $zip_path = $backup_dir . '/' . $filename;
 
         $work = $backup_dir . '/tmp-' . uniqid('bkp_', true);
@@ -324,101 +326,98 @@ class Avonix_Backup
             throw new \Exception('Cannot create temporary backup workspace.');
         }
 
-        $component_dir = $work . '/' . $folder;
+        $component_dir = $work . '/' . $pack_folder;
         wp_mkdir_p($component_dir);
-
-        $prefix = $folder;
-        $temps = [];
 
         try {
             file_put_contents(
                 $component_dir . '/RESTORE.txt',
-                $this->restore_instructions($folder)
+                $this->restore_instructions($updraft_base, $pack_folder)
             );
 
             if ($include_db) {
                 $notify(12, 'Dumping database…');
-                $sql_path = $component_dir . '/' . $prefix . '-db.sql';
-                $this->dump_database($sql_path);
-                $temps[] = $sql_path;
-                $notify(22, 'Database ready…');
+                $sql_tmp = $work . '/db.sql';
+                $this->dump_database($sql_tmp);
+                $db_gz = $component_dir . '/' . $updraft_base . '-db.gz';
+                $this->gzip_file($sql_tmp, $db_gz);
+                @unlink($sql_tmp);
+                $notify(22, 'Database ready (Updraft db.gz)…');
             }
 
             if ($include_full) {
                 $content = WP_CONTENT_DIR;
 
                 $notify(28, 'Packing plugins…');
-                $plugins_zip = $component_dir . '/' . $prefix . '-plugins.zip';
                 $this->zip_path_to_file(
                     $content . '/plugins',
-                    $plugins_zip,
+                    $component_dir . '/' . $updraft_base . '-plugins.zip',
                     'plugins',
-                    [$backup_dir]
+                    [$backup_dir, $work]
                 );
                 $notify(38, 'Plugins packed…');
 
                 $notify(42, 'Packing themes…');
-                $themes_zip = $component_dir . '/' . $prefix . '-themes.zip';
                 $this->zip_path_to_file(
                     $content . '/themes',
-                    $themes_zip,
+                    $component_dir . '/' . $updraft_base . '-themes.zip',
                     'themes',
-                    [$backup_dir]
+                    [$backup_dir, $work]
                 );
                 $notify(50, 'Themes packed…');
 
                 $notify(54, 'Packing uploads…');
-                $uploads_zip = $component_dir . '/' . $prefix . '-uploads.zip';
                 $uploads = wp_upload_dir();
                 $this->zip_path_to_file(
                     $uploads['basedir'],
-                    $uploads_zip,
+                    $component_dir . '/' . $updraft_base . '-uploads.zip',
                     'uploads',
                     [$backup_dir, $work]
                 );
                 $notify(62, 'Uploads packed…');
 
                 $notify(65, 'Packing mu-plugins…');
-                $mu_zip = $component_dir . '/' . $prefix . '-mu-plugins.zip';
                 $mu_dir = $content . '/mu-plugins';
+                $mu_zip = $component_dir . '/' . $updraft_base . '-mu-plugins.zip';
                 if (is_dir($mu_dir)) {
-                    $this->zip_path_to_file($mu_dir, $mu_zip, 'mu-plugins', [$backup_dir]);
+                    $this->zip_path_to_file($mu_dir, $mu_zip, 'mu-plugins', [$backup_dir, $work]);
                 } else {
-                    // Empty placeholder so restore layout stays consistent
                     $z = new \ZipArchive();
                     if ($z->open($mu_zip, \ZipArchive::CREATE) === true) {
-                        $z->addFromString('mu-plugins/.gitkeep', '');
+                        $z->addEmptyDir('mu-plugins');
                         $z->close();
                     }
                 }
                 $notify(70, 'mu-plugins packed…');
 
                 $notify(72, 'Packing others (core + configs)…');
-                $others_zip = $component_dir . '/' . $prefix . '-others.zip';
-                $this->zip_others_component($others_zip, $backup_dir, $work, $notify);
+                $this->zip_others_component(
+                    $component_dir . '/' . $updraft_base . '-others.zip',
+                    $backup_dir,
+                    $work,
+                    $notify
+                );
                 $notify(82, 'Others packed…');
             } elseif ($include_uploads) {
                 $notify(40, 'Packing uploads…');
-                $uploads_zip = $component_dir . '/' . $prefix . '-uploads.zip';
                 $uploads = wp_upload_dir();
                 $this->zip_path_to_file(
                     $uploads['basedir'],
-                    $uploads_zip,
+                    $component_dir . '/' . $updraft_base . '-uploads.zip',
                     'uploads',
                     [$backup_dir, $work]
                 );
                 $notify(65, 'Uploads packed…');
             }
 
-            $notify(88, 'Building final backup package…');
+            $notify(88, 'Building final package…');
             $final = new \ZipArchive();
             if ($final->open($zip_path, \ZipArchive::CREATE) !== true) {
                 throw new \Exception('Cannot create final backup zip.');
             }
-
-            $this->add_directory_to_zip($final, $component_dir, $folder);
+            $this->add_directory_to_zip($final, $component_dir, $pack_folder);
             $final->close();
-            $notify(94, 'Final package ready…');
+            $notify(94, 'Updraft-compatible package ready…');
         } finally {
             $this->rrmdir($work);
         }
@@ -426,8 +425,36 @@ class Avonix_Backup
         return $zip_path;
     }
 
+    /** UpdraftPlus site slug in filenames (ASCII-ish underscores). */
+    private function updraft_site_label($raw)
+    {
+        $s = $this->sanitize_archive_name($raw);
+        $s = preg_replace('/[^A-Za-z0-9._-]+/', '_', $s);
+        $s = preg_replace('/_+/', '_', (string) $s);
+        $s = trim((string) $s, '_');
+        if ($s === '') $s = 'WordPress';
+        return substr($s, 0, 50);
+    }
+
+    private function gzip_file($source, $dest)
+    {
+        $data = file_get_contents($source);
+        if ($data === false) {
+            throw new \Exception('Cannot read SQL dump for gzip.');
+        }
+        // UpdraftPlus db.gz is raw gzip of SQL text (not a .sql inside a gzip archive).
+        $gz = gzencode($data, 9);
+        if ($gz === false) {
+            throw new \Exception('gzip failed for database dump.');
+        }
+        if (file_put_contents($dest, $gz) === false) {
+            throw new \Exception('Cannot write db.gz');
+        }
+    }
+
     /**
-     * Zip a directory into a standalone component archive.
+     * Zip a directory into a standalone Updraft component archive.
+     * Prefix inside zip is the wp-content folder name (plugins/themes/uploads/…).
      */
     private function zip_path_to_file($source_dir, $dest_zip, $prefix_inside, array $exclude_roots = [])
     {
@@ -437,7 +464,7 @@ class Avonix_Backup
         }
 
         if (!is_dir($source_dir)) {
-            $zip->addFromString($prefix_inside . '/.gitkeep', '');
+            $zip->addEmptyDir($prefix_inside);
             $zip->close();
             return;
         }
@@ -453,7 +480,7 @@ class Avonix_Backup
     }
 
     /**
-     * Everything except plugins / themes / uploads / mu-plugins (those are separate).
+     * Updraft "others" — ABSPATH-relative paths at zip root (not under others/).
      */
     private function zip_others_component($dest_zip, $backup_dir, $work_dir, $notify)
     {
@@ -499,7 +526,6 @@ class Avonix_Backup
             if ($rel === false || $rel === '') continue;
             $rel_unix = str_replace('\\', '/', $rel);
 
-            // Skip dedicated component trees under wp-content
             if ($content && strpos($real, $content) === 0) {
                 $after = ltrim(substr($real, strlen($content)), '/\\');
                 $top = explode('/', str_replace('\\', '/', $after))[0];
@@ -522,13 +548,14 @@ class Avonix_Backup
             if ($skip) continue;
 
             if ($file->isDir()) {
-                $zip->addEmptyDir('others/' . $rel_unix);
+                $zip->addEmptyDir($rel_unix);
                 continue;
             }
             if (!$file->isFile()) continue;
             if ($file->getSize() > $max_file) continue;
 
-            $zip->addFile($real, 'others/' . $rel_unix);
+            // Updraft others.zip uses paths relative to WordPress root
+            $zip->addFile($real, $rel_unix);
             $count++;
             if ($count % 400 === 0) {
                 $notify(min(80, 72 + (int) ($count / 800)), 'Packing others… (' . number_format($count) . ')');
@@ -560,7 +587,6 @@ class Avonix_Backup
                 }
             }
 
-            // Skip nested avonix-backups under uploads
             if (strpos(str_replace('\\', '/', $real), '/avonix-backups/') !== false) {
                 continue;
             }
@@ -611,35 +637,44 @@ class Avonix_Backup
         return substr($cleaned, 0, 80);
     }
 
-    private function restore_instructions($folder = '')
+    private function restore_instructions($updraft_base = '', $pack_folder = '')
     {
-        $folder = $folder ?: 'backup-folder';
+        $updraft_base = $updraft_base ?: 'backup_DATE_SITE_nonce';
+        $pack_folder = $pack_folder ?: 'package-folder';
         return <<<TXT
-Avonix Component Backup
-=======================
+Avonix → UpdraftPlus-compatible backup
+======================================
 
-This package is ONE final zip. Inside it is a folder of separate component files
-(like UpdraftPlus), so you can restore selectively or all at once.
+This package is one zip for transport. Inside the folder are standard
+UpdraftPlus component files — you can restore with UpdraftPlus.
 
-{$folder}/
+{$pack_folder}/
   RESTORE.txt
-  {$folder}-db.sql
-  {$folder}-plugins.zip
-  {$folder}-themes.zip
-  {$folder}-uploads.zip
-  {$folder}-mu-plugins.zip
-  {$folder}-others.zip     ← wp-admin, wp-includes, wp-config, root, other wp-content
+  {$updraft_base}-db.gz
+  {$updraft_base}-plugins.zip
+  {$updraft_base}-themes.zip
+  {$updraft_base}-uploads.zip
+  {$updraft_base}-mu-plugins.zip
+  {$updraft_base}-others.zip
 
-Full restore
-------------
-1. Import {$folder}-db.sql into MySQL.
-2. Unpack {$folder}-others.zip → copy "others/" contents into the WordPress root.
-3. Unpack plugins.zip → wp-content/plugins/
-4. Unpack themes.zip → wp-content/themes/
-5. Unpack uploads.zip → wp-content/uploads/
-6. Unpack mu-plugins.zip → wp-content/mu-plugins/ (if used)
-7. Fix wp-config.php DB credentials if the host changed.
-8. Settings → Permalinks → Save.
+Restore with UpdraftPlus (recommended)
+--------------------------------------
+1. Extract this package zip on your computer.
+2. Install & activate UpdraftPlus on the target WordPress site.
+3. UpdraftPlus → Settings → Existing Backups → Upload backup files
+   (select ALL backup_* files from the folder), OR copy them into:
+   wp-content/updraft/
+4. Click Rescan local folder (if needed).
+5. Press Restore → select Database + Plugins + Themes + Uploads + Others
+   (+ MU-Plugins if used) → Restore.
+
+Manual restore (without UpdraftPlus)
+------------------------------------
+1. Import *-db.gz into MySQL (or rename to *.sql.gz for phpMyAdmin).
+2. Unzip *-plugins.zip into wp-content/ (gives wp-content/plugins/).
+3. Same for themes, uploads, mu-plugins.
+4. Unzip *-others.zip into the WordPress root (wp-admin, wp-includes, …).
+5. Fix wp-config.php credentials if needed → Permalinks → Save.
 
 Keep this archive private — it contains credentials and all site data.
 TXT;

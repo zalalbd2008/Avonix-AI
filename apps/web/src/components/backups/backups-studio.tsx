@@ -361,8 +361,9 @@ export function BackupsStudio({
           Backup file name
         </label>
         <p className="mt-1 text-[12.5px] text-muted">
-          One final zip containing a folder of separate files (db, plugins,
-          themes, uploads, mu-plugins, others) — easy to find and restore.
+          One package zip; inside are UpdraftPlus-format files (db.gz, plugins,
+          themes, uploads, …) so you can restore with UpdraftPlus. Empty name →
+          site title.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input
@@ -708,15 +709,13 @@ export function BackupsStudio({
             </h2>
             <ul className="space-y-2 px-4 py-4 text-[12.5px] text-muted">
               <li>
-                Final backup is one zip folder with separate parts: database,
-                plugins, themes, uploads, mu-plugins, and others (core/config) —
-                like UpdraftPlus, but packaged together.
+                Backups are UpdraftPlus-compatible: extract the package, then
+                upload the <code className="text-[11px]">backup_*</code> files
+                in UpdraftPlus → Existing Backups → Restore.
               </li>
               <li>
-                Restore: import the{" "}
-                <code className="text-[11px]">*-db.sql</code>, then unpack each
-                component zip into the matching WordPress path (see RESTORE.txt
-                inside the package).
+                Package also includes RESTORE.txt with manual steps if you
+                prefer FTP / phpMyAdmin.
               </li>
               <li>
                 Cloud destinations reuse credentials from{" "}

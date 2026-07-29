@@ -6,6 +6,7 @@ import {
   looksLikeConnectorKey,
   readConnectorKey,
 } from "@/lib/connector/keys";
+import { mergeBackupsSettings } from "@/lib/backups/types";
 import { withAgency } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import {
@@ -70,15 +71,20 @@ export async function POST(request: Request) {
 
   const [site] = await withAgency(identity.agencyId, (tx) =>
     tx
-      .select({ url: websites.url })
+      .select({ url: websites.url, settings: websites.settings })
       .from(websites)
       .where(eq(websites.id, identity.websiteId))
       .limit(1),
   );
 
+  const backups = mergeBackupsSettings(site?.settings?.backups);
+  const pendingBackups = backups.history.filter((h) => h.status === "pending")
+    .length;
+
   return Response.json({
     status: "connected",
     website_id: identity.websiteId,
     registered_url: site?.url ?? null,
+    pending_backups: pendingBackups,
   });
 }

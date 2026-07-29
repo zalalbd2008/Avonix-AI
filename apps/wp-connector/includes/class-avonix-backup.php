@@ -19,11 +19,116 @@ class Avonix_Backup
         // Poll for commands on heartbeat
         add_action('avonix_heartbeat', [$this, 'check_commands'], 20);
 
+        // Dedicated 5-minute cron — backups should not wait for hourly heartbeat
+        add_action('avonix_backup_poll', [$this, 'check_commands']);
+
+        // Run immediately when register sees pending jobs in the cloud
+        add_action('avonix_after_register', [$this, 'maybe_check_after_register'], 10, 1);
+
         // Also check on admin_init (throttled)
         add_action('admin_init', [$this, 'maybe_check_commands']);
 
+        // Front-end visits can wake WP-Cron when a backup is queued
+        add_action('wp', [$this, 'maybe_check_on_frontend']);
+
         // AJAX endpoint for manual trigger from WP admin
         add_action('wp_ajax_avonix_run_backup', [$this, 'ajax_run_backup']);
+
+        // Cloud push trigger — Avonix dashboard "Backup now"
+        add_action('rest_api_init', [$this, 'register_rest_routes']);
+        add_action('avonix_backup_immediate', [$this, 'check_commands']);
+    }
+
+    /**
+     * REST route the Avonix cloud calls to start a queued backup immediately.
+     */
+    public function register_rest_routes()
+    {
+        register_rest_route('avonix/v1', '/backup/run', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'rest_run_backup'],
+            'permission_callback' => '__return_true',
+        ]);
+    }
+
+    /**
+     * Validate trigger token with Avonix, then run backup in the background.
+     */
+    public function rest_run_backup(\WP_REST_Request $request)
+    {
+        $client = new Avonix_Client();
+        if (!$client->is_configured()) {
+            return new \WP_Error(
+                'avonix_not_configured',
+                'Avonix connector is not configured.',
+                ['status' => 503]
+            );
+        }
+
+        $token = sanitize_text_field((string) $request->get_param('token'));
+        $job_id = sanitize_text_field((string) $request->get_param('job_id'));
+
+        if ($token === '') {
+            return new \WP_Error(
+                'avonix_bad_request',
+                'Missing trigger token.',
+                ['status' => 400]
+            );
+        }
+
+        list($ok, , $code) = $client->forward('/api/v1/connector/trigger/backup', [
+            'token'  => $token,
+            'job_id' => $job_id,
+        ]);
+
+        if (!$ok) {
+            return new \WP_Error(
+                'avonix_trigger_rejected',
+                'Backup trigger was rejected by Avonix.',
+                ['status' => $code >= 400 ? $code : 403]
+            );
+        }
+
+        if (!wp_next_scheduled('avonix_backup_immediate')) {
+            wp_schedule_single_event(time(), 'avonix_backup_immediate');
+        }
+        if (function_exists('spawn_cron')) {
+            spawn_cron();
+        }
+
+        return new \WP_REST_Response([
+            'status'  => 'accepted',
+            'message' => 'Backup started.',
+        ], 202);
+    }
+
+    /**
+     * After a successful register handshake, run pending backups immediately.
+     */
+    public function maybe_check_after_register($data)
+    {
+        if (!is_array($data)) {
+            return;
+        }
+        $pending = (int) ($data['pending_backups'] ?? 0);
+        if ($pending > 0) {
+            $this->check_commands();
+        }
+    }
+
+    /**
+     * Throttled backup poll on public page loads (helps when WP-Cron is lazy).
+     */
+    public function maybe_check_on_frontend()
+    {
+        if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {
+            return;
+        }
+        if (get_transient('avonix_backup_frontend_check')) {
+            return;
+        }
+        set_transient('avonix_backup_frontend_check', 1, 2 * MINUTE_IN_SECONDS);
+        $this->check_commands();
     }
 
     /**
@@ -34,7 +139,7 @@ class Avonix_Backup
         if (get_transient('avonix_backup_check')) {
             return;
         }
-        set_transient('avonix_backup_check', 1, 5 * MINUTE_IN_SECONDS);
+        set_transient('avonix_backup_check', 1, 2 * MINUTE_IN_SECONDS);
         $this->check_commands();
     }
 

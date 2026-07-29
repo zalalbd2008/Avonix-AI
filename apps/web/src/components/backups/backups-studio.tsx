@@ -64,6 +64,8 @@ export function BackupsStudio({
     driveAuth?.connected ?? false,
   );
   const [driveEmail, setDriveEmail] = useState(driveAuth?.email ?? "");
+  const [triggerNote, setTriggerNote] = useState<string | null>(null);
+  const [startingBackup, setStartingBackup] = useState(false);
 
   const oauthStatus = searchParams.get("oauth");
   useEffect(() => {
@@ -156,16 +158,24 @@ export function BackupsStudio({
       history: [entry, ...settings.history].slice(0, 100),
     });
     setSettings(next);
+    setTriggerNote(null);
+    setStartingBackup(true);
     startTransition(async () => {
       const res = await actionQueueBackupNow({
         websiteId,
         clientId,
         settings: next,
       });
+      setStartingBackup(false);
       if (!res.ok) {
         setError(res.error);
         setSettings(settings);
         return;
+      }
+      if (res.triggered) {
+        setTriggerNote("Backup started on your WordPress site.");
+      } else if (res.triggerNote) {
+        setTriggerNote(res.triggerNote);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 1600);
@@ -173,6 +183,15 @@ export function BackupsStudio({
     });
   }
 
+  const hasQueued = history.some((h) => h.status === "pending");
+  const hasRunning = history.some((h) => h.status === "running");
+  const siteConnected = snapshot.website.status === "connected";
+
+  useEffect(() => {
+    if (!hasQueued && !hasRunning) return;
+    const id = window.setInterval(() => router.refresh(), 4000);
+    return () => window.clearInterval(id);
+  }, [hasQueued, hasRunning, router]);
   const destReady =
     settings.destination !== "none" &&
     (settings.destination === "google_drive"
@@ -191,6 +210,11 @@ export function BackupsStudio({
             {saved ? (
               <span className="text-[12px] font-semibold text-ok">Saved</span>
             ) : null}
+            {triggerNote ? (
+              <span className="max-w-[280px] text-[12px] font-medium text-brand">
+                {triggerNote}
+              </span>
+            ) : null}
             {error ? (
               <span className="max-w-[240px] text-[12px] font-medium text-bad">
                 {error}
@@ -208,7 +232,7 @@ export function BackupsStudio({
               onClick={backupNow}
               className="rounded-lg border border-brand/40 bg-brand/5 px-3.5 py-2 text-[13px] font-semibold text-brand hover:bg-brand/10 disabled:opacity-50"
             >
-              {pending ? "Queuing…" : "Backup now"}
+              {pending || startingBackup ? "Starting…" : "Backup now"}
             </button>
             <button
               type="button"
@@ -221,6 +245,33 @@ export function BackupsStudio({
           </div>
         }
       />
+
+      {(hasQueued || hasRunning) ? (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 text-[13px] ${
+            siteConnected
+              ? "border-brand/30 bg-[rgba(255,102,0,.06)] text-ink"
+              : "border-bad/30 bg-[rgba(220,38,38,.06)] text-bad"
+          }`}
+        >
+          {siteConnected ? (
+            hasRunning ? (
+              <>Backup running on your WordPress site…</>
+            ) : (
+              <>
+                Backup queued — starting now on your site. If it stays here,
+                open wp-admin once or check that the Avonix plugin is v1.3.2+.
+              </>
+            )
+          ) : (
+            <>
+              Backup is queued but this site is not connected. Install the
+              Avonix connector plugin on WordPress and paste the connector key
+              under website settings.
+            </>
+          )}
+        </div>
+      ) : null}
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric

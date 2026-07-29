@@ -20,6 +20,7 @@ import {
   type BackupsDriveOAuth,
 } from "./drive-oauth";
 import { mergeIntegrationsSettings } from "@/lib/integrations/types";
+import { pushBackupTriggerToSite } from "./trigger-site";
 
 function canEditWebsites(permissions: string[] | "*") {
   if (permissions === "*") return true;
@@ -81,7 +82,10 @@ export async function actionQueueBackupNow(input: {
   websiteId: string;
   clientId: string;
   settings: BackupsSettings;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<
+  | { ok: true; triggered: boolean; triggerNote?: string }
+  | { ok: false; error: string }
+> {
   const ctx = await requireAgency();
   if (!canEditWebsites(ctx.permissions)) {
     return {
@@ -103,26 +107,71 @@ export async function actionQueueBackupNow(input: {
   if (base.includeUploads) parts.push("uploads");
   const scope = parts.length ? parts.join(" + ") : "files";
 
-  const entry = {
-    id: newBackupId(),
-    label: new Date().toLocaleString(),
-    detail: `Full backup · ${scope} · ${destinationLabel(base.destination)}`,
-    status: "pending" as const,
-    destination: base.destination,
-    sizeLabel: "",
-    createdAt: new Date().toISOString(),
-  };
+  const latest = base.history[0];
+  const entry =
+    latest?.status === "pending"
+      ? latest
+      : {
+          id: newBackupId(),
+          label: new Date().toLocaleString(),
+          detail: `Full backup · ${scope} · ${destinationLabel(base.destination)}`,
+          status: "pending" as const,
+          destination: base.destination,
+          sizeLabel: "",
+          createdAt: new Date().toISOString(),
+        };
 
-  const next = mergeBackupsSettings({
-    ...base,
-    history: [entry, ...base.history].slice(0, 100),
-  });
+  const next =
+    latest?.status === "pending"
+      ? base
+      : mergeBackupsSettings({
+          ...base,
+          history: [entry, ...base.history].slice(0, 100),
+        });
 
-  return actionSaveBackups({
+  const saved = await actionSaveBackups({
     websiteId: input.websiteId,
     clientId: input.clientId,
     settings: next,
   });
+
+  if (!saved.ok) {
+    return saved;
+  }
+
+  const site = await withAgency(ctx.agencyId, async (tx) => {
+    const [row] = await tx
+      .select({ url: websites.url, status: websites.status })
+      .from(websites)
+      .where(eq(websites.id, input.websiteId))
+      .limit(1);
+    return row ?? null;
+  });
+
+  if (!site || site.status !== "connected") {
+    return {
+      ok: true,
+      triggered: false,
+      triggerNote:
+        "Backup queued. Connect the WordPress connector to start it immediately.",
+    };
+  }
+
+  const pushed = await pushBackupTriggerToSite({
+    siteUrl: site.url,
+    websiteId: input.websiteId,
+    jobId: entry.id,
+  });
+
+  if (pushed.ok) {
+    return { ok: true, triggered: true };
+  }
+
+  return {
+    ok: true,
+    triggered: false,
+    triggerNote: pushed.error,
+  };
 }
 
 /* ------------------------------------------------------------------ */

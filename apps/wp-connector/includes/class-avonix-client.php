@@ -53,6 +53,7 @@ class Avonix_Client
 
         if ($code === 200) {
             update_option(AVONIX_OPT_STATUS, 'connected');
+            do_action('avonix_after_register', $data);
             return [true, 'Connected.'];
         }
         if ($code === 401) {

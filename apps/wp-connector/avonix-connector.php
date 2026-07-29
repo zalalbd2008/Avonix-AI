@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Avonix AI Connector
  * Description:       Sends this site's form submissions and chat leads to Avonix AI.
- * Version:           1.3.0
+ * Version:           1.3.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AVONIX_VERSION', '1.3.0');
+define('AVONIX_VERSION', '1.3.2');
 define('AVONIX_PLUGIN_FILE', __FILE__);
 define('AVONIX_OPT_KEY', 'avonix_connector_key');
 define('AVONIX_OPT_ENDPOINT', 'avonix_endpoint');
@@ -47,6 +47,7 @@ function avonix_self_uninstall()
 {
     // Clear scheduled work and options first.
     wp_clear_scheduled_hook('avonix_heartbeat');
+    wp_clear_scheduled_hook('avonix_backup_poll');
     delete_option(AVONIX_OPT_KEY);
     delete_option(AVONIX_OPT_ENDPOINT);
     delete_option(AVONIX_OPT_STATUS);
@@ -80,21 +81,43 @@ add_action('plugins_loaded', function () {
     new Avonix_Backup();
 });
 
+/** Poll for pending backup jobs every 5 minutes (independent of hourly heartbeat). */
+add_filter('cron_schedules', function ($schedules) {
+    if (!isset($schedules['avonix_five_minutes'])) {
+        $schedules['avonix_five_minutes'] = [
+            'interval' => 5 * MINUTE_IN_SECONDS,
+            'display'  => 'Every 5 minutes (Avonix)',
+        ];
+    }
+    return $schedules;
+});
+
 /** Register with the cloud on activation so the dashboard turns green immediately. */
 register_activation_hook(__FILE__, function () {
     (new Avonix_Client())->register();
     if (!wp_next_scheduled('avonix_heartbeat')) {
         wp_schedule_event(time() + 300, 'hourly', 'avonix_heartbeat');
     }
+    if (!wp_next_scheduled('avonix_backup_poll')) {
+        wp_schedule_event(time() + 60, 'avonix_five_minutes', 'avonix_backup_poll');
+    }
 });
 
 register_deactivation_hook(__FILE__, function () {
     wp_clear_scheduled_hook('avonix_heartbeat');
+    wp_clear_scheduled_hook('avonix_backup_poll');
 });
 
 /** Hourly heartbeat: keeps "last seen" honest and re-connects after a key change. */
 add_action('avonix_heartbeat', function () {
     (new Avonix_Client())->register();
+});
+
+/** Ensure backup poll cron exists after plugin updates (no re-activation needed). */
+add_action('init', function () {
+    if (!wp_next_scheduled('avonix_backup_poll')) {
+        wp_schedule_event(time() + 60, 'avonix_five_minutes', 'avonix_backup_poll');
+    }
 });
 
 /**

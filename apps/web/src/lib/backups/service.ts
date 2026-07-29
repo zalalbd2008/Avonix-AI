@@ -1,5 +1,9 @@
 import type { WebsiteSettings } from "@/lib/db/schema";
 import { mergeBackupsDriveOAuth, isDriveConnected } from "@/lib/backups/drive-oauth";
+import {
+  mergeBackupsCloudOAuth,
+  isCloudConnected,
+} from "@/lib/backups/cloud-oauth";
 import { mergeIntegrationsSettings } from "@/lib/integrations/types";
 import {
   BACKUP_DESTINATIONS,
@@ -24,7 +28,9 @@ function connectedDestinations(
 ): Set<BackupDestinationId> {
   const integrations = mergeIntegrationsSettings(ws.integrations);
   const driveOAuth = mergeBackupsDriveOAuth(ws.backupsDriveOAuth);
-  const connected = new Set<BackupDestinationId>(["host"]);
+  const dropboxOAuth = mergeBackupsCloudOAuth(ws.backupsDropboxOAuth);
+  const oneDriveOAuth = mergeBackupsCloudOAuth(ws.backupsOneDriveOAuth);
+  const connected = new Set<BackupDestinationId>();
   for (const meta of BACKUP_DESTINATIONS) {
     if (!meta.integrationId) continue;
     if (
@@ -32,6 +38,17 @@ function connectedDestinations(
       isDriveConnected(driveOAuth)
     ) {
       connected.add("google_drive");
+      continue;
+    }
+    if (meta.integrationId === "dropbox" && isCloudConnected(dropboxOAuth)) {
+      connected.add("dropbox");
+      continue;
+    }
+    if (
+      meta.integrationId === "onedrive" &&
+      isCloudConnected(oneDriveOAuth)
+    ) {
+      connected.add("onedrive");
       continue;
     }
     const row = integrations.connections.find(
@@ -90,15 +107,11 @@ export function loadBackupsSnapshot(input: {
       ? destinationLabel(backups.destination)
       : connected.has("google_drive")
         ? "Google Drive"
-        : connected.has("s3")
-          ? "S3"
-          : connected.has("dropbox")
-            ? "Dropbox"
-            : connected.has("onedrive")
-              ? "OneDrive"
-              : connected.has("host")
-                ? "Host"
-                : "—";
+        : connected.has("dropbox")
+        ? "Dropbox"
+        : connected.has("onedrive")
+          ? "OneDrive"
+          : "—";
 
   return {
     website: input.website,

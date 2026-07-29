@@ -1,14 +1,13 @@
 /**
  * Per-website backup monitor + queue — stored on `websites.settings.backups`.
  * Avonix does not store site files; it watches destination config and queues
- * backup runs for the connector / host plugin.
+ * backup runs for the WordPress connector.
  */
 
 import type { OptionalIntegrationId } from "@/lib/integrations/types";
 
 export type BackupDestinationId =
   | OptionalIntegrationId
-  | "host"
   | "none";
 
 export type BackupSchedule = "daily" | "weekly" | "manual";
@@ -86,11 +85,9 @@ export const BACKUP_DESTINATIONS: {
   integrationId?: OptionalIntegrationId;
 }[] = [
   { id: "none", label: "Not configured" },
-  { id: "host", label: "Host / plugin (local)" },
   { id: "google_drive", label: "Google Drive", integrationId: "google_drive" },
   { id: "dropbox", label: "Dropbox", integrationId: "dropbox" },
   { id: "onedrive", label: "OneDrive", integrationId: "onedrive" },
-  { id: "s3", label: "S3 Storage", integrationId: "s3" },
 ];
 
 export const BACKUP_SCHEDULES: { id: BackupSchedule; label: string; hint: string }[] =

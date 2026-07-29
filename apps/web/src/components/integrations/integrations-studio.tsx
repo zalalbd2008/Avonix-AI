@@ -310,19 +310,21 @@ export function IntegrationsStudio({
                       {meta.usesOAuth ? (
                         <>
                           <p className="text-[12px] text-muted">
-                            Select Google Drive on the Backups page and click
-                            Connect with Google — one step, no API keys.
+                            Connect on the Backups page with one click — no API
+                            keys to paste.
                           </p>
                           {conn.connected ? (
                             <p className="text-[12px] font-semibold text-ok">
-                              {conn.label || "Google Drive connected"}
+                              {conn.label || `${meta.label} connected`}
                             </p>
                           ) : null}
                           <Link
                             href={`${base}/backups` as never}
                             className="inline-block rounded-lg bg-brand px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-brand-dark"
                           >
-                            {conn.connected ? "Manage on Backups" : "Connect on Backups →"}
+                            {conn.connected
+                              ? "Manage on Backups"
+                              : "Connect on Backups →"}
                           </Link>
                         </>
                       ) : (
@@ -353,98 +355,7 @@ export function IntegrationsStudio({
                           />
                         </Field>
                       ) : null}
-                      {card.id === "s3" ? (
-                        <>
-                          <Field label="Access key ID">
-                            <input
-                              className={input}
-                              value={conn.meta?.accessKeyId ?? ""}
-                              placeholder="AKIA…"
-                              onChange={(e) =>
-                                patchConnection(card.id, {
-                                  meta: {
-                                    ...(conn.meta ?? {}),
-                                    accessKeyId: e.target.value,
-                                  },
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Secret access key">
-                            <input
-                              className={input}
-                              type="password"
-                              value={conn.apiKey}
-                              placeholder="Paste secret key"
-                              onChange={(e) =>
-                                patchConnection(card.id, {
-                                  apiKey: e.target.value,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Bucket name">
-                            <input
-                              className={input}
-                              value={conn.meta?.bucket ?? ""}
-                              placeholder="my-backups"
-                              onChange={(e) =>
-                                patchConnection(card.id, {
-                                  meta: {
-                                    ...(conn.meta ?? {}),
-                                    bucket: e.target.value,
-                                  },
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Region">
-                            <input
-                              className={input}
-                              value={conn.meta?.region ?? "us-east-1"}
-                              placeholder="us-east-1"
-                              onChange={(e) =>
-                                patchConnection(card.id, {
-                                  meta: {
-                                    ...(conn.meta ?? {}),
-                                    region: e.target.value,
-                                  },
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Custom endpoint (optional)">
-                            <input
-                              className={input}
-                              value={conn.meta?.endpoint ?? ""}
-                              placeholder="e.g. xxx.r2.cloudflarestorage.com"
-                              onChange={(e) =>
-                                patchConnection(card.id, {
-                                  meta: {
-                                    ...(conn.meta ?? {}),
-                                    endpoint: e.target.value,
-                                  },
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Object prefix (optional)">
-                            <input
-                              className={input}
-                              value={conn.meta?.prefix ?? "avonix-backups"}
-                              placeholder="avonix-backups"
-                              onChange={(e) =>
-                                patchConnection(card.id, {
-                                  meta: {
-                                    ...(conn.meta ?? {}),
-                                    prefix: e.target.value,
-                                  },
-                                })
-                              }
-                            />
-                          </Field>
-                        </>
-                      ) : meta.usesApiKey ? (
+                      {meta.usesApiKey ? (
                         <Field label={meta.apiKeyLabel ?? "API key"}>
                           <input
                             className={input}

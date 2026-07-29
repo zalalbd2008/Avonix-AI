@@ -27,6 +27,7 @@ import type { AccessibilitySettings } from "@/lib/accessibility/types";
 import type { AutomationSettings } from "@/lib/automation/types";
 import type { AuditLogSettings } from "@/lib/audit-log/types";
 import type { BackupsDriveOAuth } from "@/lib/backups/drive-oauth";
+import type { BackupsCloudOAuth } from "@/lib/backups/cloud-oauth";
 import type { BackupsSettings } from "@/lib/backups/types";
 import type { HealthSettings } from "@/lib/health/types";
 import type { ErrorLogSettings } from "@/lib/error-log/types";
@@ -68,6 +69,10 @@ export type WebsiteSettings = {
   auditLog?: AuditLogSettings;
   /** Google Drive OAuth tokens for backup destination (see lib/backups/drive-oauth). */
   backupsDriveOAuth?: BackupsDriveOAuth;
+  /** Dropbox OAuth tokens for backup destination (see lib/backups/cloud-oauth). */
+  backupsDropboxOAuth?: BackupsCloudOAuth;
+  /** OneDrive OAuth tokens for backup destination (see lib/backups/cloud-oauth). */
+  backupsOneDriveOAuth?: BackupsCloudOAuth;
 };
 
 /**

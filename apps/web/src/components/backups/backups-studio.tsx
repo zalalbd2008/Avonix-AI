@@ -11,6 +11,8 @@ import {
   actionSaveBackups,
   actionStartDriveOAuth,
   actionDisconnectDrive,
+  actionStartCloudOAuth,
+  actionDisconnectCloud,
 } from "@/lib/backups/actions";
 import {
   BACKUP_SCHEDULES,
@@ -43,6 +45,10 @@ export function BackupsStudio({
   initial,
   driveAuth,
   driveAvailable = false,
+  dropboxAuth,
+  dropboxAvailable = false,
+  oneDriveAuth,
+  oneDriveAvailable = false,
 }: {
   clientId: string;
   websiteId: string;
@@ -55,6 +61,10 @@ export function BackupsStudio({
   } | null;
   /** Platform has GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET (super admin env). */
   driveAvailable?: boolean;
+  dropboxAuth?: { connected: boolean; email: string } | null;
+  dropboxAvailable?: boolean;
+  oneDriveAuth?: { connected: boolean; email: string } | null;
+  oneDriveAvailable?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -68,6 +78,14 @@ export function BackupsStudio({
     driveAuth?.connected ?? false,
   );
   const [driveEmail, setDriveEmail] = useState(driveAuth?.email ?? "");
+  const [dropboxConnected, setDropboxConnected] = useState(
+    dropboxAuth?.connected ?? false,
+  );
+  const [dropboxEmail, setDropboxEmail] = useState(dropboxAuth?.email ?? "");
+  const [oneDriveConnected, setOneDriveConnected] = useState(
+    oneDriveAuth?.connected ?? false,
+  );
+  const [oneDriveEmail, setOneDriveEmail] = useState(oneDriveAuth?.email ?? "");
   const [triggerNote, setTriggerNote] = useState<string | null>(null);
   const [startingBackup, setStartingBackup] = useState(false);
   const [backupFileName, setBackupFileName] = useState(() =>
@@ -77,27 +95,24 @@ export function BackupsStudio({
   const oauthStatus = searchParams.get("oauth");
   useEffect(() => {
     if (oauthStatus === "ok") {
-      setDriveConnected(true);
+      setDriveConnected(driveAuth?.connected ?? true);
+      setDropboxConnected(dropboxAuth?.connected ?? true);
+      setOneDriveConnected(oneDriveAuth?.connected ?? true);
+      if (driveAuth?.email) setDriveEmail(driveAuth.email);
+      if (dropboxAuth?.email) setDropboxEmail(dropboxAuth.email);
+      if (oneDriveAuth?.email) setOneDriveEmail(oneDriveAuth.email);
       router.refresh();
     }
-  }, [oauthStatus, router]);
+  }, [oauthStatus, router, driveAuth, dropboxAuth, oneDriveAuth]);
 
-  // Keep local history in sync while server polls (progress updates).
   useEffect(() => {
-    if (!initial) return;
-    setSettings((prev) => {
-      const next = mergeBackupsSettings(initial);
-      // Preserve unsaved form toggles if history is the only change we care about mid-run.
-      const active = next.history.some(
-        (h) => h.status === "pending" || h.status === "running",
-      );
-      if (!active && pending) return prev;
-      return {
-        ...prev,
-        history: next.history,
-      };
-    });
-  }, [initial, pending]);
+    setDriveConnected(driveAuth?.connected ?? false);
+    setDriveEmail(driveAuth?.email ?? "");
+    setDropboxConnected(dropboxAuth?.connected ?? false);
+    setDropboxEmail(dropboxAuth?.email ?? "");
+    setOneDriveConnected(oneDriveAuth?.connected ?? false);
+    setOneDriveEmail(oneDriveAuth?.email ?? "");
+  }, [driveAuth, dropboxAuth, oneDriveAuth]);
 
   function connectDrive() {
     setError(null);
@@ -126,6 +141,62 @@ export function BackupsStudio({
       router.refresh();
     });
   }
+
+  function connectCloud(provider: "dropbox" | "onedrive") {
+    setError(null);
+    startTransition(async () => {
+      const res = await actionStartCloudOAuth({
+        websiteId,
+        clientId,
+        provider,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      window.location.href = res.url;
+    });
+  }
+
+  function disconnectCloud(provider: "dropbox" | "onedrive") {
+    startTransition(async () => {
+      const res = await actionDisconnectCloud({
+        websiteId,
+        clientId,
+        provider,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (provider === "dropbox") {
+        setDropboxConnected(false);
+        setDropboxEmail("");
+        if (settings.destination === "dropbox") patch({ destination: "none" });
+      } else {
+        setOneDriveConnected(false);
+        setOneDriveEmail("");
+        if (settings.destination === "onedrive") patch({ destination: "none" });
+      }
+      router.refresh();
+    });
+  }
+
+  // Keep local history in sync while server polls (progress updates).
+  useEffect(() => {
+    if (!initial) return;
+    setSettings((prev) => {
+      const next = mergeBackupsSettings(initial);
+      const active = next.history.some(
+        (h) => h.status === "pending" || h.status === "running",
+      );
+      if (!active && pending) return prev;
+      return {
+        ...prev,
+        history: next.history,
+      };
+    });
+  }, [initial, pending]);
 
   const base = `/clients/${clientId}/websites/${websiteId}`;
   const integrationsHref = `${base}/integrations`;
@@ -291,9 +362,13 @@ export function BackupsStudio({
     settings.destination !== "none" &&
     (settings.destination === "google_drive"
       ? driveConnected
-      : snapshot.destinationOptions.some(
-          (d) => d.id === settings.destination && d.connected,
-        ));
+      : settings.destination === "dropbox"
+        ? dropboxConnected
+        : settings.destination === "onedrive"
+          ? oneDriveConnected
+          : snapshot.destinationOptions.some(
+              (d) => d.id === settings.destination && d.connected,
+            ));
 
   return (
     <div>
@@ -473,8 +548,8 @@ export function BackupsStudio({
                 Avonix does not store site files.
               </b>{" "}
               <span className="text-muted">
-                Pick a destination below — Google Drive uses OAuth here;
-                Dropbox, OneDrive, and S3 connect under Integrations.
+                Pick a destination below — Google, Dropbox, and Microsoft
+                connect with one click.
               </span>
             </p>
           )}
@@ -569,56 +644,78 @@ export function BackupsStudio({
 
           <Section
             title="Destination"
-            subtitle="Where backup archives are delivered"
+            subtitle="Connect an account in one click — same as Google Drive"
           >
             <div className="grid gap-2 sm:grid-cols-2">
               {snapshot.destinationOptions.map((opt) => {
                 const selected = settings.destination === opt.id;
-                const isDrive = opt.id === "google_drive";
-                const isConnected = isDrive ? driveConnected : opt.connected;
-                const needsConnect =
-                  opt.id !== "host" && opt.id !== "none" && !isConnected;
+                const oauthReady =
+                  opt.id === "google_drive"
+                    ? driveConnected
+                    : opt.id === "dropbox"
+                      ? dropboxConnected
+                      : opt.id === "onedrive"
+                        ? oneDriveConnected
+                        : opt.connected;
+                const isOauthDest =
+                  opt.id === "google_drive" ||
+                  opt.id === "dropbox" ||
+                  opt.id === "onedrive";
+                const platformOff =
+                  (opt.id === "google_drive" && !driveAvailable) ||
+                  (opt.id === "dropbox" && !dropboxAvailable) ||
+                  (opt.id === "onedrive" && !oneDriveAvailable);
+
                 return (
                   <button
                     key={opt.id}
                     type="button"
-                    disabled={needsConnect && !isDrive}
                     onClick={() => {
-                      if (isDrive && !driveConnected) {
-                        patch({ destination: "google_drive" });
-                        if (driveAvailable) connectDrive();
-                        return;
-                      }
                       patch({ destination: opt.id as BackupDestinationId });
+                      if (opt.id === "google_drive" && !driveConnected && driveAvailable) {
+                        connectDrive();
+                      } else if (
+                        opt.id === "dropbox" &&
+                        !dropboxConnected &&
+                        dropboxAvailable
+                      ) {
+                        connectCloud("dropbox");
+                      } else if (
+                        opt.id === "onedrive" &&
+                        !oneDriveConnected &&
+                        oneDriveAvailable
+                      ) {
+                        connectCloud("onedrive");
+                      }
                     }}
                     className={`rounded-lg border px-3 py-2.5 text-left text-[13px] ${
                       selected
                         ? "border-brand bg-brand/5 font-semibold text-ink"
-                        : needsConnect && !isDrive
-                          ? "cursor-not-allowed border-[#eef2f7] bg-[#fafbfc] text-faint"
-                          : "border-line text-muted hover:border-[#c3ccd9] hover:text-ink"
+                        : "border-line text-muted hover:border-[#c3ccd9] hover:text-ink"
                     }`}
                   >
                     {opt.label}
-                    {isDrive && driveConnected ? (
+                    {oauthReady ? (
                       <span className="mt-0.5 block text-[11px] font-normal text-ok">
-                        {driveEmail}
+                        {opt.id === "google_drive"
+                          ? driveEmail
+                          : opt.id === "dropbox"
+                            ? dropboxEmail
+                            : opt.id === "onedrive"
+                              ? oneDriveEmail
+                              : "Ready"}
                       </span>
-                    ) : isDrive && !driveAvailable ? (
+                    ) : platformOff ? (
                       <span className="mt-0.5 block text-[11px] font-normal text-warn">
                         Not enabled — contact admin
                       </span>
-                    ) : isDrive ? (
+                    ) : isOauthDest ? (
                       <span className="mt-0.5 block text-[11px] font-normal text-brand">
-                        Connect with Google
-                      </span>
-                    ) : needsConnect ? (
-                      <span className="mt-0.5 block text-[11px] font-normal">
-                        Connect under Integrations first
-                      </span>
-                    ) : isConnected ? (
-                      <span className="mt-0.5 block text-[11px] font-normal text-ok">
-                        Ready
+                        {opt.id === "google_drive"
+                          ? "Connect with Google"
+                          : opt.id === "dropbox"
+                            ? "Connect with Dropbox"
+                            : "Connect with Microsoft"}
                       </span>
                     ) : null}
                   </button>
@@ -657,6 +754,76 @@ export function BackupsStudio({
                   <p className="text-[12.5px] text-muted">
                     Google Drive backup is not enabled on this platform. Ask
                     your administrator to configure it.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {settings.destination === "dropbox" ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {dropboxConnected ? (
+                  <>
+                    <span className="text-[12.5px] text-ok">
+                      Connected as <b>{dropboxEmail}</b> · folder &quot;Avonix
+                      Backups&quot;
+                    </span>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => disconnectCloud("dropbox")}
+                      className="text-[12px] font-semibold text-bad hover:underline disabled:opacity-50"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                ) : dropboxAvailable ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => connectCloud("dropbox")}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#dbe1ea] bg-white px-4 py-2 text-[13px] font-semibold text-ink shadow-sm hover:border-brand hover:text-brand disabled:opacity-60"
+                  >
+                    {pending ? "Redirecting…" : "Connect with Dropbox"}
+                  </button>
+                ) : (
+                  <p className="text-[12.5px] text-muted">
+                    Dropbox is not enabled. Admin must set DROPBOX_APP_KEY and
+                    DROPBOX_APP_SECRET.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {settings.destination === "onedrive" ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {oneDriveConnected ? (
+                  <>
+                    <span className="text-[12.5px] text-ok">
+                      Connected as <b>{oneDriveEmail}</b> · folder &quot;Avonix
+                      Backups&quot;
+                    </span>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => disconnectCloud("onedrive")}
+                      className="text-[12px] font-semibold text-bad hover:underline disabled:opacity-50"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                ) : oneDriveAvailable ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => connectCloud("onedrive")}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#dbe1ea] bg-white px-4 py-2 text-[13px] font-semibold text-ink shadow-sm hover:border-brand hover:text-brand disabled:opacity-60"
+                  >
+                    {pending ? "Redirecting…" : "Connect with Microsoft"}
+                  </button>
+                ) : (
+                  <p className="text-[12.5px] text-muted">
+                    OneDrive is not enabled. Admin must set MICROSOFT_CLIENT_ID
+                    and MICROSOFT_CLIENT_SECRET.
                   </p>
                 )}
               </div>
@@ -742,8 +909,8 @@ export function BackupsStudio({
             </h2>
             <ul className="space-y-2 px-4 py-4 text-[12.5px] text-muted">
               <li>
-                Restore works from Host, Google Drive, Dropbox, OneDrive, and S3
-                — connect each under Integrations, then pick it as destination.
+                Google Drive, Dropbox, and OneDrive use one-click account login
+                on this page.
               </li>
               <li>
                 Click <b className="font-semibold text-ink">Restore</b> on a

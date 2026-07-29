@@ -7,6 +7,13 @@ import {
   isDriveConnected,
   mergeBackupsDriveOAuth,
 } from "@/lib/backups/drive-oauth";
+import {
+  cloudAccountLabel,
+  isCloudConnected,
+  isDropboxBackupEnabled,
+  isOneDriveBackupEnabled,
+  mergeBackupsCloudOAuth,
+} from "@/lib/backups/cloud-oauth";
 import { loadBackupsSnapshot } from "@/lib/backups/service";
 import { withAgency } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
@@ -50,6 +57,8 @@ export default async function BackupsPage({
   });
 
   const drive = mergeBackupsDriveOAuth(site.settings?.backupsDriveOAuth);
+  const dropbox = mergeBackupsCloudOAuth(site.settings?.backupsDropboxOAuth);
+  const oneDrive = mergeBackupsCloudOAuth(site.settings?.backupsOneDriveOAuth);
 
   return (
     <BackupsStudio
@@ -62,6 +71,16 @@ export default async function BackupsPage({
       driveAuth={{
         connected: isDriveConnected(drive),
         email: drive.email,
+      }}
+      dropboxAvailable={isDropboxBackupEnabled()}
+      dropboxAuth={{
+        connected: isCloudConnected(dropbox),
+        email: cloudAccountLabel(dropbox),
+      }}
+      oneDriveAvailable={isOneDriveBackupEnabled()}
+      oneDriveAuth={{
+        connected: isCloudConnected(oneDrive),
+        email: cloudAccountLabel(oneDrive),
       }}
     />
   );

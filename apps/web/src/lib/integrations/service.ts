@@ -1,6 +1,10 @@
 import type { WebsiteSettings } from "@/lib/db/schema";
 import { mergeBackupsDriveOAuth, isDriveConnected } from "@/lib/backups/drive-oauth";
 import {
+  mergeBackupsCloudOAuth,
+  isCloudConnected,
+} from "@/lib/backups/cloud-oauth";
+import {
   ENTERPRISE_INTEGRATIONS,
   OPTIONAL_INTEGRATIONS,
   connectionFor,
@@ -17,16 +21,19 @@ function buildCoreModules(
 ): CoreModuleStatus[] {
   const connected = site.status === "connected";
   const driveOAuth = mergeBackupsDriveOAuth(ws.backupsDriveOAuth);
+  const dropboxOAuth = mergeBackupsCloudOAuth(ws.backupsDropboxOAuth);
+  const oneDriveOAuth = mergeBackupsCloudOAuth(ws.backupsOneDriveOAuth);
   const backupConnected =
     !!ws.backups?.enabled ||
     Boolean(isDriveConnected(driveOAuth)) ||
+    Boolean(isCloudConnected(dropboxOAuth)) ||
+    Boolean(isCloudConnected(oneDriveOAuth)) ||
     ws.integrations?.connections.some(
       (c) =>
         c.connected &&
         (c.id === "google_drive" ||
           c.id === "dropbox" ||
-          c.id === "onedrive" ||
-          c.id === "s3"),
+          c.id === "onedrive"),
     );
   return [
     {
@@ -141,13 +148,21 @@ export function loadIntegrationsSnapshot(input: {
         )
       : null;
     const driveOAuth = mergeBackupsDriveOAuth(ws.backupsDriveOAuth);
+    const dropboxOAuth = mergeBackupsCloudOAuth(ws.backupsDropboxOAuth);
+    const oneDriveOAuth = mergeBackupsCloudOAuth(ws.backupsOneDriveOAuth);
     const oauthConnected =
-      meta.id === "google_drive" && isDriveConnected(driveOAuth);
+      (meta.id === "google_drive" && isDriveConnected(driveOAuth)) ||
+      (meta.id === "dropbox" && isCloudConnected(dropboxOAuth)) ||
+      (meta.id === "onedrive" && isCloudConnected(oneDriveOAuth));
     const connected = conn.connected || !!auto || oauthConnected;
     const labelText =
-      (meta.id === "google_drive" && oauthConnected
+      (meta.id === "google_drive" && isDriveConnected(driveOAuth)
         ? `Drive (${driveOAuth.email || "connected"})`
-        : conn.label.trim()) ||
+        : meta.id === "dropbox" && isCloudConnected(dropboxOAuth)
+          ? `Dropbox (${dropboxOAuth.email || dropboxOAuth.accountName || "connected"})`
+          : meta.id === "onedrive" && isCloudConnected(oneDriveOAuth)
+            ? `OneDrive (${oneDriveOAuth.email || oneDriveOAuth.accountName || "connected"})`
+            : conn.label.trim()) ||
       auto?.label.trim() ||
       (connected ? "Connected" : "");
 

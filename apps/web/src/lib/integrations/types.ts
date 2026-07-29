@@ -14,8 +14,7 @@ export type OptionalIntegrationId =
   | "microsoft_teams"
   | "google_drive"
   | "dropbox"
-  | "onedrive"
-  | "s3";
+  | "onedrive";
 
 export type IntegrationConnection = {
   id: OptionalIntegrationId;
@@ -26,7 +25,7 @@ export type IntegrationConnection = {
   /** Incoming webhook URL (Slack, Discord, Teams). */
   webhookUrl: string;
   connectedAt: string;
-  /** Extra fields — S3 access key id, bucket, region, endpoint. */
+  /** Extra key/value fields for advanced integrations. */
   meta?: Record<string, string>;
 };
 
@@ -132,26 +131,18 @@ export const OPTIONAL_INTEGRATIONS: {
   {
     id: "dropbox",
     label: "Dropbox",
-    hint: "Access token for backup + restore",
+    hint: "OAuth via Backups page — one click, no tokens",
     usesWebhook: false,
-    usesApiKey: true,
-    apiKeyLabel: "Access token",
+    usesApiKey: false,
+    usesOAuth: true,
   },
   {
     id: "onedrive",
     label: "OneDrive",
-    hint: "Microsoft Graph token for backup + restore",
+    hint: "Microsoft sign-in via Backups page — one click",
     usesWebhook: false,
-    usesApiKey: true,
-    apiKeyLabel: "Access token",
-  },
-  {
-    id: "s3",
-    label: "S3 Storage",
-    hint: "AWS S3 / R2 / MinIO credentials for backup + restore",
-    usesWebhook: false,
-    usesApiKey: true,
-    apiKeyLabel: "Secret access key",
+    usesApiKey: false,
+    usesOAuth: true,
   },
 ];
 
@@ -262,14 +253,6 @@ export function canConnectConnection(
   conn: IntegrationConnection,
 ): boolean {
   if (meta.usesOAuth) return conn.connected;
-  if (meta.id === "s3") {
-    const m = conn.meta ?? {};
-    return Boolean(
-      conn.apiKey.trim() &&
-        (m.accessKeyId ?? "").trim() &&
-        (m.bucket ?? "").trim(),
-    );
-  }
   if (meta.usesWebhook && !conn.webhookUrl.trim()) return false;
   if (meta.usesApiKey && !conn.apiKey.trim()) return false;
   if (!meta.usesWebhook && !meta.usesApiKey && !meta.usesOAuth) return false;

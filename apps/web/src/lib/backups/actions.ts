@@ -19,8 +19,18 @@ import {
   mergeBackupsDriveOAuth,
   GOOGLE_DRIVE_SCOPES,
   getGoogleDriveOAuthConfig,
-  type BackupsDriveOAuth,
 } from "./drive-oauth";
+import {
+  DROPBOX_SCOPES,
+  ONEDRIVE_SCOPES,
+  dropboxOauthCallbackUrl,
+  getDropboxOAuthConfig,
+  getOneDriveOAuthConfig,
+  mergeBackupsCloudOAuth,
+  oneDriveOauthCallbackUrl,
+  signCloudOauthState,
+  type CloudOauthProvider,
+} from "./cloud-oauth";
 import { mergeIntegrationsSettings } from "@/lib/integrations/types";
 import { pushBackupTriggerToSite } from "./trigger-site";
 
@@ -369,9 +379,16 @@ export async function actionDisconnectDrive(input: {
         : c,
     );
 
+    const backups = mergeBackupsSettings(row.settings?.backups);
+    const nextBackups =
+      backups.destination === "google_drive"
+        ? { ...backups, destination: "none" as const }
+        : backups;
+
     const next: WebsiteSettings = {
       ...(row.settings ?? {}),
       backupsDriveOAuth: mergeBackupsDriveOAuth({}),
+      backups: nextBackups,
       integrations: { connections: updatedConnections },
     };
 
@@ -386,3 +403,127 @@ export async function actionDisconnectDrive(input: {
   revalidatePath(`${base}/backups`);
   return { ok: true };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Dropbox / OneDrive OAuth — one-click like Google Drive            */
+/* ------------------------------------------------------------------ */
+
+export async function actionStartCloudOAuth(input: {
+  websiteId: string;
+  clientId: string;
+  provider: CloudOauthProvider;
+}): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const ctx = await requireAgency();
+  if (!canEditWebsites(ctx.permissions)) {
+    return { ok: false, error: "No permission." };
+  }
+
+  const state = signCloudOauthState({
+    websiteId: input.websiteId,
+    clientId: input.clientId,
+    provider: input.provider,
+  });
+
+  if (input.provider === "dropbox") {
+    const platform = getDropboxOAuthConfig();
+    if (!platform.enabled) {
+      return {
+        ok: false,
+        error:
+          "Dropbox backup is not enabled. Contact your platform administrator.",
+      };
+    }
+    const url = new URL("https://www.dropbox.com/oauth2/authorize");
+    url.searchParams.set("client_id", platform.appKey);
+    url.searchParams.set("redirect_uri", dropboxOauthCallbackUrl());
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("token_access_type", "offline");
+    url.searchParams.set("scope", DROPBOX_SCOPES);
+    url.searchParams.set("state", state);
+    return { ok: true, url: url.toString() };
+  }
+
+  const platform = getOneDriveOAuthConfig();
+  if (!platform.enabled) {
+    return {
+      ok: false,
+      error:
+        "OneDrive backup is not enabled. Contact your platform administrator.",
+    };
+  }
+  const url = new URL(
+    `https://login.microsoftonline.com/${platform.tenantId}/oauth2/v2.0/authorize`,
+  );
+  url.searchParams.set("client_id", platform.clientId);
+  url.searchParams.set("redirect_uri", oneDriveOauthCallbackUrl());
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("response_mode", "query");
+  url.searchParams.set("scope", ONEDRIVE_SCOPES);
+  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("state", state);
+  return { ok: true, url: url.toString() };
+}
+
+export async function actionDisconnectCloud(input: {
+  websiteId: string;
+  clientId: string;
+  provider: CloudOauthProvider;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await requireAgency();
+  if (!canEditWebsites(ctx.permissions)) {
+    return { ok: false, error: "No permission." };
+  }
+
+  const integrationId = input.provider === "dropbox" ? "dropbox" : "onedrive";
+  const destinationId = integrationId;
+
+  await withAgency(ctx.agencyId, async (tx) => {
+    const [row] = await tx
+      .select({ settings: websites.settings })
+      .from(websites)
+      .where(eq(websites.id, input.websiteId))
+      .limit(1);
+    if (!row) return;
+
+    const integrations = mergeIntegrationsSettings(row.settings?.integrations);
+    const updatedConnections = integrations.connections.map((c) =>
+      c.id === integrationId
+        ? {
+            ...c,
+            connected: false,
+            apiKey: "",
+            webhookUrl: "",
+            connectedAt: "",
+            meta: {},
+          }
+        : c,
+    );
+
+    const backups = mergeBackupsSettings(row.settings?.backups);
+    const nextBackups =
+      backups.destination === destinationId
+        ? { ...backups, destination: "none" as const }
+        : backups;
+
+    const next: WebsiteSettings = {
+      ...(row.settings ?? {}),
+      ...(input.provider === "dropbox"
+        ? { backupsDropboxOAuth: mergeBackupsCloudOAuth({}) }
+        : { backupsOneDriveOAuth: mergeBackupsCloudOAuth({}) }),
+      backups: nextBackups,
+      integrations: { connections: updatedConnections },
+    };
+
+    await tx
+      .update(websites)
+      .set({ settings: next, updatedAt: new Date() })
+      .where(eq(websites.id, input.websiteId));
+  });
+
+  const base = `/clients/${input.clientId}/websites/${input.websiteId}`;
+  revalidatePath(base);
+  revalidatePath(`${base}/backups`);
+  revalidatePath(`${base}/integrations`);
+  return { ok: true };
+}
+

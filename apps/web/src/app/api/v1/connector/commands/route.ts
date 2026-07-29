@@ -9,7 +9,35 @@ import {
   refreshDriveAccessToken,
   getGoogleDriveOAuthConfig,
 } from "@/lib/backups/drive-oauth";
+import {
+  mergeBackupsCloudOAuth,
+  refreshDropboxAccessToken,
+  refreshOneDriveAccessToken,
+  getDropboxOAuthConfig,
+  getOneDriveOAuthConfig,
+  type BackupsCloudOAuth,
+} from "@/lib/backups/cloud-oauth";
 import { mergeIntegrationsSettings, connectionFor } from "@/lib/integrations/types";
+
+async function maybeRefreshCloud(
+  auth: BackupsCloudOAuth,
+  refresh: (a: BackupsCloudOAuth) => Promise<{ accessToken: string; expiresAt: string }>,
+): Promise<BackupsCloudOAuth> {
+  if (!auth.refreshToken) return auth;
+  if (!auth.tokenExpiresAt) return auth;
+  const expires = new Date(auth.tokenExpiresAt).getTime();
+  if (Date.now() <= expires - 60_000) return auth;
+  try {
+    const refreshed = await refresh(auth);
+    return {
+      ...auth,
+      accessToken: refreshed.accessToken,
+      tokenExpiresAt: refreshed.expiresAt,
+    };
+  } catch {
+    return auth;
+  }
+}
 
 /**
  * GET /api/v1/connector/commands
@@ -43,7 +71,6 @@ export async function GET(request: Request) {
 
     const pendingJobs = backups.history.filter((h) => h.status === "pending");
 
-    // Refresh Drive token if expired before handing credentials to connector
     let driveAuth = mergeBackupsDriveOAuth(ws.backupsDriveOAuth);
     if (driveAuth.refreshToken && driveAuth.tokenExpiresAt) {
       const expires = new Date(driveAuth.tokenExpiresAt).getTime();
@@ -55,18 +82,37 @@ export async function GET(request: Request) {
             accessToken: refreshed.accessToken,
             tokenExpiresAt: refreshed.expiresAt,
           };
-          const next: WebsiteSettings = {
-            ...ws,
-            backupsDriveOAuth: driveAuth,
-          };
-          await tx
-            .update(websites)
-            .set({ settings: next, updatedAt: new Date() })
-            .where(eq(websites.id, identity.websiteId));
         } catch {
           /* connector may refresh client-side */
         }
       }
+    }
+
+    let dropboxAuth = mergeBackupsCloudOAuth(ws.backupsDropboxOAuth);
+    dropboxAuth = await maybeRefreshCloud(dropboxAuth, refreshDropboxAccessToken);
+
+    let oneDriveAuth = mergeBackupsCloudOAuth(ws.backupsOneDriveOAuth);
+    oneDriveAuth = await maybeRefreshCloud(
+      oneDriveAuth,
+      refreshOneDriveAccessToken,
+    );
+
+    const tokenChanged =
+      driveAuth.accessToken !== (ws.backupsDriveOAuth?.accessToken ?? "") ||
+      dropboxAuth.accessToken !== (ws.backupsDropboxOAuth?.accessToken ?? "") ||
+      oneDriveAuth.accessToken !== (ws.backupsOneDriveOAuth?.accessToken ?? "");
+
+    if (tokenChanged) {
+      const next: WebsiteSettings = {
+        ...ws,
+        backupsDriveOAuth: driveAuth,
+        backupsDropboxOAuth: dropboxAuth,
+        backupsOneDriveOAuth: oneDriveAuth,
+      };
+      await tx
+        .update(websites)
+        .set({ settings: next, updatedAt: new Date() })
+        .where(eq(websites.id, identity.websiteId));
     }
 
     return pendingJobs.map((job) => {
@@ -88,22 +134,31 @@ export async function GET(request: Request) {
         }
       } else if (dest === "dropbox") {
         const conn = connectionFor(integrations, "dropbox");
-        credentials = { access_token: conn.apiKey };
-      } else if (dest === "s3") {
-        const conn = connectionFor(integrations, "s3");
-        const m = conn.meta ?? {};
-        credentials = {
-          access_key: (m.accessKeyId ?? "").trim(),
-          secret_key: conn.apiKey,
-          bucket: (m.bucket ?? "").trim(),
-          region: (m.region ?? "us-east-1").trim() || "us-east-1",
-          endpoint: (m.endpoint ?? "").trim(),
-          prefix: (m.prefix ?? "avonix-backups").trim() || "avonix-backups",
-          webhook_url: conn.webhookUrl,
-        };
+        const platform = getDropboxOAuthConfig();
+        if (dropboxAuth.accessToken) {
+          credentials = {
+            access_token: dropboxAuth.accessToken,
+            refresh_token: dropboxAuth.refreshToken,
+            client_id: platform.appKey,
+            client_secret: platform.appSecret,
+          };
+        } else if (conn.apiKey) {
+          credentials = { access_token: conn.apiKey };
+        }
       } else if (dest === "onedrive") {
         const conn = connectionFor(integrations, "onedrive");
-        credentials = { access_token: conn.apiKey };
+        const platform = getOneDriveOAuthConfig();
+        if (oneDriveAuth.accessToken) {
+          credentials = {
+            access_token: oneDriveAuth.accessToken,
+            refresh_token: oneDriveAuth.refreshToken,
+            client_id: platform.clientId,
+            client_secret: platform.clientSecret,
+            tenant_id: platform.tenantId,
+          };
+        } else if (conn.apiKey) {
+          credentials = { access_token: conn.apiKey };
+        }
       }
 
       if (job.kind === "restore") {

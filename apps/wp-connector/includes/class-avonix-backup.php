@@ -13,7 +13,7 @@ if (class_exists('Avonix_Backup')) {
  * Flow:
  * 1. Poll /api/v1/connector/commands for pending backup jobs
  * 2. Create a ZIP of the WordPress site (DB dump + uploads)
- * 3. Upload to the specified destination (Google Drive, host, Dropbox, etc.)
+ * 3. Upload to the specified destination (Google Drive, Dropbox, OneDrive)
  * 4. Report completion to /api/v1/connector/commands/report
  */
 class Avonix_Backup
@@ -219,7 +219,7 @@ class Avonix_Backup
             $size = filesize($zip_path);
             $size_label = $this->format_size($size);
 
-            $destination = $job['destination'] ?? 'host';
+            $destination = $job['destination'] ?? '';
             $credentials = $job['credentials'] ?? [];
             $upload_ok = false;
             $detail = '';
@@ -256,23 +256,13 @@ class Avonix_Backup
                     $remote_file_id = $result['file_id'] ?? '';
                     break;
 
-                case 's3':
-                    $result = $this->upload_s3($zip_path, $credentials);
-                    $upload_ok = $result['ok'];
-                    $detail = $result['detail'];
-                    $remote_file_id = $result['file_id'] ?? '';
-                    break;
-
-                case 'host':
                 default:
-                    $result = $this->store_locally($zip_path);
-                    $upload_ok = $result['ok'];
-                    $detail = $result['detail'];
+                    $upload_ok = false;
+                    $detail = 'Unsupported backup destination.';
                     break;
             }
 
-            // Keep host copies for restore; remove temp upload copies for remotes.
-            if ($destination !== 'host' && file_exists($zip_path)) {
+            if (file_exists($zip_path)) {
                 @unlink($zip_path);
             }
 
@@ -319,7 +309,7 @@ class Avonix_Backup
         $package = $work . '/package.zip';
 
         try {
-            $destination = $job['destination'] ?? 'host';
+            $destination = $job['destination'] ?? '';
             $credentials = $job['credentials'] ?? [];
             $archive_name = (string) ($job['archive_file_name'] ?? '');
             $remote_id = (string) ($job['remote_file_id'] ?? '');
@@ -342,24 +332,6 @@ class Avonix_Backup
                     throw new \Exception('Missing OneDrive file id for this backup.');
                 }
                 $this->download_onedrive_file($remote_id, $archive_name, $package, $credentials);
-            } elseif ($destination === 's3') {
-                $key = $remote_id !== '' ? $remote_id : '';
-                if ($key === '' && $archive_name !== '') {
-                    $prefix = trim((string) ($credentials['prefix'] ?? 'avonix-backups'), '/');
-                    $key = ($prefix !== '' ? $prefix . '/' : '') . basename($archive_name);
-                }
-                if ($key === '') {
-                    throw new \Exception('Missing S3 object key for this backup.');
-                }
-                $this->download_s3_file($key, $package, $credentials);
-            } elseif ($destination === 'host') {
-                $local = $this->backup_directory() . '/' . basename($archive_name);
-                if ($archive_name === '' || !file_exists($local)) {
-                    throw new \Exception('Local backup package not found on this server.');
-                }
-                if (!copy($local, $package)) {
-                    throw new \Exception('Cannot copy local backup package.');
-                }
             } else {
                 throw new \Exception('Restore from this destination is not supported.');
             }
@@ -1219,7 +1191,7 @@ TXT;
     }
 
     /**
-     * Upload via webhook (generic — S3 proxy, Apps Script, etc.)
+     * Upload via webhook (generic — Apps Script, custom proxy, etc.)
      */
     private function upload_via_webhook($file_path, $credentials)
     {
@@ -1416,198 +1388,6 @@ TXT;
         if ($body === '' || file_put_contents($dest_path, $body) === false) {
             throw new \Exception('Cannot save OneDrive backup package.');
         }
-    }
-
-    /**
-     * Upload to S3-compatible storage (AWS / R2 / MinIO) with SigV4.
-     */
-    private function upload_s3($file_path, $credentials)
-    {
-        $bucket = trim((string) ($credentials['bucket'] ?? ''));
-        $access_key = trim((string) ($credentials['access_key'] ?? ''));
-        $secret_key = (string) ($credentials['secret_key'] ?? '');
-
-        if ($bucket === '' || $access_key === '' || $secret_key === '') {
-            if (!empty($credentials['webhook_url'])) {
-                $wh = $this->upload_via_webhook($file_path, $credentials);
-                if ($wh['ok']) {
-                    $wh['file_id'] = 'webhook:' . basename($file_path);
-                }
-                return $wh;
-            }
-            return ['ok' => false, 'detail' => 'S3 credentials incomplete. Set Access key, Secret, and Bucket in Integrations.'];
-        }
-
-        $filename = basename($file_path);
-        $prefix = trim((string) ($credentials['prefix'] ?? 'avonix-backups'), '/');
-        $key = ($prefix !== '' ? $prefix . '/' : '') . $filename;
-
-        $body = file_get_contents($file_path);
-        if ($body === false) {
-            return ['ok' => false, 'detail' => 'Cannot read backup file.'];
-        }
-
-        $result = $this->s3_signed_request('PUT', $key, $body, 'application/zip', $credentials);
-        if ($result['ok']) {
-            return [
-                'ok' => true,
-                'detail' => "Uploaded to S3: s3://{$bucket}/{$key}",
-                'file_id' => $key,
-            ];
-        }
-        return $result;
-    }
-
-    private function download_s3_file($key, $dest_path, $credentials)
-    {
-        if (strpos($key, 'webhook:') === 0) {
-            throw new \Exception('This backup was uploaded via webhook and cannot be restored automatically. Re-upload with S3 credentials.');
-        }
-
-        $result = $this->s3_signed_request('GET', $key, '', '', $credentials);
-        if (!$result['ok']) {
-            throw new \Exception($result['detail'] ?? 'S3 download failed.');
-        }
-        if (($result['body'] ?? '') === '' || file_put_contents($dest_path, $result['body']) === false) {
-            throw new \Exception('Cannot save S3 backup package.');
-        }
-    }
-
-    /**
-     * Signed S3 REST request (SigV4). Returns ok/detail and body for GET.
-     */
-    private function s3_signed_request($method, $key, $payload, $content_type, $credentials)
-    {
-        $access_key = trim((string) ($credentials['access_key'] ?? ''));
-        $secret_key = (string) ($credentials['secret_key'] ?? '');
-        $bucket = trim((string) ($credentials['bucket'] ?? ''));
-        $region = trim((string) ($credentials['region'] ?? 'us-east-1')) ?: 'us-east-1';
-        $endpoint = preg_replace('#^https?://#i', '', rtrim((string) ($credentials['endpoint'] ?? ''), '/'));
-
-        if ($access_key === '' || $secret_key === '' || $bucket === '') {
-            return ['ok' => false, 'detail' => 'Missing S3 credentials.'];
-        }
-
-        $encoded_key = implode('/', array_map('rawurlencode', explode('/', ltrim($key, '/'))));
-        if ($endpoint !== '') {
-            $host = $endpoint;
-            $uri = '/' . $bucket . '/' . $encoded_key;
-            $url = 'https://' . $host . $uri;
-        } else {
-            $host = $bucket . '.s3.' . $region . '.amazonaws.com';
-            $uri = '/' . $encoded_key;
-            $url = 'https://' . $host . $uri;
-        }
-
-        $amz_date = gmdate('Ymd\THis\Z');
-        $date_stamp = gmdate('Ymd');
-        $payload_hash = hash('sha256', $payload === '' && $method === 'GET' ? '' : $payload);
-
-        $headers = [
-            'host' => $host,
-            'x-amz-content-sha256' => $payload_hash,
-            'x-amz-date' => $amz_date,
-        ];
-        if ($method === 'PUT' && $content_type !== '') {
-            $headers['content-type'] = $content_type;
-        }
-
-        ksort($headers);
-        $canonical_headers = '';
-        $signed_headers_list = [];
-        foreach ($headers as $hk => $hv) {
-            $canonical_headers .= $hk . ':' . trim($hv) . "\n";
-            $signed_headers_list[] = $hk;
-        }
-        $signed_headers = implode(';', $signed_headers_list);
-
-        $canonical_request = implode("\n", [
-            $method,
-            $uri,
-            '',
-            $canonical_headers,
-            $signed_headers,
-            $payload_hash,
-        ]);
-
-        $credential_scope = $date_stamp . '/' . $region . '/s3/aws4_request';
-        $string_to_sign = implode("\n", [
-            'AWS4-HMAC-SHA256',
-            $amz_date,
-            $credential_scope,
-            hash('sha256', $canonical_request),
-        ]);
-
-        $k_date = hash_hmac('sha256', $date_stamp, 'AWS4' . $secret_key, true);
-        $k_region = hash_hmac('sha256', $region, $k_date, true);
-        $k_service = hash_hmac('sha256', 's3', $k_region, true);
-        $k_signing = hash_hmac('sha256', 'aws4_request', $k_service, true);
-        $signature = hash_hmac('sha256', $string_to_sign, $k_signing);
-
-        $authorization = 'AWS4-HMAC-SHA256 Credential=' . $access_key . '/' . $credential_scope
-            . ', SignedHeaders=' . $signed_headers
-            . ', Signature=' . $signature;
-
-        $req_headers = [
-            'Authorization' => $authorization,
-            'x-amz-content-sha256' => $payload_hash,
-            'x-amz-date' => $amz_date,
-        ];
-        if ($method === 'PUT' && $content_type !== '') {
-            $req_headers['Content-Type'] = $content_type;
-        }
-
-        $args = [
-            'method' => $method,
-            'timeout' => 600,
-            'headers' => $req_headers,
-        ];
-        if ($method === 'PUT') {
-            $args['body'] = $payload;
-        }
-
-        $response = wp_remote_request($url, $args);
-        if (is_wp_error($response)) {
-            return ['ok' => false, 'detail' => 'S3 error: ' . $response->get_error_message()];
-        }
-
-        $code = wp_remote_retrieve_response_code($response);
-        if ($code >= 200 && $code < 300) {
-            return [
-                'ok' => true,
-                'detail' => 'S3 OK',
-                'body' => wp_remote_retrieve_body($response),
-            ];
-        }
-
-        $body = wp_remote_retrieve_body($response);
-        return ['ok' => false, 'detail' => "S3 HTTP {$code}" . ($body ? ': ' . substr(strip_tags($body), 0, 200) : '')];
-    }
-
-    /**
-     * Store backup locally on the host.
-     */
-    private function store_locally($zip_path)
-    {
-        $backup_dir = $this->backup_directory();
-        $filename = basename($zip_path);
-        $dest = $backup_dir . '/' . $filename;
-
-        // If already in the backup dir, just keep it
-        if (realpath($zip_path) === realpath($dest)) {
-            return ['ok' => true, 'detail' => "Stored locally: {$filename}"];
-        }
-
-        if (rename($zip_path, $dest)) {
-            return ['ok' => true, 'detail' => "Stored locally: {$filename}"];
-        }
-
-        if (copy($zip_path, $dest)) {
-            @unlink($zip_path);
-            return ['ok' => true, 'detail' => "Stored locally: {$filename}"];
-        }
-
-        return ['ok' => false, 'detail' => 'Cannot move backup to storage directory.'];
     }
 
     /**

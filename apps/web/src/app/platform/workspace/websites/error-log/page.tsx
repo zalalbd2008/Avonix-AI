@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <PlatformStub
       title="Error Log"
-      subtitle="Error log"
+      subtitle="Open a client website to view PHP, database and API runtime errors."
     />
   );
 }

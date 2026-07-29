@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <PlatformStub
       title="Security"
-      subtitle="Website security"
+      subtitle="Open a client website to configure hardening, scans and login monitoring."
     />
   );
 }

@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <PlatformStub
       title="Audit Log"
-      subtitle="Audit log"
+      subtitle="Open a client website to view the append-only agency audit trail."
     />
   );
 }

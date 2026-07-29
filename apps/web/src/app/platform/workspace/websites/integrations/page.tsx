@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <PlatformStub
       title="Integrations"
-      subtitle="Third-party integrations"
+      subtitle="Open a client website to manage core modules and optional connections."
     />
   );
 }

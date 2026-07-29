@@ -1,5 +1,6 @@
 import { processMissedChats, processUptimeChecks } from "@/lib/automation/cron-jobs";
 import { processDueFollowUps } from "@/lib/automation/followups";
+import { processScheduledBackups } from "@/lib/backups/cron";
 
 /**
  * GET/POST /api/cron/automation
@@ -32,10 +33,11 @@ async function run(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [followUps, missed, uptime] = await Promise.all([
+  const [followUps, missed, uptime, backups] = await Promise.all([
     processDueFollowUps(50),
     processMissedChats(40),
     processUptimeChecks(30),
+    processScheduledBackups(20),
   ]);
 
   return Response.json({
@@ -43,6 +45,7 @@ async function run(request: Request) {
     followUps,
     missedChat: missed,
     uptime,
+    backups,
   });
 }
 

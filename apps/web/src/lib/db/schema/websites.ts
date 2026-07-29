@@ -25,7 +25,15 @@ export type WebsiteFontSettings = {
 
 import type { AccessibilitySettings } from "@/lib/accessibility/types";
 import type { AutomationSettings } from "@/lib/automation/types";
+import type { AuditLogSettings } from "@/lib/audit-log/types";
+import type { BackupsDriveOAuth } from "@/lib/backups/drive-oauth";
+import type { BackupsSettings } from "@/lib/backups/types";
+import type { HealthSettings } from "@/lib/health/types";
+import type { ErrorLogSettings } from "@/lib/error-log/types";
 import type { LanguageSettings } from "@/lib/languages/types";
+import type { SecuritySettings } from "@/lib/security/types";
+import type { InsightsSettings } from "@/lib/insights/types";
+import type { IntegrationsSettings } from "@/lib/integrations/types";
 import type { UpdatesSettings } from "@/lib/updates/types";
 import type { UptimeSettings } from "@/lib/uptime/types";
 import type { WebsiteEmailSettings } from "@/lib/website-email/types";
@@ -44,6 +52,22 @@ export type WebsiteSettings = {
   email?: WebsiteEmailSettings;
   /** If → then rules for leads, chat, uptime (see lib/automation). */
   automation?: AutomationSettings;
+  /** Applied / dismissed insight actions (see lib/insights). */
+  insights?: InsightsSettings;
+  /** Optional third-party connections (see lib/integrations). */
+  integrations?: IntegrationsSettings;
+  /** Backup schedule, destination and history (see lib/backups). */
+  backups?: BackupsSettings;
+  /** Hardening, scans and login monitoring (see lib/security). */
+  security?: SecuritySettings;
+  /** Connector-reported health signals + last diagnostic (see lib/health). */
+  health?: HealthSettings;
+  /** Runtime error log from connector (see lib/error-log). */
+  errorLog?: ErrorLogSettings;
+  /** Append-only agency / system audit trail (see lib/audit-log). */
+  auditLog?: AuditLogSettings;
+  /** Google Drive OAuth tokens for backup destination (see lib/backups/drive-oauth). */
+  backupsDriveOAuth?: BackupsDriveOAuth;
 };
 
 /**

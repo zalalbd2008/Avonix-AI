@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <PlatformStub
       title="Insights"
-      subtitle="Website insights"
+      subtitle="Open a client website to view AI-detected opportunities from live reports."
     />
   );
 }

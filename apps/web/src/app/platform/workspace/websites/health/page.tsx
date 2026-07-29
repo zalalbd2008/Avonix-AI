@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <PlatformStub
       title="Health"
-      subtitle="Site health"
+      subtitle="Open a client website to view the overall health score and checks."
     />
   );
 }

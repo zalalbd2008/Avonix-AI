@@ -33,15 +33,32 @@ async function run(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  async function safe<T>(
+    name: string,
+    fn: () => Promise<T>,
+  ): Promise<T | { error: string }> {
+    try {
+      return await fn();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[cron/automation] ${name} failed`, err);
+      return { error: message };
+    }
+  }
+
   const [followUps, missed, uptime, backups] = await Promise.all([
-    processDueFollowUps(50),
-    processMissedChats(40),
-    processUptimeChecks(30),
-    processScheduledBackups(20),
+    safe("followUps", () => processDueFollowUps(50)),
+    safe("missedChat", () => processMissedChats(40)),
+    safe("uptime", () => processUptimeChecks(30)),
+    safe("backups", () => processScheduledBackups(20)),
   ]);
 
+  const failed = [followUps, missed, uptime, backups].filter(
+    (r) => r && typeof r === "object" && "error" in r,
+  );
+
   return Response.json({
-    ok: true,
+    ok: failed.length === 0,
     followUps,
     missedChat: missed,
     uptime,

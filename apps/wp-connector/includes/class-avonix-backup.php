@@ -192,6 +192,7 @@ class Avonix_Backup
             $include_full = array_key_exists('include_full_site', $job)
                 ? !empty($job['include_full_site'])
                 : true;
+            $archive_name = isset($job['archive_name']) ? (string) $job['archive_name'] : '';
 
             if ($include_db) {
                 $this->report($client, $job_id, 'running', '', 'Dumping database…', 15);
@@ -203,7 +204,8 @@ class Avonix_Backup
                 $include_full,
                 function ($pct, $label) use ($client, $job_id) {
                     $this->report($client, $job_id, 'running', '', $label, $pct);
-                }
+                },
+                $archive_name
             );
 
             if (!$zip_path || !file_exists($zip_path)) {
@@ -285,8 +287,9 @@ class Avonix_Backup
      * @param bool          $include_uploads
      * @param bool          $include_full
      * @param callable|null $on_progress function(int $pct, string $label)
+     * @param string        $archive_name optional base name without .zip
      */
-    private function create_backup_zip($include_db, $include_uploads, $include_full = true, $on_progress = null)
+    private function create_backup_zip($include_db, $include_uploads, $include_full = true, $on_progress = null, $archive_name = '')
     {
         if (!class_exists('ZipArchive')) {
             throw new \Exception('ZipArchive extension is not available.');
@@ -299,7 +302,16 @@ class Avonix_Backup
         };
 
         $backup_dir = $this->backup_directory();
-        $filename = 'avonix-backup-' . date('Y-m-d-His') . '.zip';
+        $safe = $this->sanitize_archive_name($archive_name);
+        if ($safe === '') {
+            $safe = $this->sanitize_archive_name(get_bloginfo('name'));
+        }
+        if ($safe === '') {
+            $safe = 'avonix-backup-' . date('Y-m-d-His');
+        } else {
+            $safe = $safe . '-' . date('Ymd-His');
+        }
+        $filename = $safe . '.zip';
         $zip_path = $backup_dir . '/' . $filename;
 
         $zip = new \ZipArchive();
@@ -354,6 +366,25 @@ class Avonix_Backup
         }
 
         return $zip_path;
+    }
+
+    private function sanitize_archive_name($raw)
+    {
+        $raw = trim((string) $raw);
+        $raw = preg_replace('/\.zip$/i', '', $raw);
+        // Letters, numbers, spaces, dot, underscore, hyphen (Unicode letters OK via \p{L} if available)
+        if (function_exists('preg_replace')) {
+            $cleaned = preg_replace('/[^\p{L}\p{N}\s._-]+/u', '', $raw);
+            if ($cleaned === null) {
+                $cleaned = preg_replace('/[^A-Za-z0-9\s._-]+/', '', $raw);
+            }
+        } else {
+            $cleaned = $raw;
+        }
+        $cleaned = preg_replace('/\s+/', '_', (string) $cleaned);
+        $cleaned = preg_replace('/_+/', '_', (string) $cleaned);
+        $cleaned = trim((string) $cleaned, '._-');
+        return substr($cleaned, 0, 80);
     }
 
     /**

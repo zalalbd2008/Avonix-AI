@@ -23,6 +23,8 @@ import {
   newBackupId,
   destinationLabel,
   backupProgressPercent,
+  defaultBackupFileName,
+  sanitizeBackupFileName,
   type BackupDestinationId,
   type BackupHistoryEntry,
   type BackupsSettings,
@@ -67,6 +69,9 @@ export function BackupsStudio({
   const [driveEmail, setDriveEmail] = useState(driveAuth?.email ?? "");
   const [triggerNote, setTriggerNote] = useState<string | null>(null);
   const [startingBackup, setStartingBackup] = useState(false);
+  const [backupFileName, setBackupFileName] = useState(() =>
+    defaultBackupFileName(websiteName),
+  );
 
   const oauthStatus = searchParams.get("oauth");
   useEffect(() => {
@@ -163,15 +168,20 @@ export function BackupsStudio({
     if (settings.includeFullSite) parts.push("full site files");
     else if (settings.includeUploads) parts.push("uploads");
     const scope = parts.length ? parts.join(" + ") : "files";
+    const archiveName =
+      sanitizeBackupFileName(backupFileName) ||
+      defaultBackupFileName(websiteName);
+    setBackupFileName(archiveName);
     const entry = {
       id: newBackupId(),
       label: new Date().toLocaleString(),
-      detail: `Full backup · ${scope} · ${destinationLabel(settings.destination)}`,
+      detail: `${archiveName}.zip · ${scope} · ${destinationLabel(settings.destination)}`,
       status: "pending" as const,
       destination: settings.destination,
       sizeLabel: "",
       createdAt: new Date().toISOString(),
       progress: 0,
+      fileName: archiveName,
     };
     const next = mergeBackupsSettings({
       ...settings,
@@ -185,6 +195,8 @@ export function BackupsStudio({
         websiteId,
         clientId,
         settings: next,
+        fileName: archiveName,
+        websiteName,
       });
       setStartingBackup(false);
       if (!res.ok) {
@@ -343,6 +355,32 @@ export function BackupsStudio({
           )}
         </div>
       ) : null}
+
+      <div className="mb-4 rounded-xl border border-line bg-white px-4 py-4">
+        <label className="block text-[12px] font-semibold uppercase tracking-wide text-faint">
+          Backup file name
+        </label>
+        <p className="mt-1 text-[12.5px] text-muted">
+          One complete zip (database + full site files inside). Leave blank to
+          use the site title.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input
+            className={`${input} max-w-md`}
+            value={backupFileName}
+            onChange={(e) => setBackupFileName(e.target.value)}
+            onBlur={() => {
+              const cleaned =
+                sanitizeBackupFileName(backupFileName) ||
+                defaultBackupFileName(websiteName);
+              setBackupFileName(cleaned);
+            }}
+            placeholder={defaultBackupFileName(websiteName)}
+            disabled={pending || startingBackup || hasQueued || hasRunning}
+          />
+          <span className="text-[13px] font-medium text-muted">.zip</span>
+        </div>
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric
@@ -716,6 +754,11 @@ function HistoryRow({ row }: { row: BackupHistoryEntry }) {
     <div className="grid grid-cols-[1fr_1.2fr_auto_auto] items-center gap-3 border-b border-[#edf0f5] px-4 py-3 last:border-b-0">
       <div className="min-w-0">
         <span className="block text-[13px] font-medium text-ink">{row.label}</span>
+        {row.fileName ? (
+          <span className="mt-0.5 block truncate text-[11.5px] text-faint">
+            {row.fileName}.zip
+          </span>
+        ) : null}
         {showBar ? (
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#eef2f7]">
             <div

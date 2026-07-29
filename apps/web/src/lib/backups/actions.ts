@@ -6,9 +6,11 @@ import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
 import { websites, type WebsiteSettings } from "@/lib/db/schema";
 import {
+  defaultBackupFileName,
   destinationLabel,
   mergeBackupsSettings,
   newBackupId,
+  sanitizeBackupFileName,
   type BackupsSettings,
 } from "./types";
 import {
@@ -82,6 +84,9 @@ export async function actionQueueBackupNow(input: {
   websiteId: string;
   clientId: string;
   settings: BackupsSettings;
+  /** Optional archive base name; defaults to website name. */
+  fileName?: string;
+  websiteName?: string;
 }): Promise<
   | { ok: true; triggered: boolean; triggerNote?: string }
   | { ok: false; error: string }
@@ -102,6 +107,10 @@ export async function actionQueueBackupNow(input: {
     };
   }
 
+  const archiveName =
+    sanitizeBackupFileName(input.fileName ?? "") ||
+    defaultBackupFileName(input.websiteName ?? "website");
+
   const parts: string[] = [];
   if (base.includeDatabase) parts.push("database");
   if (base.includeFullSite) parts.push("full site files");
@@ -111,16 +120,17 @@ export async function actionQueueBackupNow(input: {
   const latest = base.history[0];
   const entry =
     latest?.status === "pending"
-      ? latest
+      ? { ...latest, fileName: latest.fileName || archiveName }
       : {
           id: newBackupId(),
           label: new Date().toLocaleString(),
-          detail: `Full backup · ${scope} · ${destinationLabel(base.destination)}`,
+          detail: `${archiveName}.zip · ${scope} · ${destinationLabel(base.destination)}`,
           status: "pending" as const,
           destination: base.destination,
           sizeLabel: "",
           createdAt: new Date().toISOString(),
           progress: 0,
+          fileName: archiveName,
         };
 
   const next =

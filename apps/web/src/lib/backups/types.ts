@@ -31,6 +31,8 @@ export type BackupHistoryEntry = {
   finishedAt?: string;
   /** 0–100 while running; 100 on success. */
   progress?: number;
+  /** Archive base name without .zip (user-chosen or site title). */
+  fileName?: string;
 };
 
 export type BackupsSettings = {
@@ -175,9 +177,38 @@ function normalizeHistory(raw: unknown): BackupHistoryEntry[] {
     })
     .map((h) => {
       const progress = normalizeProgress(h.progress, h.status);
-      return progress === undefined ? h : { ...h, progress };
+      const fileName =
+        typeof h.fileName === "string" && h.fileName.trim()
+          ? sanitizeBackupFileName(h.fileName)
+          : undefined;
+      return {
+        ...h,
+        ...(progress !== undefined ? { progress } : {}),
+        ...(fileName ? { fileName } : {}),
+      };
     })
     .slice(0, 100);
+}
+
+/**
+ * Safe archive base name (no path / extension). Empty input → "".
+ */
+export function sanitizeBackupFileName(raw: string): string {
+  const trimmed = raw.trim().replace(/\.zip$/i, "");
+  const cleaned = trimmed
+    .replace(/[^\p{L}\p{N}\s._-]+/gu, "")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[._-]+|[._-]+$/g, "")
+    .slice(0, 80);
+  return cleaned;
+}
+
+/** Default zip base name from website title / name. */
+export function defaultBackupFileName(siteTitle: string): string {
+  const fromSite = sanitizeBackupFileName(siteTitle);
+  if (fromSite) return fromSite;
+  return `avonix-backup-${new Date().toISOString().slice(0, 10)}`;
 }
 
 function normalizeProgress(

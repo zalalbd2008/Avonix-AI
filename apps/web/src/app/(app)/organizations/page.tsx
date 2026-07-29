@@ -99,7 +99,7 @@ export default async function OrganizationsPage() {
         }
       />
 
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
         {orgs.map((org) => (
           <OrganizationCard
             key={org.id}

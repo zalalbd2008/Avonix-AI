@@ -21,6 +21,8 @@ DECLARE
     'pipelines', 'pipeline_stages', 'pipeline_cards',
     'forms', 'form_submissions', 'form_analytics_events', 'form_templates', 'form_template_versions', 'form_template_favorites', 'form_template_collections', 'form_template_collection_items', 'form_template_shares', 'form_components', 'form_sections', 'form_assets', 'marketplace_installs', 'cta_button_groups', 'cta_buttons', 'cta_button_templates', 'popups', 'popup_templates', 'cep_widgets', 'knowledge_chunks', 'ai_usage_daily',
     'tracked_events',
+    'visitor_timeline_events', 'automation_follow_ups',
+    'crm_tasks', 'crm_notes', 'crm_files', 'crm_assignment_rules', 'crm_tickets', 'crm_calendar_events', 'crm_documents',
     'org_roles', 'org_role_permissions'
   ];
 BEGIN

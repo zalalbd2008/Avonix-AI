@@ -279,7 +279,7 @@ export function UpdatesStudio({
                 href={emailHref as never}
                 className="font-semibold text-brand hover:underline"
               >
-                Email · SMTP and campaigns
+                SMTP Setup · alerts & campaigns
               </Link>
               . Updates are applied in WordPress admin — Avonix reports versions,
               it does not push code to the server.
@@ -327,7 +327,7 @@ export function UpdatesStudio({
 
           <Section
             title="Notifications"
-            subtitle="Reports use this website’s Email (SMTP) settings"
+            subtitle="Reports use this website’s SMTP Setup"
           >
             <div className="rounded-lg border border-[#eef2f7] bg-[#f8fafc] px-3 py-3 text-[13px]">
               <p className="text-muted">
@@ -336,7 +336,7 @@ export function UpdatesStudio({
                   href={emailHref as never}
                   className="font-semibold text-brand hover:underline"
                 >
-                  Email · SMTP and campaigns
+                  SMTP Setup · alerts & campaigns
                 </Link>{" "}
                 for this website.
               </p>

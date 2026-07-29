@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { FormListRow } from "@/components/forms/form-list-row";
+import { PageHeader } from "@/components/shell/page-header";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
 import { formSubmissions, forms, websites } from "@/lib/db/schema";
@@ -60,20 +61,18 @@ export default async function WebsiteFormsPage({
 
   return (
     <div>
-      <header className="mb-[18px] flex items-center gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-[-0.02em]">Forms</h1>
-          <p className="mt-0.5 text-[13px] text-muted">
-            Forms shown on this website only
-          </p>
-        </div>
-        <Link
-          href={newHref as never}
-          className="ml-auto shrink-0 rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
-        >
-          + New Form
-        </Link>
-      </header>
+      <PageHeader
+        title="Forms"
+        subtitle="Forms shown on this website only"
+        action={
+          <Link
+            href={newHref as never}
+            className="rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
+          >
+            + New Form
+          </Link>
+        }
+      />
 
       {data.rows.length === 0 ? (
         <div className="rounded-xl border border-line bg-white px-4 py-12 text-center">

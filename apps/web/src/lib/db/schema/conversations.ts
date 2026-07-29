@@ -43,6 +43,8 @@ export const conversations = pgTable(
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
     /** Null means nobody on the agency side has replied yet — drives "unworked". */
     firstHumanReplyAt: timestamp("first_human_reply_at", { withTimezone: true }),
+    /** Set when chat_missed automation already fired for this queue wait. */
+    missedChatAlertedAt: timestamp("missed_chat_alerted_at", { withTimezone: true }),
 
     ...timestamps,
   },
@@ -51,6 +53,7 @@ export const conversations = pgTable(
     index("conversations_client_status_idx").on(t.clientId, t.status),
     index("conversations_last_message_idx").on(t.lastMessageAt),
     index("conversations_handoff_idx").on(t.handoffStatus, t.lastMessageAt),
+    index("conversations_missed_chat_idx").on(t.handoffStatus, t.lastMessageAt),
   ],
 );
 

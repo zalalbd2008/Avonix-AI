@@ -25,9 +25,11 @@ nano .env   # fill real values — never commit .env
 Required env (see `.env.example`):
 
 - `DATABASE_URL`
-- `NEXT_PUBLIC_APP_URL` → `https://your-domain.com`
+- `NEXT_PUBLIC_APP_URL` → `https://your-domain.com` (must match the public URL; verification links use this)
 - `BETTER_AUTH_SECRET` → long random string
-- Stripe / email / AI keys as you use them
+- **Email:** `EMAIL_FROM` + either **SMTP_*** (Gmail App Password / any SMTP) or **`RESEND_API_KEY`** (see §6)
+- **Google sign-in (optional):** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (see §7)
+- Stripe / AI keys as you use them
 
 ## 3. Build & run
 
@@ -66,6 +68,113 @@ Then enable SSL (Hostinger panel or Certbot).
 ## 5. WordPress connector
 
 Zip/install `apps/wp-connector` on each client WordPress site. Point it at `https://your-domain.com`.
+
+## 6. Live email — SMTP (Gmail) or Resend
+
+Without a live transport, production signup will **error** instead of writing to `.mail/`.
+
+### Option A — Gmail / Google Workspace SMTP (recommended if you already use Google)
+
+1. Google Account → **Security** → enable 2-Step Verification.
+2. Create an **App Password** (Search “App passwords”).
+3. On the VPS `.env`:
+
+```bash
+EMAIL_FROM=Avonix AI <you@gmail.com>
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=you@gmail.com
+SMTP_PASS=xxxx xxxx xxxx xxxx
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
+
+Prefer a Workspace address with SPF/DKIM on your domain for better deliverability.
+
+### Option B — Resend
+
+1. [resend.com](https://resend.com) → API key + verify domain DNS.
+2. On the VPS `.env`:
+
+```bash
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
+EMAIL_FROM=Avonix AI <noreply@yourdomain.com>
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
+
+If both SMTP and Resend are set, **SMTP wins**.
+
+### Restart after env changes
+
+```bash
+cd ~/Avonix-AI/apps/web
+SKIP_TYPECHECK=1 npm run build   # needed if NEXT_PUBLIC_* changed
+pm2 restart avonix
+pm2 logs avonix --lines 80
+```
+
+## 7. Social login — Google + Microsoft
+
+Sign-in / Sign-up show **Verify with Google** and **Verify with Microsoft** when
+the matching env vars are set. Paste live Client ID + Secret into `.env` and rebuild.
+
+### Google
+
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → OAuth client (Web).
+2. Redirect URIs:
+   - `https://your-domain.com/api/auth/callback/google`
+   - `http://localhost:3000/api/auth/callback/google` (local)
+3. Env:
+
+```bash
+GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+```
+
+### Microsoft (Entra ID)
+
+1. [Azure Portal](https://portal.azure.com) → App registrations → New registration.
+2. Redirect URI (Web):
+   - `https://your-domain.com/api/auth/callback/microsoft`
+   - `http://localhost:3000/api/auth/callback/microsoft`
+3. Certificates & secrets → New client secret.
+4. Env:
+
+```bash
+MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+MICROSOFT_CLIENT_SECRET=xxxxxxxxxxxxxxxx
+NEXT_PUBLIC_MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+MICROSOFT_TENANT_ID=common
+```
+
+`MICROSOFT_TENANT_ID`: `common` (any Microsoft account), `organizations` (work/school only), `consumers` (personal only), or your directory GUID.
+
+5. Rebuild + restart (`NEXT_PUBLIC_*` requires rebuild):
+
+```bash
+SKIP_TYPECHECK=1 npm run build && pm2 restart avonix
+```
+
+## 9. Automation cron (follow-ups, missed chat, uptime)
+
+Set in `.env`:
+
+```bash
+CRON_SECRET=long-random-string
+# Optional SMS:
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_FROM_NUMBER=
+```
+
+Every 5 minutes (crontab as root or deploy user):
+
+```bash
+*/5 * * * * curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://your-domain.com/api/cron/automation >/dev/null 2>&1
+```
+
+On Vercel, `apps/web/vercel.json` already schedules `*/5 * * * *` — set the same `CRON_SECRET` in project env.
 
 ## What is NOT uploaded from local
 

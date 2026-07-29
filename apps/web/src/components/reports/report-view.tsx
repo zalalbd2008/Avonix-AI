@@ -1,5 +1,6 @@
 import type { ReportData } from "@/lib/reports/service";
 import { maskIp } from "@/lib/reports/user-agent";
+import { ScrollTable } from "@/components/ui/scroll-table";
 import { ActivityTable } from "./activity-table";
 
 const TYPE_TONE: Record<string, string> = {
@@ -30,7 +31,7 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
 
   return (
     <>
-      <div className="mb-3.5 grid grid-cols-2 gap-3.5">
+      <div className="mb-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         <ReportCard
           title="Leads report"
           detail={`${t.leads} ${t.leads === 1 ? "lead" : "leads"} captured from this site in the last ${data.range} days`}
@@ -63,14 +64,14 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
           </span>
         </div>
 
-        <div className="mb-3.5 grid grid-cols-4 gap-3">
+        <div className="mb-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat value={t.pageviews} label="Page views" />
           <Stat value={t.buttons} label="Button clicks" tone="text-brand" />
           <Stat value={t.formEvents} label="Form events" />
           <Stat value={t.leads} label="Leads" tone="text-ok" />
         </div>
 
-        <div className="mb-4 grid grid-cols-[1.4fr_.6fr] gap-3">
+        <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_.6fr]">
           <div className="rounded-[10px] border border-[#edf0f5] p-3.5">
             <p className="mb-2.5 text-[12.5px] font-semibold text-muted">
               Activity over time · last {data.range} days
@@ -136,7 +137,7 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
           <span className="text-[12px] text-faint">traffic and conversion — this website only</span>
         </div>
 
-        <div className="mb-3.5 grid grid-cols-4 gap-3">
+        <div className="mb-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat value={t.pageviews} label="Page views" />
           <Stat value={t.leads} label="Leads" tone="text-ok" />
           <Stat
@@ -151,7 +152,7 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
             No page views recorded. Top pages appear once the tracking script runs.
           </p>
         ) : (
-          <>
+          <ScrollTable minWidth={420} className="border-0">
             <div className="grid grid-cols-[1fr_.4fr] gap-2.5 border-b border-[#edf0f5] px-2.5 py-2 text-[10.5px] font-bold tracking-[0.07em] text-faint uppercase">
               <span>Page</span>
               <span>Views</span>
@@ -165,7 +166,7 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
                 <span>{p.views}</span>
               </div>
             ))}
-          </>
+          </ScrollTable>
         )}
       </section>
     </>

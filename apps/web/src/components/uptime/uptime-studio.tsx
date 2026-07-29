@@ -150,7 +150,7 @@ export function UptimeStudio({
                   href={emailHref as never}
                   className="font-semibold text-brand hover:underline"
                 >
-                  Email
+                  SMTP Setup
                 </Link>
                 .
               </span>
@@ -165,9 +165,9 @@ export function UptimeStudio({
                   href={emailHref as never}
                   className="font-semibold text-brand hover:underline"
                 >
-                  Email
-                </Link>{" "}
-                SMTP settings.
+                  SMTP Setup
+                </Link>
+                .
               </span>
             </p>
           )}
@@ -303,7 +303,7 @@ export function UptimeStudio({
 
           <Section
             title="Alerts"
-            subtitle="Reports use this website’s Email (SMTP) settings"
+            subtitle="Reports use this website’s SMTP Setup"
           >
             <div className="rounded-lg border border-[#eef2f7] bg-[#f8fafc] px-3 py-3 text-[13px]">
               <p className="text-muted">
@@ -312,7 +312,7 @@ export function UptimeStudio({
                   href={emailHref as never}
                   className="font-semibold text-brand hover:underline"
                 >
-                  Email · SMTP and campaigns
+                  SMTP Setup · alerts & campaigns
                 </Link>{" "}
                 for this website — no separate alert address here.
               </p>
@@ -355,7 +355,7 @@ export function UptimeStudio({
                       ? `${settings.sslWarnDays} days`
                       : "Off",
                   ],
-                  ["Alerts via", "Website Email"],
+                  ["Alerts via", "SMTP Setup"],
                 ] as [string, string][]
               ).map(([k, v]) => (
                 <div

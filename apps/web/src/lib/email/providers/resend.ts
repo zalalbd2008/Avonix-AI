@@ -29,7 +29,9 @@ export function resendProvider(apiKey: string, from: string): EmailProvider {
         const body = await res.text();
         // Throw rather than log: a failed password-reset send must surface, not
         // leave the user waiting for a message that never arrives.
-        throw new Error(`resend ${res.status}: ${body.slice(0, 300)}`);
+        throw new Error(
+          `Email send failed (${res.status}). Check RESEND_API_KEY, that EMAIL_FROM uses a verified domain, and Resend dashboard logs. ${body.slice(0, 200)}`,
+        );
       }
 
       const data = (await res.json()) as { id?: string };

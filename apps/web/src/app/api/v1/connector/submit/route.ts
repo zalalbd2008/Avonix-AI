@@ -37,6 +37,7 @@ import {
   mintPortalToken,
   normalizeEnterprise,
 } from "@/lib/forms/enterprise";
+import { enqueueWebsiteAutomation } from "@/lib/automation/engine";
 import type {
   FormAdminCrmConfig,
   FormAiConfig,
@@ -249,6 +250,7 @@ export async function POST(request: Request) {
     // Without an email there is nothing reliable to match on, so it is a new
     // contact each time.
     let contactId: string | null = null;
+    let isNewContact = false;
 
     if (email) {
       const [existing] = await tx
@@ -281,6 +283,7 @@ export async function POST(request: Request) {
         })
         .returning({ id: contacts.id });
       contactId = created.id;
+      isNewContact = true;
     }
 
     const [conversation] = await tx
@@ -334,6 +337,8 @@ export async function POST(request: Request) {
       crm: FormSubmissionCrm | null;
     } | null = null;
 
+    let submissionCrm: FormSubmissionCrm | null = null;
+
     if (formRow) {
       const form = formRow;
       const admin = normalizeAdminCrm(form.settings?.admin);
@@ -341,6 +346,9 @@ export async function POST(request: Request) {
         admin.enabled !== false ? initialSubmissionCrm(admin) : {};
       if (admin.enabled !== false && aiCrmPatch) {
         crm = applyAiCrmPatch(crm as FormSubmissionCrm, aiCrmPatch);
+      }
+      if (admin.enabled !== false) {
+        submissionCrm = crm as FormSubmissionCrm;
       }
 
       const [submission] = await tx
@@ -422,6 +430,11 @@ export async function POST(request: Request) {
     return {
       contactId,
       conversationId: conversation.id,
+      isNewContact,
+      formId: formRow?.id ?? null,
+      formName: formRow?.name ?? null,
+      websiteName: site?.name ?? null,
+      submissionCrm,
       notify,
       crmNotify,
       integrationsNotify,
@@ -514,6 +527,32 @@ export async function POST(request: Request) {
     } catch (err) {
       console.error("form integrations failed", err);
     }
+  }
+
+  // Auto Rules engine (Phase 1+2) — never blocks the visitor response.
+  if (formRow) {
+    enqueueWebsiteAutomation({
+      trigger: "form_submit",
+      agencyId: identity.agencyId,
+      clientId: identity.clientId,
+      websiteId: identity.websiteId,
+      contactId: result.contactId,
+      conversationId: result.conversationId,
+      formId: result.formId,
+      formName: result.formName,
+      websiteName: result.websiteName,
+      pageUrl: result.pageUrl,
+      isNewContact: result.isNewContact,
+      contact: {
+        name: name ?? null,
+        email: email ?? null,
+        phone: phone ?? null,
+        message: leadMessage ?? null,
+      },
+      values: leadValues,
+      ai: leadMeta.ai ?? null,
+      crm: result.submissionCrm,
+    });
   }
 
   return Response.json({

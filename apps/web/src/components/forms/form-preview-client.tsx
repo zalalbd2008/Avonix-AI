@@ -42,6 +42,8 @@ export function FormPreviewClient({
   appearance,
   layout: layoutProp,
   logic: logicProp,
+  /** Popup embed: fields only — hide form name / mode chrome. */
+  hideChrome = false,
 }: {
   name: string;
   fields: FormField[];
@@ -50,6 +52,7 @@ export function FormPreviewClient({
   appearance: FormTheme;
   layout?: FormLayoutConfig;
   logic?: FormLogicConfig;
+  hideChrome?: boolean;
 }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -136,19 +139,29 @@ export function FormPreviewClient({
           : undefined
       }
     >
-      <p className="mb-1 text-[15px] font-bold" style={{ color: "var(--avx-label)" }}>
-        {name}
-      </p>
-      <p className="mb-2 text-[12px] text-faint">
-        {layout.mode}
-        {layout.mount && layout.mount !== "embedded" ? ` · ${layout.mount}` : ""}
-        {unitTotal > 1
-          ? ` · ${layout.mode === "conversational" ? "Q" : "Step"} ${stepIndex + 1}/${unitTotal}`
-          : ""}
-      </p>
+      {!hideChrome ? (
+        <>
+          <p
+            className="mb-1 text-[15px] font-bold"
+            style={{ color: "var(--avx-label)" }}
+          >
+            {name}
+          </p>
+          <p className="mb-2 text-[12px] text-faint">
+            {layout.mode}
+            {layout.mount && layout.mount !== "embedded"
+              ? ` · ${layout.mount}`
+              : ""}
+            {unitTotal > 1
+              ? ` · ${layout.mode === "conversational" ? "Q" : "Step"} ${stepIndex + 1}/${unitTotal}`
+              : ""}
+          </p>
+        </>
+      ) : null}
       {layout.chrome?.progress &&
       layout.chrome.progress !== "none" &&
-      unitTotal > 1 ? (
+      unitTotal > 1 &&
+      !hideChrome ? (
         <div className="mb-4 flex items-center gap-2">
           <div
             className="h-1 flex-1 overflow-hidden rounded-full"

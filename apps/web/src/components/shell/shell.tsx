@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { SwitchableClient } from "@/lib/clients/switcher";
 import { PlatformAccessBanner } from "@/components/platform/platform-access-banner";
 import { AppSidebar } from "./app-sidebar";
@@ -11,11 +12,8 @@ import { ToastHost } from "./toast";
 import { Topbar } from "./topbar";
 
 /**
- * The app frame, in the prototype's arrangement: a 50px bar across the full
- * width, and below it a 225px navy column beside the scrolling main area.
- *
- * Search state lives here because two things open it — the top bar button and
- * the sidebar's ⌘K box — and the keyboard shortcut belongs to neither.
+ * The app frame: 50px topbar + 225px navy sidebar beside the scrolling main.
+ * Below `lg`, the sidebar becomes an overlay drawer so the main pane stays fluid.
  */
 export function Shell({
   agencyName,
@@ -38,7 +36,13 @@ export function Shell({
   platformAccess?: boolean;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -47,46 +51,63 @@ export function Shell({
         setSearchOpen((v) => !v);
       } else if (e.key === "Escape") {
         setSearchOpen(false);
+        setNavOpen(false);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (!navOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [navOpen]);
+
   return (
     <ToastHost>
       <PlatformI18nProvider locale={locale}>
         <DocumentLocale />
-        <div className="flex h-screen flex-col overflow-hidden text-sm">
-        {platformAccess ? (
-          <PlatformAccessBanner agencyName={agencyName} />
-        ) : null}
-        <Topbar
-          agencyName={agencyName}
-          role={platformAccess ? "Platform access" : role}
-          clients={clients}
-          organizationCount={platformAccess ? 1 : organizationCount}
-          onSearch={() => setSearchOpen(true)}
-          signOutDisabled={platformAccess}
-        />
-
-        <div className="flex min-h-0 flex-1">
-          <AppSidebar
+        <div className="flex h-dvh flex-col overflow-hidden text-sm">
+          {platformAccess ? (
+            <PlatformAccessBanner agencyName={agencyName} />
+          ) : null}
+          <Topbar
+            agencyName={agencyName}
+            role={platformAccess ? "Platform access" : role}
             clients={clients}
-            truncated={truncated}
-            permissions={permissions}
+            organizationCount={platformAccess ? 1 : organizationCount}
             onSearch={() => setSearchOpen(true)}
+            onMenu={() => setNavOpen(true)}
+            signOutDisabled={platformAccess}
           />
-          {/*
-            Equal left/right padding — content fills the main pane so the
-            left and right gaps stay matched (no left-aligned 1060px cap).
-          */}
-          <main className="min-w-0 flex-1 overflow-y-auto px-6 py-[26px]">
-            <div className="w-full">{children}</div>
-          </main>
-        </div>
 
-        <CommandSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+          <div className="relative flex min-h-0 flex-1">
+            {navOpen ? (
+              <button
+                type="button"
+                aria-label="Close navigation"
+                className="fixed inset-0 z-40 bg-ink/40 lg:hidden"
+                onClick={() => setNavOpen(false)}
+              />
+            ) : null}
+            <AppSidebar
+              clients={clients}
+              truncated={truncated}
+              permissions={permissions}
+              onSearch={() => setSearchOpen(true)}
+              mobileOpen={navOpen}
+              onNavigate={() => setNavOpen(false)}
+            />
+            <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-[26px]">
+              <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+            </main>
+          </div>
+
+          <CommandSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
         </div>
       </PlatformI18nProvider>
     </ToastHost>

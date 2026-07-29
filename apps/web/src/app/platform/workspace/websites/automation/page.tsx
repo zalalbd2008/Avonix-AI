@@ -3,8 +3,8 @@ import { PlatformStub } from "@/components/platform/platform-stub";
 export default function Page() {
   return (
     <PlatformStub
-      title="Automation"
-      subtitle="Automation rules"
+      title="Auto Rules"
+      subtitle="When something happens, do this next"
     />
   );
 }

@@ -74,7 +74,7 @@ export default async function KnowledgePage({
         </div>
       ) : (
         <>
-          <div className="mb-5 grid grid-cols-3 gap-3">
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               { label: "Pages", value: data.pages.length },
               { label: "Passages", value: data.total },
@@ -100,10 +100,10 @@ export default async function KnowledgePage({
           )}
 
           <div className="overflow-hidden rounded-xl border border-line bg-white">
-            <div className="flex items-center border-b border-[#edf0f5] px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#edf0f5] px-4 py-3">
               <h2 className="text-sm font-semibold">Indexed pages</h2>
               {data.lastIndexed && (
-                <span className="ml-auto text-[12px] text-faint">
+                <span className="text-[12px] text-faint sm:ml-auto">
                   last indexed {new Date(data.lastIndexed).toLocaleString()}
                 </span>
               )}

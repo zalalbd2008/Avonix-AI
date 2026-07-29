@@ -54,12 +54,12 @@ export function ShareReportButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex w-full flex-col gap-1 sm:w-auto sm:items-end">
       <button
         type="button"
         disabled={pending}
         onClick={share}
-        className="cursor-pointer rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+        className="w-full cursor-pointer rounded-lg bg-brand px-3.5 py-2.5 text-center text-[13px] font-semibold text-white hover:bg-brand-dark disabled:opacity-60 sm:w-auto"
       >
         {pending ? "Opening…" : "Share Report ↗"}
       </button>

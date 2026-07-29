@@ -17,16 +17,6 @@ const FEATURES: Record<
     subtitle: "Popups shown on this website only",
     body: "Exit-intent, timed and scroll popups are in the prototype. They are not built here yet — shipping a half-working popup that never fires is worse than none.",
   },
-  automation: {
-    title: "Automation",
-    subtitle: "Rules that run for this website",
-    body: "Automations that fire on lead capture or chat handoff will live here. Until then, the inbox and pipeline are the workflow.",
-  },
-  email: {
-    title: "Email",
-    subtitle: "SMTP and campaigns for this website",
-    body: "Outbound email and delivery health are not wired per website yet. Agency branding and reply tokens cover the paths that exist today.",
-  },
   insights: {
     title: "Insights",
     subtitle: "AI-detected opportunities for this website",

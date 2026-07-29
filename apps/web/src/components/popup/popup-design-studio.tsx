@@ -23,11 +23,16 @@ import {
 import {
   DEFAULT_POPUP_EXCLUDE_PATHS,
   POPUP_CATEGORIES,
+  POPUP_CLOSE_ANIMATIONS,
+  POPUP_CLOSE_HOVER_ANIMATIONS,
+  POPUP_CLOSE_ICONS,
   POPUP_EDITOR_TABS,
   POPUP_LAYOUTS,
   POPUP_PRIORITIES,
   POPUP_TYPES,
+  applyCampaignHeaderLook,
   defaultPopupPayload,
+  popupCloseGlyph,
   slugifyPopupName,
   summarizePageTarget,
   type PopupEditorTab,
@@ -131,6 +136,7 @@ export function PopupDesignStudio({
     popupId?: string;
     category?: PopupCategory;
   } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [tab, setTab] = useState<PopupEditorTab>("general");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -629,41 +635,59 @@ export function PopupDesignStudio({
   // —— Editor ——
   return (
     <>
-    <div>
-      <PageHeader
-        title={name || "Popup editor"}
-        subtitle="Visual Popup Experience Builder"
-        action={
-          <div className="flex flex-wrap items-center gap-2">
+    <div className="min-w-0">
+      <header className="mb-3 space-y-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-[-0.02em] break-words">
+            {name || "Popup editor"}
+          </h1>
+          <p className="mt-0.5 text-[13px] text-muted">
+            Visual Popup Experience Builder
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
             <button
               type="button"
               onClick={() => setSelectedId(null)}
-              className="rounded-lg border border-line px-3 py-2 text-[13px] font-semibold"
+              className="rounded-lg border border-line px-2.5 py-2 text-[12px] font-semibold sm:px-3 sm:text-[13px]"
             >
               ← Library
             </button>
             <button
               type="button"
-              disabled={pending}
-              onClick={cloneSelected}
-              className="rounded-lg border border-line px-3 py-2 text-[13px] font-semibold"
+              onClick={() => setPreviewOpen(true)}
+              className="rounded-lg border border-line px-2.5 py-2 text-[12px] font-semibold sm:px-3 sm:text-[13px]"
             >
-              Duplicate
+              Preview
             </button>
             <button
               type="button"
               disabled={pending}
-              onClick={save}
-              className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-brand-dark"
+              onClick={cloneSelected}
+              className="rounded-lg border border-line px-2.5 py-2 text-[12px] font-semibold sm:px-3 sm:text-[13px]"
             >
-              Save
+              Duplicate
+            </button>
+          </div>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={save}
+              className="w-full rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark sm:w-auto"
+            >
+              {pending ? "Saving…" : "Save"}
             </button>
             {saved ? (
-              <span className="text-[12px] font-medium text-ok">Saved</span>
+              <span className="shrink-0 text-[12px] font-medium text-ok">
+                Saved
+              </span>
             ) : null}
           </div>
-        }
-      />
+        </div>
+      </header>
 
       {error ? (
         <p className="mb-3 rounded-xl border border-bad/20 bg-red-50 px-3 py-2 text-[13px] text-bad">
@@ -671,25 +695,43 @@ export function PopupDesignStudio({
         </p>
       ) : null}
 
-      <div className="mb-3 flex gap-1 overflow-x-auto rounded-xl border border-line bg-white p-1">
-        {POPUP_EDITOR_TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
-              tab === t.id
-                ? "bg-brand text-white"
-                : "text-muted hover:bg-[#f4f6f9] hover:text-ink"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="sticky top-0 z-20 -mx-1 mb-3 bg-surface/95 px-1 py-1 backdrop-blur-sm">
+        <div
+          className="flex gap-1 overflow-x-auto rounded-xl border border-line bg-white p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="tablist"
+          aria-label="Popup editor sections"
+        >
+          {POPUP_EDITOR_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={(e) => {
+                setTab(t.id);
+                e.currentTarget.scrollIntoView({
+                  behavior: "smooth",
+                  inline: "center",
+                  block: "nearest",
+                });
+              }}
+              className={`snap-start shrink-0 rounded-lg px-3 py-2 text-[12px] font-semibold sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                tab === t.id
+                  ? "bg-brand text-white"
+                  : "text-muted hover:bg-[#f4f6f9] hover:text-ink"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[10px] text-faint sm:hidden">
+          Swipe tabs → · {POPUP_EDITOR_TABS.find((t) => t.id === tab)?.label}
+        </p>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="space-y-4 rounded-xl border border-line bg-white p-4">
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="min-w-0 space-y-4 rounded-xl border border-line bg-white p-3 sm:p-4">
           {tab === "general" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Popup name">
@@ -829,6 +871,22 @@ export function PopupDesignStudio({
 
           {tab === "content" && (
             <div className="space-y-4">
+              <Field label="Header badge (e.g. LIMITED TIME)">
+                <input
+                  className={input}
+                  value={payload.content.scarcityText ?? ""}
+                  placeholder="LIMITED TIME"
+                  onChange={(e) =>
+                    setPayload((p) => ({
+                      ...p,
+                      content: {
+                        ...p.content,
+                        scarcityText: e.target.value || undefined,
+                      },
+                    }))
+                  }
+                />
+              </Field>
               <Field label="Primary heading">
                 <input
                   className={input}
@@ -1582,6 +1640,29 @@ export function PopupDesignStudio({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2 rounded-xl border border-line bg-white p-3 space-y-3">
                 <p className="text-[13px] font-semibold text-ink">Content grid</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPayload((p) => applyCampaignHeaderLook(p));
+                      setPreviewOpen(true);
+                    }}
+                    className="rounded-lg bg-[#1e1b4b] px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-[#312e81]"
+                  >
+                    Apply campaign look + preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(true)}
+                    className="rounded-lg border border-line px-3 py-2 text-[12.5px] font-semibold text-ink"
+                  >
+                    Open full preview
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted">
+                  Existing popups keep their old stack layout until you apply
+                  campaign look (or set Grid mode → Campaign header) and Save.
+                </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Grid mode">
                     <select
@@ -1596,6 +1677,7 @@ export function PopupDesignStudio({
                               ...p.design.grid,
                               mode: e.target.value as
                                 | "stack"
+                                | "header_band"
                                 | "media_split"
                                 | "banner_split"
                                 | "multi_column",
@@ -1605,6 +1687,7 @@ export function PopupDesignStudio({
                       }
                     >
                       <option value="stack">Stack (single column)</option>
+                      <option value="header_band">Campaign header (gradient band)</option>
                       <option value="media_split">Media + content (2 columns)</option>
                       <option value="banner_split">Banner split (top / bottom colors)</option>
                       <option value="multi_column">Multi-column body</option>
@@ -1744,41 +1827,76 @@ export function PopupDesignStudio({
 
               <div className="sm:col-span-2 rounded-xl border border-line bg-white p-3 space-y-3">
                 <p className="text-[13px] font-semibold text-ink">Theme colors</p>
+                <p className="text-[11px] text-muted">
+                  Header background = title strip only. Body background = form
+                  area. Use the color picker or paste a hex code.
+                </p>
                 <div className="grid gap-3 sm:grid-cols-3">
                   {(
                     [
-                      ["backgroundColor", "Card background"],
+                      ["headerBackgroundColor", "Header background"],
+                      ["backgroundColor", "Body / form background"],
+                      ["splitTopColor", "Header gradient start"],
+                      ["splitBottomColor", "Header gradient end"],
                       ["mediaBackgroundColor", "Media panel"],
-                      ["splitTopColor", "Split top"],
-                      ["splitBottomColor", "Split bottom"],
                       ["buttonBackground", "Button fill"],
                       ["buttonTextColor", "Button text"],
                       ["buttonBorderColor", "Button border"],
                       ["secondaryLinkColor", "Secondary link"],
                       ["textColor", "Default text"],
                     ] as const
-                  ).map(([key, label]) => (
-                    <Field key={key} label={label}>
-                      <input
-                        className={input}
-                        type="text"
-                        placeholder="#ffffff"
-                        value={payload.design.theme?.[key] ?? ""}
-                        onChange={(e) =>
-                          setPayload((p) => ({
-                            ...p,
-                            design: {
-                              ...p.design,
-                              theme: {
-                                ...p.design.theme,
-                                [key]: e.target.value || undefined,
-                              },
-                            },
-                          }))
-                        }
-                      />
-                    </Field>
-                  ))}
+                  ).map(([key, label]) => {
+                    const raw = payload.design.theme?.[key] ?? "";
+                    const hex = /^#[0-9a-fA-F]{6}$/.test(raw)
+                      ? raw
+                      : key === "headerBackgroundColor"
+                        ? "#1e1b4b"
+                        : key === "backgroundColor"
+                          ? "#ffffff"
+                          : "#cccccc";
+                    return (
+                      <Field key={key} label={label}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            aria-label={label}
+                            className="h-9 w-10 shrink-0 cursor-pointer rounded border border-line bg-white p-0.5"
+                            value={hex}
+                            onChange={(e) =>
+                              setPayload((p) => ({
+                                ...p,
+                                design: {
+                                  ...p.design,
+                                  theme: {
+                                    ...p.design.theme,
+                                    [key]: e.target.value,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                          <input
+                            className={input}
+                            type="text"
+                            placeholder="#ffffff"
+                            value={raw}
+                            onChange={(e) =>
+                              setPayload((p) => ({
+                                ...p,
+                                design: {
+                                  ...p.design,
+                                  theme: {
+                                    ...p.design.theme,
+                                    [key]: e.target.value || undefined,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      </Field>
+                    );
+                  })}
                   <Field label="Button radius">
                     <input
                       className={input}
@@ -1798,6 +1916,251 @@ export function PopupDesignStudio({
                       }
                     />
                   </Field>
+                  <Field label="Button height (px)">
+                    <input
+                      className={input}
+                      type="number"
+                      min={28}
+                      max={72}
+                      value={payload.design.theme?.buttonHeight ?? 44}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          design: {
+                            ...p.design,
+                            theme: {
+                              ...p.design.theme,
+                              buttonHeight: Number(e.target.value) || 44,
+                            },
+                          },
+                        }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Button font size (px)">
+                    <input
+                      className={input}
+                      type="number"
+                      min={11}
+                      max={22}
+                      value={payload.design.theme?.buttonFontSize ?? 14}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          design: {
+                            ...p.design,
+                            theme: {
+                              ...p.design.theme,
+                              buttonFontSize: Number(e.target.value) || 14,
+                            },
+                          },
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 rounded-xl border border-line bg-white p-3 space-y-3">
+                <p className="text-[13px] font-semibold text-ink">
+                  Close button
+                </p>
+                <p className="text-[11px] text-muted">
+                  Background, icon glyph, and idle / hover animations.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(
+                    [
+                      ["closeBackground", "Background"],
+                      ["closeColor", "Icon color"],
+                      ["closeHoverBackground", "Hover background"],
+                      ["closeHoverColor", "Hover icon"],
+                    ] as const
+                  ).map(([key, label]) => {
+                    const raw = payload.design.theme?.[key] ?? "";
+                    const hex = /^#[0-9a-fA-F]{6}$/.test(raw)
+                      ? raw
+                      : key.includes("Background")
+                        ? "#ef4444"
+                        : "#ffffff";
+                    return (
+                      <Field key={key} label={label}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            aria-label={label}
+                            className="h-9 w-10 shrink-0 cursor-pointer rounded border border-line bg-white p-0.5"
+                            value={hex}
+                            onChange={(e) =>
+                              setPayload((p) => ({
+                                ...p,
+                                design: {
+                                  ...p.design,
+                                  theme: {
+                                    ...p.design.theme,
+                                    [key]: e.target.value,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                          <input
+                            className={input}
+                            type="text"
+                            placeholder="#ef4444"
+                            value={raw}
+                            onChange={(e) =>
+                              setPayload((p) => ({
+                                ...p,
+                                design: {
+                                  ...p.design,
+                                  theme: {
+                                    ...p.design.theme,
+                                    [key]: e.target.value || undefined,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      </Field>
+                    );
+                  })}
+                  <Field label="Size (px)">
+                    <input
+                      className={input}
+                      type="number"
+                      min={20}
+                      max={56}
+                      value={payload.design.theme?.closeSize ?? 30}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          design: {
+                            ...p.design,
+                            theme: {
+                              ...p.design.theme,
+                              closeSize: Number(e.target.value) || 30,
+                            },
+                          },
+                        }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Icon">
+                    <select
+                      className={input}
+                      value={payload.design.theme?.closeIcon ?? "x"}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          design: {
+                            ...p.design,
+                            theme: {
+                              ...p.design.theme,
+                              closeIcon: e.target.value as
+                                | "x"
+                                | "x_bold"
+                                | "plus"
+                                | "circle_x",
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      {POPUP_CLOSE_ICONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Icon animation">
+                    <select
+                      className={input}
+                      value={payload.design.theme?.closeAnimation ?? "none"}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          design: {
+                            ...p.design,
+                            theme: {
+                              ...p.design.theme,
+                              closeAnimation: e.target.value as
+                                | "none"
+                                | "spin"
+                                | "pulse"
+                                | "bounce"
+                                | "fade",
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      {POPUP_CLOSE_ANIMATIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Hover animation">
+                    <select
+                      className={input}
+                      value={
+                        payload.design.theme?.closeHoverAnimation ?? "scale"
+                      }
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          design: {
+                            ...p.design,
+                            theme: {
+                              ...p.design.theme,
+                              closeHoverAnimation: e.target.value as
+                                | "none"
+                                | "spin"
+                                | "scale"
+                                | "rotate"
+                                | "pulse",
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      {POPUP_CLOSE_HOVER_ANIMATIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border border-[#eef2f7] bg-[#f8fafc] px-3 py-2.5">
+                  <span className="text-[12px] text-muted">Preview</span>
+                  <span
+                    className={`grid place-items-center rounded-full font-semibold leading-none ${
+                      payload.design.theme?.closeAnimation === "spin"
+                        ? "animate-spin"
+                        : payload.design.theme?.closeAnimation === "pulse"
+                          ? "animate-pulse"
+                          : payload.design.theme?.closeAnimation === "bounce"
+                            ? "animate-bounce"
+                            : ""
+                    }`}
+                    style={{
+                      width: payload.design.theme?.closeSize ?? 30,
+                      height: payload.design.theme?.closeSize ?? 30,
+                      background:
+                        payload.design.theme?.closeBackground ?? "#ef4444",
+                      color: payload.design.theme?.closeColor ?? "#ffffff",
+                      fontSize: Math.round(
+                        (payload.design.theme?.closeSize ?? 30) * 0.55,
+                      ),
+                    }}
+                  >
+                    {popupCloseGlyph(payload.design.theme?.closeIcon)}
+                  </span>
                 </div>
               </div>
 
@@ -1858,13 +2221,13 @@ export function PopupDesignStudio({
                 <input
                   className={input}
                   type="number"
-                  value={payload.design.maxWidth ?? 420}
+                  value={payload.design.maxWidth ?? 550}
                   onChange={(e) =>
                     setPayload((p) => ({
                       ...p,
                       design: {
                         ...p.design,
-                        maxWidth: Number(e.target.value) || 420,
+                        maxWidth: Number(e.target.value) || 550,
                       },
                     }))
                   }
@@ -2210,7 +2573,7 @@ export function PopupDesignStudio({
                 <p className="text-[12px] font-semibold text-ink">
                   AND conditions · Devices
                 </p>
-                <div className="mt-1.5 flex flex-wrap gap-2">
+                <div className="mt-1.5 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
                   {(["desktop", "tablet", "mobile"] as const).map((d) => {
                     const on = (payload.devices ?? []).includes(d);
                     return (
@@ -2225,9 +2588,9 @@ export function PopupDesignStudio({
                             return { ...p, devices: [...cur] };
                           })
                         }
-                        className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold capitalize ${
+                        className={`rounded-md border px-2.5 py-2 text-[12px] font-semibold capitalize sm:py-1 sm:text-[11px] ${
                           on
-                            ? "border-brand bg-brand/10 text-brand-dark"
+                            ? "border-brand bg-brand text-white"
                             : "border-line text-muted"
                         }`}
                       >
@@ -2242,7 +2605,7 @@ export function PopupDesignStudio({
                 <p className="text-[12px] font-semibold text-ink">
                   AND · Visitor type
                 </p>
-                <div className="mt-1.5 flex flex-wrap gap-2">
+                <div className="mt-1.5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   {(
                     [
                       "new",
@@ -2270,9 +2633,9 @@ export function PopupDesignStudio({
                             };
                           })
                         }
-                        className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold capitalize ${
+                        className={`rounded-md border px-2.5 py-2 text-[12px] font-semibold capitalize sm:py-1 sm:text-[11px] ${
                           on
-                            ? "border-brand bg-brand/10 text-brand-dark"
+                            ? "border-brand bg-brand text-white"
                             : "border-line text-muted"
                         }`}
                       >
@@ -2755,23 +3118,88 @@ export function PopupDesignStudio({
           </div>
         </section>
 
-        <aside className="rounded-xl border border-line bg-[#eef1f6] p-4">
-          <p className="text-[11px] font-semibold tracking-wide text-faint uppercase">
-            Live preview
-          </p>
-          <div className="mt-3 flex justify-center">
-            <PopupLivePreview payload={payload} formOptions={formOptions} />
+        <aside className="min-w-0 rounded-xl border border-line bg-[#0f172a] p-3 shadow-lg sm:p-4 xl:sticky xl:top-4 xl:self-start">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold tracking-wide text-white/50 uppercase">
+              Live preview
+            </p>
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="rounded-md bg-white/10 px-2 py-1 text-[11px] font-semibold text-white hover:bg-white/20"
+            >
+              Full screen
+            </button>
           </div>
-          <p className="mt-3 text-[11px] leading-snug text-muted">
+          <div className="flex justify-center overflow-x-auto rounded-xl bg-[rgba(15,23,42,0.35)] p-2 sm:p-3">
+            <div className="w-full max-w-[min(100%,550px)] origin-top sm:scale-[0.92]">
+              <PopupLivePreview
+                payload={payload}
+                formOptions={formOptions}
+                clientId={clientId}
+                websiteId={websiteId}
+                onClose={() => setPreviewOpen(false)}
+              />
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] leading-snug text-white/55">
             {summarizePageTarget(payload.audience.pageTarget)} ·{" "}
             {payload.priority.replace(/_/g, " ")} · {payload.frequency.mode}
             {(payload.design.grid?.mode && payload.design.grid.mode !== "stack")
               ? ` · ${payload.design.grid.mode.replace(/_/g, " ")}`
-              : ""}
+              : " · stack"}
+          </p>
+          <p className="mt-2 text-[11px] text-white/40">
+            This preview updates instantly. Publish + Save to show it on the
+            live website.
           </p>
         </aside>
       </div>
     </div>
+    {previewOpen ? (
+      <div
+        className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Popup preview"
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-[#0f172a]/70 backdrop-blur-[6px]"
+          aria-label="Close preview"
+          onClick={() => setPreviewOpen(false)}
+        />
+        <div className="relative z-10 w-full max-w-[550px]">
+          <PopupLivePreview
+            payload={payload}
+            formOptions={formOptions}
+            clientId={clientId}
+            websiteId={websiteId}
+            onClose={() => setPreviewOpen(false)}
+          />
+          <div className="mt-3 flex justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(false)}
+              className="rounded-lg bg-white px-4 py-2 text-[13px] font-semibold text-ink shadow"
+            >
+              Close preview
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setPreviewOpen(false);
+                save();
+              }}
+              className="rounded-lg bg-brand px-4 py-2 text-[13px] font-semibold text-white shadow"
+            >
+              Save & close
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
     {templateDialog ? (
       <SavePopupTemplateDialog
         open

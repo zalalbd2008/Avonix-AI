@@ -27,4 +27,6 @@ export * from "./knowledge";
 export * from "./usage";
 export * from "./rate-limits";
 export * from "./tracking";
+export * from "./automation";
+export * from "./crm-ops";
 export * from "./relations";

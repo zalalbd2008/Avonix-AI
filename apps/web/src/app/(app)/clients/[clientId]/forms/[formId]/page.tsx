@@ -7,6 +7,7 @@ import { SubmissionScoresBadge } from "@/components/forms/submission-scores-badg
 import { FormAnalyticsPanel } from "@/components/forms/form-analytics-panel";
 import { PageHeader } from "@/components/shell/page-header";
 import { CopyBlock } from "@/components/ui/copy-block";
+import { ScrollTable } from "@/components/ui/scroll-table";
 import { timeAgo } from "@/components/ui/status-pill";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
@@ -112,22 +113,46 @@ export default async function FormDetailPage({
 
       <FormAnalyticsPanel summary={analyticsSummary} days={30} />
 
-      <section className="mb-5 overflow-hidden rounded-xl border border-line bg-white">
-        <h2 className="border-b border-[#edf0f5] px-4 py-3 text-sm font-semibold">Fields</h2>
-        {form.fields.map((f) => (
-          <div
-            key={f.key}
-            className="grid grid-cols-[1.4fr_.7fr_.7fr_1fr] items-center border-b border-[#f1f4f8] px-4 py-2.5 text-[13px] last:border-0"
-          >
-            <span className="font-medium">{f.label}</span>
-            <span className="font-mono text-[12px] text-faint">{f.key}</span>
-            <span className="text-[12.5px] text-muted">{f.type}</span>
-            <span className="text-[12px] text-faint">
-              {f.required && <span className="mr-2 text-warn">required</span>}
-              {CONTACT_KEYS.has(f.key) ? "→ contact record" : "→ extra data"}
-            </span>
-          </div>
-        ))}
+      <section className="mb-5">
+        <h2 className="mb-3 text-sm font-semibold">Fields</h2>
+
+        <div className="grid gap-3 md:hidden">
+          {form.fields.map((f) => (
+            <div
+              key={f.key}
+              className="rounded-xl border border-line bg-white p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[13.5px] font-medium">{f.label}</p>
+                <span className="shrink-0 text-[12.5px] text-muted">{f.type}</span>
+              </div>
+              <p className="mt-1 font-mono text-[12px] text-faint">{f.key}</p>
+              <p className="mt-2 text-[12px] text-faint">
+                {f.required && <span className="mr-2 text-warn">required</span>}
+                {CONTACT_KEYS.has(f.key) ? "→ contact record" : "→ extra data"}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden md:block">
+          <ScrollTable minWidth={640}>
+            {form.fields.map((f) => (
+              <div
+                key={f.key}
+                className="grid grid-cols-[1.4fr_.7fr_.7fr_1fr] items-center border-b border-[#f1f4f8] px-4 py-2.5 text-[13px] last:border-0"
+              >
+                <span className="font-medium">{f.label}</span>
+                <span className="font-mono text-[12px] text-faint">{f.key}</span>
+                <span className="text-[12.5px] text-muted">{f.type}</span>
+                <span className="text-[12px] text-faint">
+                  {f.required && <span className="mr-2 text-warn">required</span>}
+                  {CONTACT_KEYS.has(f.key) ? "→ contact record" : "→ extra data"}
+                </span>
+              </div>
+            ))}
+          </ScrollTable>
+        </div>
       </section>
 
       <section className="overflow-hidden rounded-xl border border-line bg-white">

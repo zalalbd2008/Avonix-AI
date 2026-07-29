@@ -96,12 +96,15 @@ export default async function ClientsPage() {
               <span className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-navy text-sm font-semibold text-white">
                 {c.name.charAt(0).toUpperCase()}
               </span>
-              <span className="text-sm font-semibold">{c.name}</span>
-              <span className="text-[12.5px] text-muted">
-                {c.siteCount} {c.siteCount === 1 ? "Website" : "Websites"}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{c.name}</span>
+                <span className="text-[12.5px] text-muted">
+                  {c.siteCount} {c.siteCount === 1 ? "Website" : "Websites"}
+                </span>
               </span>
               <span className="ml-auto shrink-0 text-[13px] font-semibold text-brand">
-                Open Workspace →
+                <span className="hidden sm:inline">Open Workspace →</span>
+                <span className="text-[#c3ccd9] sm:hidden">›</span>
               </span>
             </Link>
           ))}

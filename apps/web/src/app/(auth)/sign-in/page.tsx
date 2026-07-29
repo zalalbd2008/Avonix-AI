@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { Field, FormError, SubmitButton } from "@/components/ui/field";
 import { PasswordField } from "@/components/ui/password-field";
 import { signIn } from "@/lib/auth/client";
@@ -10,6 +11,10 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const google = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim());
+  const microsoft = Boolean(
+    process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID?.trim(),
+  );
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,8 +46,6 @@ export default function SignInPage() {
       return;
     }
 
-    // Full page load so the new session cookie is applied. Soft router.push +
-    // refresh after sign-in was leaving the tab hung (no /home request).
     window.location.assign("/home");
   }
 
@@ -50,6 +53,12 @@ export default function SignInPage() {
     <>
       <h1 className="text-xl font-bold tracking-tight">Sign in</h1>
       <p className="mt-0.5 mb-5 text-[13px] text-muted">Welcome back to Avonix AI</p>
+      <SocialAuthButtons
+        google={google}
+        microsoft={microsoft}
+        mode="verify"
+        callbackURL="/home"
+      />
       <form onSubmit={onSubmit}>
         <FormError message={error} />
         {unverifiedEmail ? (

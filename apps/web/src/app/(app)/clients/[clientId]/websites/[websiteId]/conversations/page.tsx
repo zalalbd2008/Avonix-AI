@@ -109,22 +109,22 @@ export default async function WebsiteConversationsPage({
   ];
 
   return (
-    <div className="-mx-6 -my-[26px] flex min-h-[calc(100vh-50px)] flex-col bg-white">
-      <header className="flex items-center gap-6 border-b border-line px-6 pt-4">
-        <div className="pb-3">
+    <div className="-mx-4 -my-5 flex min-h-[calc(100vh-50px)] flex-col bg-white sm:-mx-6 sm:-my-[26px]">
+      <header className="flex flex-col gap-1 border-b border-line px-4 pt-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
+        <div className="shrink-0 pb-3">
           <h1 className="text-[18px] font-bold tracking-tight text-ink">
             Conversations
           </h1>
           <p className="text-[12px] text-faint">{site.name}</p>
         </div>
-        <nav className="flex items-end gap-1 self-stretch">
+        <nav className="flex items-end gap-1 self-stretch overflow-x-auto [-webkit-overflow-scrolling:touch]">
           {tabs.map((t) => {
             const active = tab === t.id;
             return (
               <Link
                 key={t.id}
                 href={`${base}?tab=${t.id}` as never}
-                className={`relative px-3 pb-3 text-[13px] font-semibold transition-colors ${
+                className={`relative shrink-0 px-3 pb-3 text-[13px] font-semibold transition-colors ${
                   active ? "text-[#2563eb]" : "text-muted hover:text-ink"
                 }`}
               >
@@ -149,8 +149,8 @@ export default async function WebsiteConversationsPage({
         </nav>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[340px] shrink-0 flex-col border-r border-line bg-[#fafbfc]">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <aside className="flex w-full shrink-0 flex-col border-r border-line bg-[#fafbfc] max-md:border-r-0 md:w-[340px]">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <div>
               <p className="text-[13.5px] font-bold text-ink">Team inbox</p>

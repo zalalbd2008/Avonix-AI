@@ -59,20 +59,24 @@ export default async function ClientOverviewPage({
 
   return (
     <div>
-      <header className="mb-5 flex items-center gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-[11px] bg-navy text-[17px] font-bold text-white">
-          {data.client.name.charAt(0).toUpperCase()}
-        </span>
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-[-0.02em]">{data.client.name}</h1>
-          <p className="mt-px text-[13px] text-muted">
-            {data.sites.length} {data.sites.length === 1 ? "Website" : "Websites"} · Client
-            Workspace
-          </p>
+      <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-[11px] bg-navy text-[17px] font-bold text-white">
+            {data.client.name.charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-[-0.02em] break-words">
+              {data.client.name}
+            </h1>
+            <p className="mt-px text-[13px] text-muted">
+              {data.sites.length}{" "}
+              {data.sites.length === 1 ? "Website" : "Websites"} · Client Workspace
+            </p>
+          </div>
         </div>
         <Link
           href={newSiteHref as never}
-          className="ml-auto shrink-0 rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
+          className="w-full rounded-lg bg-brand px-3.5 py-2.5 text-center text-[13px] font-semibold text-white hover:bg-brand-dark sm:ml-auto sm:w-auto sm:shrink-0"
         >
           + New Website
         </Link>

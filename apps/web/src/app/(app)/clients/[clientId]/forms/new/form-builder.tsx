@@ -123,7 +123,7 @@ export function FormBuilder({
 
         {fields.map((f, i) => (
           <div key={i} className="border-b border-[#f1f4f8] px-4 py-3 last:border-0">
-            <div className="grid grid-cols-[1.4fr_1fr_auto] items-end gap-2.5">
+            <div className="grid grid-cols-1 items-end gap-2.5 sm:grid-cols-[1.4fr_1fr_auto]">
               <label className="block">
                 <span className="mb-1 block text-[11.5px] font-semibold text-muted">Label</span>
                 <input

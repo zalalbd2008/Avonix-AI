@@ -24,9 +24,11 @@ export type WebsiteFontSettings = {
 };
 
 import type { AccessibilitySettings } from "@/lib/accessibility/types";
+import type { AutomationSettings } from "@/lib/automation/types";
 import type { LanguageSettings } from "@/lib/languages/types";
 import type { UpdatesSettings } from "@/lib/updates/types";
 import type { UptimeSettings } from "@/lib/uptime/types";
+import type { WebsiteEmailSettings } from "@/lib/website-email/types";
 
 export type WebsiteSettings = {
   fonts?: WebsiteFontSettings;
@@ -38,6 +40,10 @@ export type WebsiteSettings = {
   uptime?: UptimeSettings;
   /** WordPress update watching preferences (see lib/updates). */
   updates?: UpdatesSettings;
+  /** Per-website SMTP + campaign identity (see lib/website-email). */
+  email?: WebsiteEmailSettings;
+  /** If → then rules for leads, chat, uptime (see lib/automation). */
+  automation?: AutomationSettings;
 };
 
 /**

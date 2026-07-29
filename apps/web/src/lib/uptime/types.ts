@@ -23,6 +23,11 @@ export type UptimeSettings = {
   sslWarnDays: number;
   alertOnDown: boolean;
   alertOnRecovery: boolean;
+  /** Runtime probe state (written by cron). */
+  lastStatus?: "up" | "down" | "unknown";
+  lastCheckedAt?: string;
+  lastHttpStatus?: number;
+  lastError?: string;
 };
 
 export const UPTIME_INTERVALS: {
@@ -122,6 +127,15 @@ export function mergeUptimeSettings(
     ),
     alertOnDown: raw.alertOnDown !== false,
     alertOnRecovery: raw.alertOnRecovery !== false,
+    lastStatus:
+      raw.lastStatus === "up" || raw.lastStatus === "down" || raw.lastStatus === "unknown"
+        ? raw.lastStatus
+        : undefined,
+    lastCheckedAt:
+      typeof raw.lastCheckedAt === "string" ? raw.lastCheckedAt : undefined,
+    lastHttpStatus:
+      typeof raw.lastHttpStatus === "number" ? raw.lastHttpStatus : undefined,
+    lastError: typeof raw.lastError === "string" ? raw.lastError.slice(0, 500) : undefined,
   };
 }
 

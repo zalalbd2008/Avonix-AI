@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { ShareReportButton } from "@/components/reports/share-report-button";
+import { PageHeader } from "@/components/shell/page-header";
 import { FixWebsiteUrlForm } from "@/components/websites/fix-website-url-form";
 import { requireAgency } from "@/lib/auth/session";
 import { accessibilityScore, mergeAccessibilitySettings } from "@/lib/accessibility/types";
@@ -16,6 +17,10 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { getShare } from "@/lib/reports/share";
+import {
+  mergeWebsiteEmailSettings,
+  smtpStatusLabel,
+} from "@/lib/website-email/types";
 import { isValidWebsiteUrl } from "@/lib/websites/url";
 
 /**
@@ -110,6 +115,8 @@ export default async function WebsiteOverviewPage({
 
   const a11y = mergeAccessibilitySettings(site.settings?.accessibility);
   const a11yScore = accessibilityScore(a11y);
+  const email = mergeWebsiteEmailSettings(site.settings?.email);
+  const smtp = smtpStatusLabel(email);
 
   const metrics: { value: string; label: string; tone?: string }[] = [
     {
@@ -139,7 +146,7 @@ export default async function WebsiteOverviewPage({
       label: "Knowledge",
       tone: data.passages > 0 ? "text-ok" : "text-warn",
     },
-    { value: "Not set", label: "SMTP", tone: "text-faint" },
+    { value: smtp.label, label: "SMTP Setup", tone: smtp.tone },
     {
       value: a11y.enabled ? `${a11yScore}` : "—",
       label: "Accessibility Score",
@@ -161,31 +168,27 @@ export default async function WebsiteOverviewPage({
 
   return (
     <div>
-      <header className="mb-[18px] flex items-center gap-4">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-bold tracking-[-0.02em]">
-            {site.name} — Dashboard
-          </h1>
-          <p className="mt-0.5 text-[13px] text-muted">
-            Everything on this page belongs to the {site.name} website only
-          </p>
-        </div>
-        <div className="ml-auto flex shrink-0 items-start gap-2.5">
-          <Link
-            href={reportsHref as never}
-            className="rounded-lg border-[1.5px] border-brand px-3.5 py-2 text-[13px] font-semibold text-brand hover:bg-brand hover:text-white"
-          >
-            View Reports
-          </Link>
-          <ShareReportButton
-            clientId={clientId}
-            websiteId={websiteId}
-            appUrl={appUrl}
-            slug={share?.slug ?? null}
-            enabled={share?.enabled ?? true}
-          />
-        </div>
-      </header>
+      <PageHeader
+        title={`${site.name} — Dashboard`}
+        subtitle={`Everything on this page belongs to the ${site.name} website only`}
+        action={
+          <>
+            <Link
+              href={reportsHref as never}
+              className="rounded-lg border-[1.5px] border-brand px-3.5 py-2 text-[13px] font-semibold text-brand hover:bg-brand hover:text-white"
+            >
+              View Reports
+            </Link>
+            <ShareReportButton
+              clientId={clientId}
+              websiteId={websiteId}
+              appUrl={appUrl}
+              slug={share?.slug ?? null}
+              enabled={share?.enabled ?? true}
+            />
+          </>
+        }
+      />
 
       <div className="mb-[22px] grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {metrics.map((m) => (

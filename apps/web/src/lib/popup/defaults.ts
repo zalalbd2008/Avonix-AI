@@ -25,6 +25,46 @@ export const POPUP_EDITOR_TABS = [
 
 export type PopupEditorTab = (typeof POPUP_EDITOR_TABS)[number]["id"];
 
+export const POPUP_CLOSE_ICONS: {
+  id: NonNullable<import("@/lib/db/schema").PopupTheme["closeIcon"]>;
+  label: string;
+  glyph: string;
+}[] = [
+  { id: "x", label: "× classic", glyph: "×" },
+  { id: "x_bold", label: "✕ bold", glyph: "✕" },
+  { id: "plus", label: "+ plus", glyph: "+" },
+  { id: "circle_x", label: "⊗ circled", glyph: "⊗" },
+];
+
+export const POPUP_CLOSE_ANIMATIONS: {
+  id: NonNullable<import("@/lib/db/schema").PopupTheme["closeAnimation"]>;
+  label: string;
+}[] = [
+  { id: "none", label: "None" },
+  { id: "fade", label: "Fade in" },
+  { id: "pulse", label: "Pulse" },
+  { id: "bounce", label: "Bounce" },
+  { id: "spin", label: "Spin" },
+];
+
+export const POPUP_CLOSE_HOVER_ANIMATIONS: {
+  id: NonNullable<import("@/lib/db/schema").PopupTheme["closeHoverAnimation"]>;
+  label: string;
+}[] = [
+  { id: "none", label: "None" },
+  { id: "scale", label: "Scale up" },
+  { id: "rotate", label: "Rotate" },
+  { id: "spin", label: "Spin" },
+  { id: "pulse", label: "Pulse" },
+];
+
+export function popupCloseGlyph(
+  icon?: import("@/lib/db/schema").PopupTheme["closeIcon"],
+): string {
+  return POPUP_CLOSE_ICONS.find((i) => i.id === icon)?.glyph ?? "×";
+}
+
+
 export const POPUP_CATEGORIES: { value: PopupCategory; label: string }[] = [
   { value: "lead", label: "Lead" },
   { value: "offer", label: "Offer" },
@@ -152,6 +192,68 @@ export function summarizePageTarget(target: PopupPageTarget): string {
   return target.mode === "include" ? `Only: ${body}` : `Except: ${body}`;
 }
 
+/** Purple gradient header + lavender CTA — matches campaign reference mock. */
+export function applyCampaignHeaderLook(payload: PopupPayload): PopupPayload {
+  return {
+    ...payload,
+    design: {
+      ...payload.design,
+      layout: "center_modal",
+      padding: 0,
+      radius: 18,
+      maxWidth: 550,
+      shadow: true,
+      grid: {
+        ...payload.design.grid,
+        mode: "header_band",
+        align: payload.design.grid?.align ?? "left",
+        gap: payload.design.grid?.gap ?? 12,
+        stackOnMobile: true,
+      },
+        theme: {
+          ...payload.design.theme,
+          backgroundColor: "#ffffff",
+          headerBackgroundColor: "#1e1b4b",
+          textColor: "#0f172a",
+          splitTopColor: "#1e1b4b",
+          splitBottomColor: "#7c3aed",
+          buttonBackground: "#a5b4fc",
+          buttonTextColor: "#ffffff",
+          buttonRadius: 6,
+          closeBackground: "#ef4444",
+          closeColor: "#ffffff",
+        },
+    },
+    content: {
+      ...payload.content,
+      scarcityText: payload.content.scarcityText || "LIMITED TIME",
+      headline: payload.content.headline || "New Campaign Heading",
+      description: payload.content.description || "Sub-text here",
+      headlineStyle: {
+        fontSize: 26,
+        fontWeight: 700,
+        align: "left",
+        lineHeight: 1.2,
+        ...payload.content.headlineStyle,
+        color: payload.content.headlineStyle?.color ?? "#0f172a",
+      },
+      descriptionStyle: {
+        fontSize: 14,
+        fontWeight: 400,
+        align: "left",
+        ...payload.content.descriptionStyle,
+        color: payload.content.descriptionStyle?.color ?? "#ffffff",
+      },
+      replaceFormButtons: true,
+      primaryCta: {
+        ...(payload.content.primaryCta ?? {}),
+        label: payload.content.primaryCta?.label || "Submit",
+        action: payload.content.primaryCta?.action ?? "submit_form",
+      },
+    },
+  };
+}
+
 export function defaultPopupPayload(type: PopupType = "welcome"): PopupPayload {
   const meta = POPUP_TYPES.find((t) => t.value === type);
   const category = meta?.category ?? "custom";
@@ -200,7 +302,7 @@ export function defaultPopupPayload(type: PopupType = "welcome"): PopupPayload {
       overlayOpacity: 0.55,
       radius: 16,
       shadow: true,
-      maxWidth: 420,
+      maxWidth: 550,
       padding: 24,
       grid: { mode: "stack", align: "left", gap: 12, stackOnMobile: true },
       theme: {
@@ -272,6 +374,63 @@ export function defaultPopupPayload(type: PopupType = "welcome"): PopupPayload {
       };
       break;
     case "lead_capture":
+      base.category = "lead";
+      base.design = {
+        ...base.design,
+        padding: 0,
+        radius: 18,
+        maxWidth: 550,
+        grid: {
+          mode: "header_band",
+          align: "left",
+          gap: 12,
+          stackOnMobile: true,
+        },
+        theme: {
+          backgroundColor: "#ffffff",
+          headerBackgroundColor: "#1e1b4b",
+          textColor: "#0f172a",
+          splitTopColor: "#1e1b4b",
+          splitBottomColor: "#7c3aed",
+          buttonBackground: "#a5b4fc",
+          buttonTextColor: "#ffffff",
+          buttonRadius: 6,
+          closeBackground: "#ef4444",
+          closeColor: "#ffffff",
+        },
+      };
+      base.content = {
+        ...base.content,
+        scarcityText: "LIMITED TIME",
+        headline: "New Campaign Heading",
+        description: "Sub-text here",
+        headlineStyle: {
+          fontSize: 26,
+          fontWeight: 700,
+          color: "#0f172a",
+          align: "left",
+          lineHeight: 1.2,
+        },
+        descriptionStyle: {
+          fontSize: 14,
+          fontWeight: 400,
+          color: "#ffffff",
+          align: "left",
+        },
+        formId: undefined,
+        replaceFormButtons: true,
+        primaryCta: { label: "Submit", action: "submit_form" },
+      };
+      base.buttons = [
+        {
+          id: "primary",
+          label: "Submit",
+          variant: "primary",
+          action: "submit_form",
+        },
+      ];
+      base.triggers = { onLoad: true, delayMs: [800] };
+      break;
     case "newsletter":
     case "appointment":
     case "survey":

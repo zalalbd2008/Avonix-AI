@@ -8,8 +8,34 @@ import { sendEmail } from "@/lib/email";
 import { validateSignupEmail } from "@/lib/email/email-policy";
 import { resetPasswordEmail } from "@/lib/email/templates/reset-password";
 import { verifyEmail } from "@/lib/email/templates/verify-email";
+import {
+  getGoogleOAuthConfig,
+  getMicrosoftOAuthConfig,
+} from "@/lib/auth/social";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+const google = getGoogleOAuthConfig();
+const microsoft = getMicrosoftOAuthConfig();
+
+const socialProviders: NonNullable<
+  Parameters<typeof betterAuth>[0]["socialProviders"]
+> = {};
+
+if (google.enabled) {
+  socialProviders.google = {
+    clientId: google.clientId,
+    clientSecret: google.clientSecret,
+  };
+}
+
+if (microsoft.enabled) {
+  socialProviders.microsoft = {
+    clientId: microsoft.clientId,
+    clientSecret: microsoft.clientSecret,
+    tenantId: microsoft.tenantId,
+  };
+}
 
 /**
  * Identity, per ADR-004: bought rather than built, but self-hosted — the tables
@@ -19,8 +45,8 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
  * Better Auth owns *identity* (who you are). It does not own *tenancy* — which
  * agency you are acting as is `memberships`, resolved in `session.ts`.
  *
- * Email must be valid + non-disposable at signup, and verified before the
- * account can sign in or finish onboarding.
+ * Email/password requires verification. Google / Microsoft OAuth trust the
+ * provider’s verified email when those env vars are set.
  */
 export const auth = betterAuth({
   baseURL: appUrl,
@@ -69,6 +95,8 @@ export const auth = betterAuth({
     },
   },
 
+  socialProviders,
+
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // refresh the row at most daily
@@ -85,3 +113,11 @@ export const auth = betterAuth({
 });
 
 export type Session = typeof auth.$Infer.Session;
+
+export function isGoogleAuthEnabled() {
+  return google.enabled;
+}
+
+export function isMicrosoftAuthEnabled() {
+  return microsoft.enabled;
+}

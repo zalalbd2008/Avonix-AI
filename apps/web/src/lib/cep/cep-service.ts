@@ -267,7 +267,14 @@ export async function setConversationHandoff(
   return withAgency(agencyId, async (tx) => {
     const [row] = await tx
       .update(conversations)
-      .set({ handoffStatus, updatedAt: new Date() })
+      .set({
+        handoffStatus,
+        // New queue wait should be eligible for chat_missed again.
+        ...(handoffStatus === "queued"
+          ? { missedChatAlertedAt: null }
+          : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(conversations.id, conversationId))
       .returning({ id: conversations.id, handoffStatus: conversations.handoffStatus });
     return row ?? null;

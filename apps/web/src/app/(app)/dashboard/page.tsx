@@ -136,9 +136,9 @@ export default async function AgencyDashboardPage() {
       </header>
 
       {alerts.length > 0 && (
-        <div className="mb-4 flex items-center gap-2.5 rounded-[10px] border border-[#ffd9bd] bg-[#fff8f3] px-3.5 py-[11px] text-[13px]">
+        <div className="mb-4 flex flex-wrap items-center gap-2.5 rounded-[10px] border border-[#ffd9bd] bg-[#fff8f3] px-3.5 py-[11px] text-[13px]">
           <span className="size-2 shrink-0 rounded-full bg-bad" />
-          <span>
+          <span className="min-w-0 flex-1">
             {alerts.map((a, i) => (
               <span key={a}>
                 {i > 0 && " and "}
@@ -153,14 +153,14 @@ export default async function AgencyDashboardPage() {
                 ? "/inbox"
                 : (("/launchpad" as never))
             }
-            className="ml-auto shrink-0 font-semibold text-brand hover:underline"
+            className="shrink-0 font-semibold text-brand hover:underline sm:ml-auto"
           >
             {data.waiting > 0 ? "Review →" : "Continue setup →"}
           </Link>
         </div>
       )}
 
-      <div className="mb-[22px] grid grid-cols-4 gap-3">
+      <div className="mb-[22px] grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {metrics.map((m) => (
           <div
             key={m.label}

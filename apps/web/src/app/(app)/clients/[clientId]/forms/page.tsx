@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { count, desc, eq } from "drizzle-orm";
+import { PageHeader } from "@/components/shell/page-header";
 import { timeAgo } from "@/components/ui/status-pill";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
@@ -37,20 +38,18 @@ export default async function FormsPage({
 
   return (
     <div>
-      <header className="mb-[18px] flex items-center gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-[-0.02em]">Forms</h1>
-          <p className="mt-0.5 text-[13px] text-muted">
-            {rows.length} {rows.length === 1 ? "form" : "forms"} for this client
-          </p>
-        </div>
-        <Link
-          href={`/clients/${clientId}/forms/new` as never}
-          className="ml-auto shrink-0 rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
-        >
-          + New form
-        </Link>
-      </header>
+      <PageHeader
+        title="Forms"
+        subtitle={`${rows.length} ${rows.length === 1 ? "form" : "forms"} for this client`}
+        action={
+          <Link
+            href={`/clients/${clientId}/forms/new` as never}
+            className="rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
+          >
+            + New form
+          </Link>
+        }
+      />
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-line bg-white px-4 py-12 text-center">

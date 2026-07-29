@@ -232,8 +232,13 @@ export type PopupConflicts = {
 
 /** How body content is arranged inside the card (not chrome: modal/drawer). */
 export type PopupContentGrid = {
-  /** stack · media_split · banner_split · multi_column (N equal body columns) */
-  mode?: "stack" | "media_split" | "banner_split" | "multi_column";
+  /** stack · media_split · banner_split · header_band · multi_column */
+  mode?:
+    | "stack"
+    | "media_split"
+    | "banner_split"
+    | "header_band"
+    | "multi_column";
   align?: "left" | "center" | "right";
   mediaSide?: "left" | "right";
   /** Media column width % for media_split. Default 48. */
@@ -248,13 +253,37 @@ export type PopupTheme = {
   backgroundColor?: string;
   textColor?: string;
   mediaBackgroundColor?: string;
+  /**
+   * Solid background for the title/header strip (headline + description).
+   * Independent from the form body (`backgroundColor`).
+   */
+  headerBackgroundColor?: string;
+  /** header_band: gradient start · banner_split: top color */
   splitTopColor?: string;
+  /** header_band: gradient end · banner_split: bottom color */
   splitBottomColor?: string;
   buttonBackground?: string;
   buttonTextColor?: string;
   buttonBorderColor?: string;
   buttonRadius?: number;
+  /** Primary CTA height in px (padding derived). Default 44. */
+  buttonHeight?: number;
+  /** Primary CTA label font size in px. Default 14. */
+  buttonFontSize?: number;
   secondaryLinkColor?: string;
+  /** Close button fill (header_band defaults to red). */
+  closeBackground?: string;
+  closeColor?: string;
+  closeHoverBackground?: string;
+  closeHoverColor?: string;
+  /** Close button diameter in px (default 30). */
+  closeSize?: number;
+  /** Glyph inside the close control. */
+  closeIcon?: "x" | "x_bold" | "plus" | "circle_x";
+  /** Entrance / idle animation on the close icon. */
+  closeAnimation?: "none" | "spin" | "pulse" | "bounce" | "fade";
+  /** Animation when hovering the close button. */
+  closeHoverAnimation?: "none" | "spin" | "scale" | "rotate" | "pulse";
 };
 
 /** §7–8 Design + content */

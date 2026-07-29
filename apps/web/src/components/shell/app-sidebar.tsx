@@ -11,6 +11,7 @@ import {
 } from "@/lib/i18n/nav-labels";
 import {
   agencyNav,
+  clientNav,
   filterNavByPermissions,
   flattenNavHrefs,
   websiteNav,
@@ -33,11 +34,16 @@ export function AppSidebar({
   truncated: _truncated,
   permissions,
   onSearch,
+  mobileOpen = false,
+  onNavigate,
 }: {
   clients: SwitchableClient[];
   truncated: boolean;
   permissions: string[] | "*";
   onSearch: () => void;
+  /** Below `lg`, sidebar is a drawer; open when true. */
+  mobileOpen?: boolean;
+  onNavigate?: () => void;
 }) {
   const { t } = usePlatformT();
   const pathname = usePathname();
@@ -45,19 +51,45 @@ export function AppSidebar({
   const { client, website } = namesFor(scope, clients);
 
   const onWebsite = scope.kind === "website";
+  const onClient = scope.kind === "client";
   const sections: NavSection[] = onWebsite
     ? websiteNav(scope.clientId, scope.websiteId)
-    : filterNavByPermissions(agencyNav, permissions);
+    : onClient
+      ? clientNav(scope.clientId)
+      : filterNavByPermissions(agencyNav, permissions);
 
   const allHrefs = flattenNavHrefs(sections);
   const bodySections = sections.filter((s) => Boolean(s.title));
-  const footerSections = onWebsite ? [] : sections.filter((s) => !s.title);
+  // Untitled top items (Overview / Inbox) sit above titled sections on client.
+  const topSections = sections.filter((s) => !s.title);
+  const footerSections =
+    onWebsite || onClient
+      ? onClient
+        ? topSections.filter((s) =>
+            s.items.some((i) => i.label === "Settings"),
+          )
+        : []
+      : sections.filter((s) => !s.title);
+  const headerSections = onClient
+    ? topSections.filter((s) => !s.items.some((i) => i.label === "Settings"))
+    : [];
 
   return (
-    <nav className="flex w-[225px] shrink-0 flex-col overflow-y-auto bg-navy p-[12px_10px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav
+      className={[
+        "flex w-[min(225px,88vw)] shrink-0 flex-col overflow-y-auto bg-navy p-[12px_10px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:h-dvh max-lg:shadow-2xl",
+        mobileOpen
+          ? "max-lg:translate-x-0 max-lg:pointer-events-auto"
+          : "max-lg:pointer-events-none max-lg:invisible max-lg:-translate-x-full",
+        "lg:relative lg:visible lg:translate-x-0 lg:pointer-events-auto",
+        "transition-[transform,visibility] duration-200 ease-out",
+      ].join(" ")}
+    >
       {onWebsite && (
         <Link
           href="/websites"
+          onClick={onNavigate}
           className="px-3 pt-0.5 pb-2 text-xs text-white/50 hover:text-white"
         >
           {t("shell.backWebsites")}
@@ -93,13 +125,24 @@ export function AppSidebar({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col">
+        {headerSections.map((section, i) => (
+          <SectionBlock
+            key={`top-${i}`}
+            section={section}
+            pathname={pathname}
+            allHrefs={allHrefs}
+            onNavigate={onNavigate}
+          />
+        ))}
+
         {bodySections.map((section, i) => (
           <SectionBlock
             key={section.title ?? i}
             section={section}
             pathname={pathname}
             allHrefs={allHrefs}
-            showDividerAbove={i > 0}
+            showDividerAbove={i > 0 || headerSections.length > 0}
+            onNavigate={onNavigate}
           />
         ))}
 
@@ -112,6 +155,7 @@ export function AppSidebar({
                 section={section}
                 pathname={pathname}
                 allHrefs={allHrefs}
+                onNavigate={onNavigate}
               />
             ))}
           </div>
@@ -126,11 +170,13 @@ function SectionBlock({
   pathname,
   allHrefs,
   showDividerAbove,
+  onNavigate,
 }: {
   section: NavSection;
   pathname: string;
   allHrefs: string[];
   showDividerAbove?: boolean;
+  onNavigate?: () => void;
 }) {
   const { t } = usePlatformT();
 
@@ -148,6 +194,7 @@ function SectionBlock({
           item={item}
           pathname={pathname}
           allHrefs={allHrefs}
+          onNavigate={onNavigate}
         />
       ))}
     </div>
@@ -158,10 +205,12 @@ function NavBranch({
   item,
   pathname,
   allHrefs,
+  onNavigate,
 }: {
   item: NavItem;
   pathname: string;
   allHrefs: string[];
+  onNavigate?: () => void;
 }) {
   const { t } = usePlatformT();
   const childActive = (item.children ?? []).some((c) =>
@@ -173,7 +222,11 @@ function NavBranch({
 
   if (!item.children?.length) {
     return (
-      <NavLink item={item} active={selfActive || isActive(pathname, item.href, allHrefs)} />
+      <NavLink
+        item={item}
+        active={selfActive || isActive(pathname, item.href, allHrefs)}
+        onNavigate={onNavigate}
+      />
     );
   }
 
@@ -188,6 +241,8 @@ function NavBranch({
       >
         <Link
           href={item.href}
+          prefetch
+          onClick={onNavigate}
           className={`flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-[8px] text-[13.5px] ${
             rowActive
               ? "font-semibold text-white"
@@ -226,6 +281,7 @@ function NavBranch({
               item={child}
               active={isActive(pathname, child.href, allHrefs)}
               nested
+              onNavigate={onNavigate}
             />
           ))}
         </div>
@@ -238,16 +294,20 @@ function NavLink({
   item,
   active,
   nested,
+  onNavigate,
 }: {
   item: NavItem;
   active: boolean;
   nested?: boolean;
+  onNavigate?: () => void;
 }) {
   const { t } = usePlatformT();
 
   return (
     <Link
       href={item.href}
+      prefetch
+      onClick={onNavigate}
       className={`flex items-center gap-2.5 rounded-md px-2.5 py-[8px] ${
         nested ? "text-[12.5px]" : "text-[13.5px]"
       } ${

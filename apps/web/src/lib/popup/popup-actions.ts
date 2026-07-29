@@ -129,3 +129,71 @@ export async function actionDeletePopupTemplate(input: {
   if (result.ok) revalidatePopups(input.clientId, input.websiteId);
   return result;
 }
+
+/** Load form fields for popup studio live preview (not the dashed placeholder). */
+export async function actionGetPopupFormPreview(input: {
+  clientId: string;
+  websiteId: string;
+  formId: string;
+}): Promise<
+  | {
+      ok: true;
+      name: string;
+      fields: import("@/lib/db/schema").FormField[];
+      steps: import("@/lib/db/schema").FormStep[];
+      submitLabel: string;
+      appearance: ReturnType<
+        typeof import("@/lib/forms/fields").mergeAppearance
+      >;
+      layout?: import("@/lib/db/schema").FormLayoutConfig;
+      logic?: import("@/lib/db/schema").FormLogicConfig;
+    }
+  | { ok: false; error: string }
+> {
+  const ctx = await requireAgency();
+  const { and, eq, isNull } = await import("drizzle-orm");
+  const { withAgency } = await import("@/lib/db");
+  const { forms } = await import("@/lib/db/schema");
+  const { DEFAULT_STEP_ID, mergeAppearance } = await import(
+    "@/lib/forms/fields"
+  );
+
+  const row = await withAgency(ctx.agencyId, async (tx) => {
+    const [form] = await tx
+      .select({
+        id: forms.id,
+        name: forms.name,
+        fields: forms.fields,
+        settings: forms.settings,
+        submitLabel: forms.submitLabel,
+      })
+      .from(forms)
+      .where(
+        and(
+          eq(forms.id, input.formId),
+          eq(forms.clientId, input.clientId),
+          eq(forms.websiteId, input.websiteId),
+          isNull(forms.deletedAt),
+        ),
+      )
+      .limit(1);
+    return form ?? null;
+  });
+
+  if (!row) return { ok: false, error: "Form not found for this website." };
+
+  const steps = row.settings?.steps?.length
+    ? row.settings.steps
+    : [{ id: DEFAULT_STEP_ID, title: "Step 1" }];
+
+  return {
+    ok: true,
+    name: row.name,
+    fields: row.fields,
+    steps,
+    submitLabel: row.submitLabel,
+    appearance: mergeAppearance(row.settings?.appearance),
+    layout: row.settings?.layout,
+    logic: row.settings?.logic,
+  };
+}

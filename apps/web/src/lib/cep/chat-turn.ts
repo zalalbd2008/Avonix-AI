@@ -3,6 +3,7 @@
  */
 import { eq } from "drizzle-orm";
 import { answerVisitor, chatConversation } from "@/lib/ai/chat";
+import { enqueueWebsiteAutomation } from "@/lib/automation/engine";
 import {
   getLeadFormEmbed,
   getPublishedWidgetConfig,
@@ -14,6 +15,7 @@ import {
   contacts,
   conversations,
   messages,
+  websites,
   textToBlocks,
   type CepChatBlock,
   type CepWidgetSurface,
@@ -225,6 +227,18 @@ export async function runChatTurn(
       }),
     );
     await touchConversation(input.agencyId, conversationId);
+
+    // Auto Rules: chat needs human
+    void fireChatHandoffAutomation({
+      agencyId: input.agencyId,
+      clientId: input.clientId,
+      websiteId: input.websiteId,
+      conversationId,
+      name: input.name,
+      email: input.email,
+      message: question || "Visitor requested a human",
+    });
+
     return {
       ok: true,
       conversationId,
@@ -382,6 +396,53 @@ async function touchConversation(agencyId: string, conversationId: string) {
       .set({ lastMessageAt: new Date(), updatedAt: new Date() })
       .where(eq(conversations.id, conversationId)),
   );
+}
+
+async function fireChatHandoffAutomation(input: {
+  agencyId: string;
+  clientId: string;
+  websiteId: string;
+  conversationId: string;
+  name?: string | null;
+  email?: string | null;
+  message: string;
+}) {
+  try {
+    const [row] = await withAgency(input.agencyId, (tx) =>
+      tx
+        .select({
+          contactId: conversations.contactId,
+          websiteName: websites.name,
+          contactName: contacts.name,
+          contactEmail: contacts.email,
+          contactPhone: contacts.phone,
+        })
+        .from(conversations)
+        .leftJoin(contacts, eq(contacts.id, conversations.contactId))
+        .leftJoin(websites, eq(websites.id, conversations.websiteId))
+        .where(eq(conversations.id, input.conversationId))
+        .limit(1),
+    );
+
+    enqueueWebsiteAutomation({
+      trigger: "chat_handoff",
+      agencyId: input.agencyId,
+      clientId: input.clientId,
+      websiteId: input.websiteId,
+      contactId: row?.contactId ?? null,
+      conversationId: input.conversationId,
+      websiteName: row?.websiteName ?? null,
+      contact: {
+        name: input.name || row?.contactName || null,
+        email: input.email || row?.contactEmail || null,
+        phone: row?.contactPhone ?? null,
+        message: input.message,
+      },
+      values: {},
+    });
+  } catch (err) {
+    console.error("[automation] chat_handoff enqueue failed", err);
+  }
 }
 
 async function linkVisitor(

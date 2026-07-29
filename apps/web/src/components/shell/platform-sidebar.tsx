@@ -16,7 +16,11 @@ import { NavIcon } from "./nav-icons";
  * Platform Owner sidebar — Accounts + Operations (ADR-012).
  * Settings sits at the bottom after a divider.
  */
-export function PlatformSidebar() {
+export function PlatformSidebar({
+  mobileOpen = false,
+}: {
+  mobileOpen?: boolean;
+}) {
   const pathname = usePathname();
   const sections = platformNav;
   const allHrefs = flattenNavHrefs(sections);
@@ -24,7 +28,17 @@ export function PlatformSidebar() {
   const footerSections = sections.filter((s) => !s.title);
 
   return (
-    <nav className="flex w-[225px] shrink-0 flex-col overflow-y-auto bg-navy p-[12px_10px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav
+      className={[
+        "flex w-[min(225px,88vw)] shrink-0 flex-col overflow-y-auto bg-navy p-[12px_10px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:h-dvh max-lg:shadow-2xl",
+        mobileOpen
+          ? "max-lg:translate-x-0 max-lg:pointer-events-auto"
+          : "max-lg:pointer-events-none max-lg:invisible max-lg:-translate-x-full",
+        "lg:relative lg:visible lg:translate-x-0 lg:pointer-events-auto",
+        "transition-[transform,visibility] duration-200 ease-out",
+      ].join(" ")}
+    >
       <Link
         href={"/platform" as never}
         className="mb-1 px-3 pt-1 text-[13px] font-bold tracking-tight text-white"

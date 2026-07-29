@@ -190,6 +190,34 @@
       "when": 1784644000000,
       "tag": "0026_agency_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1784645000000,
+      "tag": "0027_automation_followups_timeline",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1784646000000,
+      "tag": "0028_missed_chat_click_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1784647000000,
+      "tag": "0029_crm_ops",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1784648000000,
+      "tag": "0030_crm_website_scope",
+      "breakpoints": true
     }
   ]
 }

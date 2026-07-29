@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { Field, FormError, SubmitButton } from "@/components/ui/field";
 import { PasswordField } from "@/components/ui/password-field";
 import { signUp } from "@/lib/auth/client";
@@ -10,6 +11,10 @@ import { validateSignupEmail } from "@/lib/email/email-policy";
 export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const google = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim());
+  const microsoft = Boolean(
+    process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID?.trim(),
+  );
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,8 +59,6 @@ export default function SignUpPage() {
       return;
     }
 
-    // No agency setup until the address is confirmed — hard nav to the
-    // check-email screen (session may be absent until they click the link).
     window.location.assign(
       `/check-email?email=${encodeURIComponent(emailCheck.email)}`,
     );
@@ -65,8 +68,14 @@ export default function SignUpPage() {
     <>
       <h1 className="text-xl font-bold tracking-tight">Create your account</h1>
       <p className="mt-0.5 mb-5 text-[13px] text-muted">
-        Use a real email — you&apos;ll confirm it before setup
+        Verify with Google or Microsoft, or use email
       </p>
+      <SocialAuthButtons
+        google={google}
+        microsoft={microsoft}
+        mode="verify"
+        callbackURL="/home"
+      />
       <form onSubmit={onSubmit}>
         <FormError message={error} />
         <Field

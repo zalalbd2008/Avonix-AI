@@ -9,12 +9,8 @@ import { SignOutButton } from "./sign-out-button";
 import { namesFor, scopeOf } from "./scope";
 
 /**
- * The bar across the top — 50px, white, full width, exactly as the prototype
- * lays it out: logo, divider, breadcrumbs, then status and search on the right.
- *
- * The crumbs come from the path rather than from each page passing them down,
- * which is what stops a page being added later that quietly shows the wrong
- * trail. Ids become names via the same tree the switcher uses.
+ * The bar across the top — 50px, white, full width.
+ * On small screens: menu toggle, compact brand, truncated crumbs, icon search.
  */
 export function Topbar({
   agencyName,
@@ -22,6 +18,7 @@ export function Topbar({
   clients,
   organizationCount,
   onSearch,
+  onMenu,
   signOutDisabled,
 }: {
   agencyName: string;
@@ -29,6 +26,7 @@ export function Topbar({
   clients: SwitchableClient[];
   organizationCount: number;
   onSearch: () => void;
+  onMenu: () => void;
   /** Platform Owner managing a customer org — use Back to Platform instead. */
   signOutDisabled?: boolean;
 }) {
@@ -37,9 +35,6 @@ export function Topbar({
   const scope = scopeOf(pathname);
   const { client, website } = namesFor(scope, clients);
 
-  // Hierarchy: Organization › Clients › Client › Website.
-  // With more than one organization the name switches tenant; with one, Clients
-  // is the useful next step after the org label.
   const crumbs: { label: string; href?: string }[] = [
     {
       label: agencyName,
@@ -68,26 +63,45 @@ export function Topbar({
   if (website) crumbs.push({ label: `${website.name} ${t("topbar.website")}` });
 
   return (
-    <header className="relative z-30 flex h-[50px] shrink-0 items-center gap-3.5 border-b border-line bg-white px-[18px]">
-      <Link href="/dashboard" className="flex items-center gap-2">
+    <header className="relative z-30 flex h-[50px] shrink-0 items-center gap-2 border-b border-line bg-white px-3 sm:gap-3.5 sm:px-[18px]">
+      <button
+        type="button"
+        onClick={onMenu}
+        className="grid size-9 shrink-0 place-items-center rounded-lg text-ink hover:bg-surface lg:hidden"
+        aria-label="Open navigation"
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+          <path
+            d="M2.5 4.5h13M2.5 9h13M2.5 13.5h13"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
+
+      <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
         <span className="grid size-[26px] place-items-center rounded-[7px] bg-brand text-sm font-bold text-white">
           A
         </span>
-        <span className="text-[14.5px] font-bold tracking-[-0.01em]">Avonix AI</span>
+        <span className="hidden text-[14.5px] font-bold tracking-[-0.01em] sm:inline">
+          Avonix AI
+        </span>
       </Link>
 
-      <div className="h-5 w-px bg-line" />
+      <div className="hidden h-5 w-px bg-line sm:block" />
 
-      <nav className="flex min-w-0 items-center gap-2 text-[13px]">
-        {/*
-          Keyed by position, not by label: an agency and one of its clients can
-          share a name, and two crumbs with the same key make React drop one.
-          A breadcrumb trail is positional and never reordered, so the index is
-          the honest key here.
-        */}
+      <nav className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-[13px] sm:gap-2">
         {crumbs.map((c, i) => (
-          <span key={i} className="flex min-w-0 items-center gap-2">
-            {i > 0 && <span className="text-[#c3ccd9]">›</span>}
+          <span
+            key={i}
+            className={`flex min-w-0 items-center gap-1.5 sm:gap-2 ${
+              i < crumbs.length - 1 ? "hidden md:flex" : "flex"
+            }`}
+          >
+            {i > 0 && (
+              <span className="hidden text-[#c3ccd9] md:inline">›</span>
+            )}
             {c.href ? (
               <Link
                 href={c.href as never}
@@ -101,17 +115,12 @@ export function Topbar({
           </span>
         ))}
 
-        {/*
-          The prototype shows a "Production" pill here. We have no staging
-          environment, so the honest equivalent is the role you are signed in
-          with — a real fact rather than a decorative one.
-        */}
-        <span className="ml-1 shrink-0 rounded-full bg-[rgba(13,148,136,.1)] px-2.5 py-[3px] text-[11.5px] font-semibold text-ok capitalize">
+        <span className="ml-1 hidden shrink-0 rounded-full bg-[rgba(13,148,136,.1)] px-2.5 py-[3px] text-[11.5px] font-semibold text-ok capitalize sm:inline">
           {role}
         </span>
       </nav>
 
-      <div className="ml-auto flex shrink-0 items-center gap-3.5">
+      <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3.5">
         {website && (
           <div className="hidden items-center gap-3.5 text-[12.5px] lg:flex">
             <span
@@ -130,9 +139,10 @@ export function Topbar({
 
         <button
           onClick={onSearch}
-          className="flex cursor-pointer items-center gap-2 rounded-[7px] border border-line bg-[#f8fafc] px-2.5 py-1.5 text-[12.5px] text-faint hover:border-[#c3ccd9] hover:text-muted"
+          className="flex cursor-pointer items-center gap-2 rounded-[7px] border border-line bg-[#f8fafc] px-2 py-1.5 text-[12.5px] text-faint hover:border-[#c3ccd9] hover:text-muted sm:px-2.5"
+          aria-label={t("shell.search")}
         >
-          <span>{t("shell.search")}</span>
+          <span className="hidden sm:inline">{t("shell.search")}</span>
           <kbd className="rounded border border-line bg-white px-1.5 text-[11px]">⌘K</kbd>
         </button>
 

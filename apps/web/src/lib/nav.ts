@@ -220,26 +220,26 @@ export function clientNav(clientId: string): NavSection[] {
   return [
     {
       items: [
-        { label: "Overview", href: base, status: "v1" },
-        { label: "Inbox", href: `${base}/inbox` as Route, status: "v1" },
+        { label: "Overview", href: base, status: "v1", icon: "home" },
+        { label: "Inbox", href: `${base}/inbox` as Route, status: "v1", icon: "chat" },
       ],
     },
     {
       title: "CRM",
       items: [
-        { label: "Contacts", href: `${base}/contacts` as Route, status: "v1" },
-        { label: "Pipeline", href: `${base}/pipeline` as Route, status: "v1" },
+        { label: "Contacts", href: `${base}/contacts` as Route, status: "v1", icon: "users" },
+        { label: "Pipeline", href: `${base}/pipeline` as Route, status: "v1", icon: "chart" },
       ],
     },
     {
       title: "Capture",
       items: [
-        { label: "Forms", href: `${base}/forms` as Route, status: "v1" },
-        { label: "Websites", href: `${base}/websites` as Route, status: "v1" },
+        { label: "Forms", href: `${base}/forms` as Route, status: "v1", icon: "form" },
+        { label: "Websites", href: `${base}/websites` as Route, status: "v1", icon: "globe" },
       ],
     },
     {
-      items: [{ label: "Settings", href: `${base}/settings` as Route, status: "v1" }],
+      items: [{ label: "Settings", href: `${base}/settings` as Route, status: "v1", icon: "gear" }],
     },
   ];
 }
@@ -249,6 +249,7 @@ export function clientNav(clientId: string): NavSection[] {
  */
 export function websiteNav(clientId: string, websiteId: string): NavSection[] {
   const base = `/clients/${clientId}/websites/${websiteId}` as Route;
+  const crm = `${base}/crm` as Route;
   return [
     {
       title: "Website Workspace",
@@ -258,10 +259,28 @@ export function websiteNav(clientId: string, websiteId: string): NavSection[] {
         { label: "Forms", href: `${base}/forms` as Route, status: "v1", icon: "form" },
         { label: "Popup", href: `${base}/popup` as Route, status: "v1", icon: "popup" },
         { label: "Buttons", href: `${base}/buttons` as Route, status: "v1", icon: "button" },
-        { label: "Chat AI", href: `${base}/chat-ai` as Route, status: "v1", icon: "spark" },
+        { label: "AI Chat", href: `${base}/chat-ai` as Route, status: "v1", icon: "spark" },
+        {
+          label: "CRM",
+          href: crm,
+          status: "v1",
+          icon: "heart",
+          children: [
+            { label: "CRM Home", href: crm, status: "v1", icon: "heart" },
+            { label: "Tasks", href: `${crm}/tasks` as Route, status: "v1", icon: "bolt" },
+            { label: "Assign", href: `${crm}/assign` as Route, status: "v1", icon: "users" },
+            { label: "Notes", href: `${crm}/notes` as Route, status: "v1", icon: "form" },
+            { label: "Files", href: `${crm}/files` as Route, status: "v1", icon: "archive" },
+            { label: "Lead Score", href: `${crm}/score` as Route, status: "v1", icon: "chart" },
+            { label: "Proposals", href: `${crm}/proposals` as Route, status: "v1", icon: "form" },
+            { label: "Tickets", href: `${crm}/tickets` as Route, status: "v1", icon: "alert" },
+            { label: "Calendar", href: `${crm}/calendar` as Route, status: "v1", icon: "activity" },
+            { label: "Copilot", href: `${crm}/copilot` as Route, status: "v1", icon: "spark" },
+          ],
+        },
         { label: "Accessibility", href: `${base}/accessibility` as Route, status: "v1", icon: "accessibility" },
-        { label: "Automation", href: `${base}/automation` as Route, status: "v2", icon: "bolt" },
-        { label: "Email", href: `${base}/email` as Route, status: "v2", icon: "mail" },
+        { label: "Auto Rules", href: `${base}/automation` as Route, status: "v1", icon: "bolt" },
+        { label: "SMTP Setup", href: `${base}/email` as Route, status: "v1", icon: "mail" },
         { label: "Insights", href: `${base}/insights` as Route, status: "v2", icon: "spark" },
         { label: "Languages", href: `${base}/languages` as Route, status: "v1", icon: "language" },
         { label: "Integrations", href: `${base}/integrations` as Route, status: "v2", icon: "plug" },

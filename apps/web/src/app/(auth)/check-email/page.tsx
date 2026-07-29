@@ -7,14 +7,13 @@ import { authClient } from "@/lib/auth/client";
 
 /**
  * Post sign-up: confirm email before any account setup.
- * Works without a session — requireEmailVerification blocks sign-in until confirmed.
- *
- * Locally (no RESEND_API_KEY), messages are written to apps/web/.mail/ — this
- * page surfaces the latest link so you are not stuck waiting on Gmail.
+ * Locally (no RESEND), `.mail/` + optional “Open local link”.
+ * On live, Resend delivers to the real inbox.
  */
 function CheckEmailBody() {
   const params = useSearchParams();
   const email = (params.get("email") ?? "").trim().toLowerCase();
+  const isProd = process.env.NODE_ENV === "production";
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +21,7 @@ function CheckEmailBody() {
   const [devHint, setDevHint] = useState<string | null>(null);
 
   async function loadDevLink() {
-    if (!email || process.env.NODE_ENV === "production") return;
+    if (!email || isProd) return;
     try {
       const res = await fetch(
         `/api/dev/latest-mail?to=${encodeURIComponent(email)}`,
@@ -66,15 +65,24 @@ function CheckEmailBody() {
       <div className="mb-4 rounded-xl border border-line bg-[#f7f8fb] px-4 py-3.5 text-[13px] leading-[1.55] text-muted">
         <p>
           Until you confirm, you can&apos;t sign in or create an agency. Check
-          spam if you don&apos;t see the message within a minute.
+          spam / promotions if you don&apos;t see it within a minute.
         </p>
-        <p className="mt-2 text-[12px]">
-          <b className="text-ink">Local tip:</b> real inbox delivery needs{" "}
-          <code className="text-ink">RESEND_API_KEY</code> +{" "}
-          <code className="text-ink">EMAIL_FROM</code> in{" "}
-          <code className="text-ink">.env.local</code>. Without them, mail is
-          saved under <code className="text-ink">apps/web/.mail/</code> only.
-        </p>
+        {isProd ? (
+          <p className="mt-2 text-[12px]">
+            Mail is sent from the address configured as{" "}
+            <code className="text-ink">EMAIL_FROM</code> on the server (Resend).
+            If nothing arrives after a resend, the site admin should verify
+            Resend domain DNS and API keys.
+          </p>
+        ) : (
+          <p className="mt-2 text-[12px]">
+            <b className="text-ink">Local tip:</b> real inbox delivery needs{" "}
+            <code className="text-ink">RESEND_API_KEY</code> +{" "}
+            <code className="text-ink">EMAIL_FROM</code> in{" "}
+            <code className="text-ink">.env.local</code>. Without them, mail is
+            saved under <code className="text-ink">apps/web/.mail/</code> only.
+          </p>
+        )}
         <p className="mt-2 text-[12px]">
           Platform Owner emails are already verified and cannot be used for
           Organization Admin signup — use a different address.

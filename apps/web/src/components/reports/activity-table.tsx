@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ScrollTable } from "@/components/ui/scroll-table";
 
 export type ActivityTableRow = {
   id: string;
@@ -61,12 +62,12 @@ export function ActivityTable({
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-[18px] border-b border-[#edf0f5]">
+      <div className="mb-3 flex items-center gap-[18px] overflow-x-auto border-b border-[#edf0f5] [-webkit-overflow-scrolling:touch]">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`cursor-pointer border-b-2 px-0.5 py-1.5 text-[13px] ${
+            className={`shrink-0 cursor-pointer border-b-2 px-0.5 py-1.5 text-[13px] ${
               tab === t.key
                 ? "border-brand font-bold text-brand"
                 : "border-transparent font-medium text-muted hover:text-ink"
@@ -84,8 +85,56 @@ export function ActivityTable({
         className="mb-3 w-full rounded-lg border border-[#dbe1ea] px-3 py-2.5 text-[13px] outline-none focus:border-brand"
       />
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[820px]">
+      <div className="mb-3 grid gap-3 md:hidden">
+        {shown.map((r) => (
+          <div
+            key={r.id}
+            className="rounded-[10px] border border-[#edf0f5] bg-[#f8fafc] p-3"
+          >
+            <div className="flex items-start gap-2">
+              <span
+                className={`shrink-0 rounded-full px-2 py-px text-[10px] font-bold uppercase ${
+                  tone[r.eventType] ?? "bg-[#f1f4f8] text-muted"
+                }`}
+              >
+                {r.eventType}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-semibold">{r.label}</p>
+                {r.cssClass && (
+                  <p className="mt-px truncate font-mono text-[11px] text-brand">
+                    .{r.cssClass}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="mt-2 truncate text-[12.5px] text-[#3c4c66]">{r.pagePath}</p>
+            <p className="mt-1 text-[12px] text-muted">{r.purpose ?? "—"}</p>
+            <p className="mt-1.5 font-mono text-[11.5px] text-[#3c4c66]">{r.ip}</p>
+            <p className="mt-0.5 text-[11px] text-faint">
+              {[r.where, r.device].filter(Boolean).join(" · ") || "—"}
+              {" · "}
+              {new Date(r.at).toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
+        ))}
+
+        {shown.length === 0 && (
+          <p className="py-5 text-center text-[13px] text-faint">
+            {rows.length === 0
+              ? "Nothing tracked yet. Add a marker class to a button on the site."
+              : "No activity matches this filter"}
+          </p>
+        )}
+      </div>
+
+      <div className="hidden md:block">
+        <ScrollTable minWidth={820} className="border-0">
           <div className="grid grid-cols-[1.4fr_.9fr_1.2fr_.9fr_.8fr] gap-2.5 border-b border-[#edf0f5] px-2.5 py-2 text-[10.5px] font-bold tracking-[0.07em] text-faint uppercase">
             <span>Action</span>
             <span>Page</span>
@@ -144,7 +193,7 @@ export function ActivityTable({
                 : "No activity matches this filter"}
             </p>
           )}
-        </div>
+        </ScrollTable>
       </div>
 
       {rows.length >= 200 && (

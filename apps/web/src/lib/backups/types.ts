@@ -33,6 +33,14 @@ export type BackupHistoryEntry = {
   progress?: number;
   /** Archive base name without .zip (user-chosen or site title). */
   fileName?: string;
+  /** backup = create archive; restore = apply an existing backup. */
+  kind?: "backup" | "restore";
+  /** Final package filename on disk / Drive (e.g. Site-20260729.zip). */
+  archiveFileName?: string;
+  /** Google Drive file id when uploaded to Drive. */
+  remoteFileId?: string;
+  /** Source backup history id when this row is a restore job. */
+  sourceBackupId?: string;
 };
 
 export type BackupsSettings = {
@@ -181,10 +189,28 @@ function normalizeHistory(raw: unknown): BackupHistoryEntry[] {
         typeof h.fileName === "string" && h.fileName.trim()
           ? sanitizeBackupFileName(h.fileName)
           : undefined;
+      const kind =
+        h.kind === "restore" || h.kind === "backup" ? h.kind : "backup";
+      const archiveFileName =
+        typeof h.archiveFileName === "string" && h.archiveFileName.trim()
+          ? h.archiveFileName.trim().slice(0, 180)
+          : undefined;
+      const remoteFileId =
+        typeof h.remoteFileId === "string" && h.remoteFileId.trim()
+          ? h.remoteFileId.trim().slice(0, 128)
+          : undefined;
+      const sourceBackupId =
+        typeof h.sourceBackupId === "string" && h.sourceBackupId.trim()
+          ? h.sourceBackupId.trim().slice(0, 64)
+          : undefined;
       return {
         ...h,
+        kind,
         ...(progress !== undefined ? { progress } : {}),
         ...(fileName ? { fileName } : {}),
+        ...(archiveFileName ? { archiveFileName } : {}),
+        ...(remoteFileId ? { remoteFileId } : {}),
+        ...(sourceBackupId ? { sourceBackupId } : {}),
       };
     })
     .slice(0, 100);

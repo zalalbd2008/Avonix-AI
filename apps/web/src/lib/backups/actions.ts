@@ -131,6 +131,7 @@ export async function actionQueueBackupNow(input: {
           createdAt: new Date().toISOString(),
           progress: 0,
           fileName: archiveName,
+          kind: "backup" as const,
         };
 
   const next =
@@ -171,6 +172,117 @@ export async function actionQueueBackupNow(input: {
 
   const pushed = await pushBackupTriggerToSite({
     siteUrl: site.url,
+    websiteId: input.websiteId,
+    jobId: entry.id,
+  });
+
+  if (pushed.ok) {
+    return { ok: true, triggered: true };
+  }
+
+  return {
+    ok: true,
+    triggered: false,
+    triggerNote: pushed.error,
+  };
+}
+
+/**
+ * Queue a full restore from a successful backup — runs on the WordPress site.
+ */
+export async function actionQueueRestore(input: {
+  websiteId: string;
+  clientId: string;
+  backupId: string;
+}): Promise<
+  | { ok: true; triggered: boolean; triggerNote?: string }
+  | { ok: false; error: string }
+> {
+  const ctx = await requireAgency();
+  if (!canEditWebsites(ctx.permissions)) {
+    return { ok: false, error: "You do not have permission to edit websites." };
+  }
+
+  const loaded = await withAgency(ctx.agencyId, async (tx) => {
+    const [row] = await tx
+      .select({
+        url: websites.url,
+        status: websites.status,
+        settings: websites.settings,
+      })
+      .from(websites)
+      .where(eq(websites.id, input.websiteId))
+      .limit(1);
+    return row ?? null;
+  });
+
+  if (!loaded) {
+    return { ok: false, error: "Website not found." };
+  }
+
+  const backups = mergeBackupsSettings(loaded.settings?.backups);
+  const source = backups.history.find(
+    (h) => h.id === input.backupId && h.status === "success" && h.kind !== "restore",
+  );
+  if (!source) {
+    return { ok: false, error: "Choose a successful backup to restore." };
+  }
+  if (!source.archiveFileName && !source.remoteFileId) {
+    return {
+      ok: false,
+      error:
+        "This backup has no stored archive reference. Create a new backup with connector v1.3.10+, then restore that one.",
+    };
+  }
+
+  const busy = backups.history.some(
+    (h) => h.status === "pending" || h.status === "running",
+  );
+  if (busy) {
+    return {
+      ok: false,
+      error: "Another backup/restore is already in progress. Wait for it to finish.",
+    };
+  }
+
+  const entry = {
+    id: newBackupId(),
+    label: new Date().toLocaleString(),
+    detail: `Restore · ${source.archiveFileName || source.fileName || source.id} · ${destinationLabel(source.destination)}`,
+    status: "pending" as const,
+    destination: source.destination,
+    sizeLabel: source.sizeLabel || "",
+    createdAt: new Date().toISOString(),
+    progress: 0,
+    kind: "restore" as const,
+    fileName: source.fileName,
+    archiveFileName: source.archiveFileName,
+    remoteFileId: source.remoteFileId,
+    sourceBackupId: source.id,
+  };
+
+  const next = mergeBackupsSettings({
+    ...backups,
+    history: [entry, ...backups.history].slice(0, 100),
+  });
+
+  const saved = await actionSaveBackups({
+    websiteId: input.websiteId,
+    clientId: input.clientId,
+    settings: next,
+  });
+  if (!saved.ok) return saved;
+
+  if (loaded.status !== "connected") {
+    return {
+      ok: true,
+      triggered: false,
+      triggerNote: "Restore queued. Connect the WordPress connector to start it.",
+    };
+  }
+
+  const pushed = await pushBackupTriggerToSite({
+    siteUrl: loaded.url,
     websiteId: input.websiteId,
     jobId: entry.id,
   });

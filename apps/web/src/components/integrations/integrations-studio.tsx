@@ -138,6 +138,7 @@ export function IntegrationsStudio({
                   apiKey: "",
                   webhookUrl: "",
                   connectedAt: "",
+                  meta: {},
                 }
               : c,
           ),
@@ -352,7 +353,98 @@ export function IntegrationsStudio({
                           />
                         </Field>
                       ) : null}
-                      {meta.usesApiKey ? (
+                      {card.id === "s3" ? (
+                        <>
+                          <Field label="Access key ID">
+                            <input
+                              className={input}
+                              value={conn.meta?.accessKeyId ?? ""}
+                              placeholder="AKIA…"
+                              onChange={(e) =>
+                                patchConnection(card.id, {
+                                  meta: {
+                                    ...(conn.meta ?? {}),
+                                    accessKeyId: e.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field label="Secret access key">
+                            <input
+                              className={input}
+                              type="password"
+                              value={conn.apiKey}
+                              placeholder="Paste secret key"
+                              onChange={(e) =>
+                                patchConnection(card.id, {
+                                  apiKey: e.target.value,
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field label="Bucket name">
+                            <input
+                              className={input}
+                              value={conn.meta?.bucket ?? ""}
+                              placeholder="my-backups"
+                              onChange={(e) =>
+                                patchConnection(card.id, {
+                                  meta: {
+                                    ...(conn.meta ?? {}),
+                                    bucket: e.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field label="Region">
+                            <input
+                              className={input}
+                              value={conn.meta?.region ?? "us-east-1"}
+                              placeholder="us-east-1"
+                              onChange={(e) =>
+                                patchConnection(card.id, {
+                                  meta: {
+                                    ...(conn.meta ?? {}),
+                                    region: e.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field label="Custom endpoint (optional)">
+                            <input
+                              className={input}
+                              value={conn.meta?.endpoint ?? ""}
+                              placeholder="e.g. xxx.r2.cloudflarestorage.com"
+                              onChange={(e) =>
+                                patchConnection(card.id, {
+                                  meta: {
+                                    ...(conn.meta ?? {}),
+                                    endpoint: e.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field label="Object prefix (optional)">
+                            <input
+                              className={input}
+                              value={conn.meta?.prefix ?? "avonix-backups"}
+                              placeholder="avonix-backups"
+                              onChange={(e) =>
+                                patchConnection(card.id, {
+                                  meta: {
+                                    ...(conn.meta ?? {}),
+                                    prefix: e.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </Field>
+                        </>
+                      ) : meta.usesApiKey ? (
                         <Field label={meta.apiKeyLabel ?? "API key"}>
                           <input
                             className={input}

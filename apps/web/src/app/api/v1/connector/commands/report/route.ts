@@ -33,6 +33,8 @@ export async function POST(request: Request) {
     detail?: string;
     error?: string;
     progress?: number;
+    archive_file_name?: string;
+    remote_file_id?: string;
   };
   try {
     body = await request.json();
@@ -81,6 +83,14 @@ export async function POST(request: Request) {
           : body.status === "running"
             ? Math.max(prev.progress ?? 5, 5)
             : prev.progress),
+      archiveFileName:
+        typeof body.archive_file_name === "string" && body.archive_file_name.trim()
+          ? body.archive_file_name.trim().slice(0, 180)
+          : prev.archiveFileName,
+      remoteFileId:
+        typeof body.remote_file_id === "string" && body.remote_file_id.trim()
+          ? body.remote_file_id.trim().slice(0, 128)
+          : prev.remoteFileId,
       finishedAt:
         body.status === "success" || body.status === "failed"
           ? new Date().toISOString()

@@ -75,6 +75,12 @@ export async function actionConnectIntegration(input: {
   if (!conn) return { ok: false, error: "Unknown integration." };
 
   if (!canConnectConnection(meta, conn)) {
+    if (meta.id === "s3") {
+      return {
+        ok: false,
+        error: "Add Access key ID, Secret access key, and Bucket name.",
+      };
+    }
     return {
       ok: false,
       error: meta.usesWebhook
@@ -119,6 +125,7 @@ export async function actionDisconnectIntegration(input: {
             apiKey: "",
             webhookUrl: "",
             connectedAt: "",
+            meta: {},
           }
         : c,
     ),

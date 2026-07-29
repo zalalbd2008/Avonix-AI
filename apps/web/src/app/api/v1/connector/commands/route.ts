@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const backups = mergeBackupsSettings(ws.backups);
     const integrations = mergeIntegrationsSettings(ws.integrations);
 
-    const pendingBackups = backups.history.filter((h) => h.status === "pending");
+    const pendingJobs = backups.history.filter((h) => h.status === "pending");
 
     // Refresh Drive token if expired before handing credentials to connector
     let driveAuth = mergeBackupsDriveOAuth(ws.backupsDriveOAuth);
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return pendingBackups.map((job) => {
+    return pendingJobs.map((job) => {
       const dest = job.destination;
       let credentials: Record<string, string> = {};
 
@@ -91,13 +91,32 @@ export async function GET(request: Request) {
         credentials = { access_token: conn.apiKey };
       } else if (dest === "s3") {
         const conn = connectionFor(integrations, "s3");
+        const m = conn.meta ?? {};
         credentials = {
+          access_key: (m.accessKeyId ?? "").trim(),
           secret_key: conn.apiKey,
+          bucket: (m.bucket ?? "").trim(),
+          region: (m.region ?? "us-east-1").trim() || "us-east-1",
+          endpoint: (m.endpoint ?? "").trim(),
+          prefix: (m.prefix ?? "avonix-backups").trim() || "avonix-backups",
           webhook_url: conn.webhookUrl,
         };
       } else if (dest === "onedrive") {
         const conn = connectionFor(integrations, "onedrive");
         credentials = { access_token: conn.apiKey };
+      }
+
+      if (job.kind === "restore") {
+        return {
+          id: job.id,
+          type: "restore" as const,
+          destination: dest,
+          archive_file_name: job.archiveFileName || "",
+          remote_file_id: job.remoteFileId || "",
+          source_backup_id: job.sourceBackupId || "",
+          credentials,
+          report_url: "/api/v1/connector/commands/report",
+        };
       }
 
       return {

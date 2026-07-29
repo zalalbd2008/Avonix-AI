@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { ScrollTable } from "@/components/ui/scroll-table";
 import {
   actionQueueBackupNow,
+  actionQueueRestore,
   actionSaveBackups,
   actionStartDriveOAuth,
   actionDisconnectDrive,
@@ -162,6 +163,32 @@ export function BackupsStudio({
     });
   }
 
+  function restoreBackup(backupId: string) {
+    const ok = window.confirm(
+      "Restore this backup onto the live WordPress site?\n\nThis will overwrite the database and site files. Continue?",
+    );
+    if (!ok) return;
+    setError(null);
+    setTriggerNote(null);
+    startTransition(async () => {
+      const res = await actionQueueRestore({
+        websiteId,
+        clientId,
+        backupId,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (res.triggered) {
+        setTriggerNote("Restore started on your WordPress site…");
+      } else if (res.triggerNote) {
+        setTriggerNote(res.triggerNote);
+      }
+      router.refresh();
+    });
+  }
+
   function backupNow() {
     const parts: string[] = [];
     if (settings.includeDatabase) parts.push("database");
@@ -182,6 +209,7 @@ export function BackupsStudio({
       createdAt: new Date().toISOString(),
       progress: 0,
       fileName: archiveName,
+      kind: "backup" as const,
     };
     const next = mergeBackupsSettings({
       ...settings,
@@ -361,9 +389,8 @@ export function BackupsStudio({
           Backup file name
         </label>
         <p className="mt-1 text-[12.5px] text-muted">
-          One package zip; inside are UpdraftPlus-format files (db.gz, plugins,
-          themes, uploads, …) so you can restore with UpdraftPlus. Empty name →
-          site title.
+          One package zip with Updraft-style components inside. Use Restore on a
+          successful history row to restore from Avonix. Empty name → site title.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input
@@ -446,8 +473,8 @@ export function BackupsStudio({
                 Avonix does not store site files.
               </b>{" "}
               <span className="text-muted">
-                Pick a destination below — Google Drive is one click with
-                Connect with Google.
+                Pick a destination below — Google Drive uses OAuth here;
+                Dropbox, OneDrive, and S3 connect under Integrations.
               </span>
             </p>
           )}
@@ -643,14 +670,20 @@ export function BackupsStudio({
               </p>
             ) : (
               <ScrollTable minWidth={640}>
-                <div className="grid grid-cols-[1fr_1.2fr_auto_auto] gap-3 border-b border-[#edf0f5] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
+                <div className="grid grid-cols-[1fr_1.2fr_auto_auto_auto] gap-3 border-b border-[#edf0f5] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
                   <span>When</span>
                   <span>Detail</span>
                   <span>Size</span>
                   <span>Status</span>
+                  <span className="text-right">Action</span>
                 </div>
                 {history.map((row) => (
-                  <HistoryRow key={row.id} row={row} />
+                  <HistoryRow
+                    key={row.id}
+                    row={row}
+                    busy={Boolean(activeJob) || pending || startingBackup}
+                    onRestore={() => restoreBackup(row.id)}
+                  />
                 ))}
               </ScrollTable>
             )}
@@ -709,23 +742,16 @@ export function BackupsStudio({
             </h2>
             <ul className="space-y-2 px-4 py-4 text-[12.5px] text-muted">
               <li>
-                Backups are UpdraftPlus-compatible: extract the package, then
-                upload the <code className="text-[11px]">backup_*</code> files
-                in UpdraftPlus → Existing Backups → Restore.
+                Restore works from Host, Google Drive, Dropbox, OneDrive, and S3
+                — connect each under Integrations, then pick it as destination.
               </li>
               <li>
-                Package also includes RESTORE.txt with manual steps if you
-                prefer FTP / phpMyAdmin.
+                Click <b className="font-semibold text-ink">Restore</b> on a
+                successful backup to restore onto the live WordPress site.
               </li>
               <li>
-                Cloud destinations reuse credentials from{" "}
-                <Link
-                  href={integrationsHref as never}
-                  className="font-semibold text-brand hover:underline"
-                >
-                  Integrations
-                </Link>
-                .
+                Packages are also UpdraftPlus-compatible if you prefer restoring
+                there instead.
               </li>
               <li>
                 Failed jobs can auto-retry via{" "}
@@ -745,17 +771,31 @@ export function BackupsStudio({
   );
 }
 
-function HistoryRow({ row }: { row: BackupHistoryEntry }) {
+function HistoryRow({
+  row,
+  busy,
+  onRestore,
+}: {
+  row: BackupHistoryEntry;
+  busy: boolean;
+  onRestore: () => void;
+}) {
   const tone = backupStatusTone(row.status);
   const showBar = row.status === "pending" || row.status === "running";
   const pct = backupProgressPercent(row);
+  const canRestore =
+    row.status === "success" &&
+    row.kind !== "restore" &&
+    Boolean(row.archiveFileName || row.remoteFileId);
   return (
-    <div className="grid grid-cols-[1fr_1.2fr_auto_auto] items-center gap-3 border-b border-[#edf0f5] px-4 py-3 last:border-b-0">
+    <div className="grid grid-cols-[1fr_1.2fr_auto_auto_auto] items-center gap-3 border-b border-[#edf0f5] px-4 py-3 last:border-b-0">
       <div className="min-w-0">
-        <span className="block text-[13px] font-medium text-ink">{row.label}</span>
-        {row.fileName ? (
+        <span className="block text-[13px] font-medium text-ink">
+          {row.kind === "restore" ? `Restore · ${row.label}` : row.label}
+        </span>
+        {row.archiveFileName || row.fileName ? (
           <span className="mt-0.5 block truncate text-[11.5px] text-faint">
-            {row.fileName}.zip
+            {row.archiveFileName || `${row.fileName}.zip`}
           </span>
         ) : null}
         {showBar ? (
@@ -772,8 +812,26 @@ function HistoryRow({ row }: { row: BackupHistoryEntry }) {
       <span
         className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone.bg} ${tone.text}`}
       >
-        {showBar ? `${pct}%` : backupStatusLabel(row.status)}
+        {showBar
+          ? `${pct}%`
+          : row.kind === "restore" && row.status === "success"
+            ? "Restored"
+            : backupStatusLabel(row.status)}
       </span>
+      <div className="justify-self-end">
+        {canRestore ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onRestore}
+            className="rounded-lg border border-brand/40 bg-brand/5 px-2.5 py-1 text-[11.5px] font-semibold text-brand hover:bg-brand/10 disabled:opacity-50"
+          >
+            Restore
+          </button>
+        ) : (
+          <span className="text-[11px] text-faint">—</span>
+        )}
+      </div>
     </div>
   );
 }

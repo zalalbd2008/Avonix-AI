@@ -164,9 +164,12 @@ class Avonix_Backup
 
         foreach ($response['commands'] as $command) {
             if (!is_array($command)) continue;
-            if (($command['type'] ?? '') !== 'backup') continue;
-
-            $this->run_backup($client, $command);
+            $type = $command['type'] ?? '';
+            if ($type === 'backup') {
+                $this->run_backup($client, $command);
+            } elseif ($type === 'restore') {
+                $this->run_restore($client, $command);
+            }
         }
     }
 
@@ -220,6 +223,7 @@ class Avonix_Backup
             $credentials = $job['credentials'] ?? [];
             $upload_ok = false;
             $detail = '';
+            $remote_file_id = '';
 
             $this->report(
                 $client,
@@ -235,18 +239,28 @@ class Avonix_Backup
                     $result = $this->upload_google_drive($zip_path, $credentials);
                     $upload_ok = $result['ok'];
                     $detail = $result['detail'];
+                    $remote_file_id = $result['file_id'] ?? '';
                     break;
 
                 case 'dropbox':
                     $result = $this->upload_dropbox($zip_path, $credentials);
                     $upload_ok = $result['ok'];
                     $detail = $result['detail'];
+                    $remote_file_id = $result['file_id'] ?? '';
+                    break;
+
+                case 'onedrive':
+                    $result = $this->upload_onedrive($zip_path, $credentials);
+                    $upload_ok = $result['ok'];
+                    $detail = $result['detail'];
+                    $remote_file_id = $result['file_id'] ?? '';
                     break;
 
                 case 's3':
-                    $result = $this->upload_via_webhook($zip_path, $credentials);
+                    $result = $this->upload_s3($zip_path, $credentials);
                     $upload_ok = $result['ok'];
                     $detail = $result['detail'];
+                    $remote_file_id = $result['file_id'] ?? '';
                     break;
 
                 case 'host':
@@ -257,12 +271,22 @@ class Avonix_Backup
                     break;
             }
 
+            // Keep host copies for restore; remove temp upload copies for remotes.
             if ($destination !== 'host' && file_exists($zip_path)) {
                 @unlink($zip_path);
             }
 
             if ($upload_ok) {
-                $this->report($client, $job_id, 'success', $size_label, $detail, 100);
+                $this->report(
+                    $client,
+                    $job_id,
+                    'success',
+                    $size_label,
+                    $detail,
+                    100,
+                    basename($zip_path),
+                    $remote_file_id
+                );
             } else {
                 $this->report($client, $job_id, 'failed', $size_label, $detail ?: 'Upload failed.', 0);
             }
@@ -272,6 +296,273 @@ class Avonix_Backup
             if (isset($zip_path) && file_exists($zip_path)) {
                 @unlink($zip_path);
             }
+        }
+    }
+
+    /**
+     * Restore a previous Avonix package onto this WordPress site.
+     */
+    private function run_restore($client, array $job)
+    {
+        $job_id = $job['id'] ?? '';
+        if (!$job_id) return;
+
+        @set_time_limit(0);
+        if (function_exists('wp_raise_memory_limit')) {
+            wp_raise_memory_limit('admin');
+        }
+
+        $this->report($client, $job_id, 'running', '', 'Starting restore…', 5);
+
+        $work = $this->backup_directory() . '/restore-' . uniqid();
+        wp_mkdir_p($work);
+        $package = $work . '/package.zip';
+
+        try {
+            $destination = $job['destination'] ?? 'host';
+            $credentials = $job['credentials'] ?? [];
+            $archive_name = (string) ($job['archive_file_name'] ?? '');
+            $remote_id = (string) ($job['remote_file_id'] ?? '');
+
+            $this->report($client, $job_id, 'running', '', 'Fetching backup package…', 15);
+
+            if ($destination === 'google_drive') {
+                if ($remote_id === '') {
+                    throw new \Exception('Missing Google Drive file id for this backup.');
+                }
+                $this->download_drive_file($remote_id, $package, $credentials);
+            } elseif ($destination === 'dropbox') {
+                $path = $remote_id !== '' ? $remote_id : ('/Avonix Backups/' . basename($archive_name));
+                if ($path === '/' || $path === '/Avonix Backups/') {
+                    throw new \Exception('Missing Dropbox path for this backup.');
+                }
+                $this->download_dropbox_file($path, $package, $credentials);
+            } elseif ($destination === 'onedrive') {
+                if ($remote_id === '' && $archive_name === '') {
+                    throw new \Exception('Missing OneDrive file id for this backup.');
+                }
+                $this->download_onedrive_file($remote_id, $archive_name, $package, $credentials);
+            } elseif ($destination === 's3') {
+                $key = $remote_id !== '' ? $remote_id : '';
+                if ($key === '' && $archive_name !== '') {
+                    $prefix = trim((string) ($credentials['prefix'] ?? 'avonix-backups'), '/');
+                    $key = ($prefix !== '' ? $prefix . '/' : '') . basename($archive_name);
+                }
+                if ($key === '') {
+                    throw new \Exception('Missing S3 object key for this backup.');
+                }
+                $this->download_s3_file($key, $package, $credentials);
+            } elseif ($destination === 'host') {
+                $local = $this->backup_directory() . '/' . basename($archive_name);
+                if ($archive_name === '' || !file_exists($local)) {
+                    throw new \Exception('Local backup package not found on this server.');
+                }
+                if (!copy($local, $package)) {
+                    throw new \Exception('Cannot copy local backup package.');
+                }
+            } else {
+                throw new \Exception('Restore from this destination is not supported.');
+            }
+
+            $this->report($client, $job_id, 'running', '', 'Extracting package…', 30);
+            $extract = $work . '/extracted';
+            wp_mkdir_p($extract);
+            $this->unzip_to($package, $extract);
+
+            $components = $this->find_restore_components($extract);
+            if (empty($components)) {
+                throw new \Exception('No Updraft-style component files found inside the package.');
+            }
+
+            if (!empty($components['db'])) {
+                $this->report($client, $job_id, 'running', '', 'Restoring database…', 45);
+                $this->restore_database_gz($components['db']);
+            }
+
+            if (!empty($components['plugins'])) {
+                $this->report($client, $job_id, 'running', '', 'Restoring plugins…', 58);
+                $this->restore_component_zip($components['plugins'], WP_CONTENT_DIR);
+            }
+            if (!empty($components['themes'])) {
+                $this->report($client, $job_id, 'running', '', 'Restoring themes…', 68);
+                $this->restore_component_zip($components['themes'], WP_CONTENT_DIR);
+            }
+            if (!empty($components['uploads'])) {
+                $this->report($client, $job_id, 'running', '', 'Restoring uploads…', 78);
+                $this->restore_component_zip($components['uploads'], WP_CONTENT_DIR);
+            }
+            if (!empty($components['mu-plugins'])) {
+                $this->report($client, $job_id, 'running', '', 'Restoring mu-plugins…', 85);
+                $this->restore_component_zip($components['mu-plugins'], WP_CONTENT_DIR);
+            }
+            if (!empty($components['others'])) {
+                $this->report($client, $job_id, 'running', '', 'Restoring core / others…', 92);
+                // Keep live wp-config unless missing
+                $this->restore_component_zip($components['others'], ABSPATH, ['wp-config.php']);
+            }
+
+            $this->report($client, $job_id, 'success', '', 'Restore completed successfully.', 100);
+        } catch (\Exception $e) {
+            $this->report($client, $job_id, 'failed', '', 'Restore error: ' . $e->getMessage(), 0);
+        } finally {
+            $this->rrmdir($work);
+        }
+    }
+
+    private function download_drive_file($file_id, $dest_path, $credentials)
+    {
+        $token = $credentials['access_token'] ?? '';
+        if (!$token && !empty($credentials['refresh_token'])) {
+            $token = $this->refresh_google_token(
+                $credentials['refresh_token'],
+                $credentials['client_id'] ?? '',
+                $credentials['client_secret'] ?? ''
+            );
+        }
+        if (!$token) {
+            throw new \Exception('No Google Drive access token for restore.');
+        }
+
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($file_id) . '?alt=media';
+        $response = wp_remote_get($url, [
+            'timeout' => 600,
+            'headers' => ['Authorization' => 'Bearer ' . $token],
+            'stream' => false,
+        ]);
+        if (is_wp_error($response)) {
+            throw new \Exception('Drive download failed: ' . $response->get_error_message());
+        }
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code === 401 && !empty($credentials['refresh_token'])) {
+            $token = $this->refresh_google_token(
+                $credentials['refresh_token'],
+                $credentials['client_id'] ?? '',
+                $credentials['client_secret'] ?? ''
+            );
+            if ($token) {
+                $response = wp_remote_get($url, [
+                    'timeout' => 600,
+                    'headers' => ['Authorization' => 'Bearer ' . $token],
+                ]);
+                $code = is_wp_error($response) ? 0 : wp_remote_retrieve_response_code($response);
+            }
+        }
+        if ($code !== 200) {
+            throw new \Exception('Drive download HTTP ' . $code);
+        }
+        $body = wp_remote_retrieve_body($response);
+        if ($body === '' || file_put_contents($dest_path, $body) === false) {
+            throw new \Exception('Cannot save downloaded backup package.');
+        }
+    }
+
+    private function unzip_to($zip_path, $dest_dir)
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($zip_path) !== true) {
+            throw new \Exception('Cannot open backup package zip.');
+        }
+        if (!$zip->extractTo($dest_dir)) {
+            $zip->close();
+            throw new \Exception('Cannot extract backup package.');
+        }
+        $zip->close();
+    }
+
+    /**
+     * Locate Updraft-style component files under an extracted package tree.
+     */
+    private function find_restore_components($root)
+    {
+        $found = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+        foreach ($iterator as $file) {
+            if (!$file->isFile()) continue;
+            $name = $file->getFilename();
+            $path = $file->getPathname();
+            if (preg_match('/-db\.gz$/i', $name)) $found['db'] = $path;
+            elseif (preg_match('/-plugins\.zip$/i', $name)) $found['plugins'] = $path;
+            elseif (preg_match('/-themes\.zip$/i', $name)) $found['themes'] = $path;
+            elseif (preg_match('/-uploads\.zip$/i', $name)) $found['uploads'] = $path;
+            elseif (preg_match('/-mu-plugins\.zip$/i', $name)) $found['mu-plugins'] = $path;
+            elseif (preg_match('/-others\.zip$/i', $name)) $found['others'] = $path;
+        }
+        return $found;
+    }
+
+    private function restore_database_gz($gz_path)
+    {
+        global $wpdb;
+        $sql = '';
+        $zh = @gzopen($gz_path, 'rb');
+        if ($zh) {
+            while (!gzeof($zh)) {
+                $sql .= gzread($zh, 1024 * 1024);
+            }
+            gzclose($zh);
+        } else {
+            $raw = file_get_contents($gz_path);
+            $sql = $raw !== false ? (@gzdecode($raw) ?: $raw) : '';
+        }
+        if ($sql === '') {
+            throw new \Exception('Database dump is empty.');
+        }
+
+        // Prefer splitting on ;\n for WordPress dumps we generate
+        $statements = preg_split('/;\s*\n/', $sql);
+        if (!is_array($statements)) {
+            throw new \Exception('Cannot parse database dump.');
+        }
+
+        $wpdb->query('SET FOREIGN_KEY_CHECKS = 0');
+        foreach ($statements as $statement) {
+            $statement = trim($statement);
+            if ($statement === '' || strpos($statement, '--') === 0) continue;
+            $wpdb->query($statement);
+        }
+        $wpdb->query('SET FOREIGN_KEY_CHECKS = 1');
+    }
+
+    /**
+     * Extract a component zip into a target directory.
+     * @param array $skip_basenames files to skip if they already exist (e.g. wp-config.php)
+     */
+    private function restore_component_zip($zip_path, $target_root, array $skip_basenames = [])
+    {
+        $tmp = $this->backup_directory() . '/unz-' . uniqid();
+        wp_mkdir_p($tmp);
+        try {
+            $this->unzip_to($zip_path, $tmp);
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($tmp, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+            $tmp_real = realpath($tmp);
+            foreach ($iterator as $file) {
+                $real = realpath($file->getPathname());
+                if ($real === false || $tmp_real === false) continue;
+                $rel = substr($real, strlen($tmp_real) + 1);
+                if ($rel === false || $rel === '') continue;
+                $rel_unix = str_replace('\\', '/', $rel);
+                $base = basename($rel_unix);
+                $dest = rtrim($target_root, '/\\') . '/' . $rel_unix;
+
+                if ($file->isDir()) {
+                    wp_mkdir_p($dest);
+                    continue;
+                }
+                if (in_array($base, $skip_basenames, true) && file_exists($dest)) {
+                    continue;
+                }
+                wp_mkdir_p(dirname($dest));
+                if (!@copy($real, $dest)) {
+                    // best effort
+                }
+            }
+        } finally {
+            $this->rrmdir($tmp);
         }
     }
 
@@ -853,7 +1144,11 @@ TXT;
         if ($upload_code === 200 || $upload_code === 201) {
             $data = json_decode(wp_remote_retrieve_body($upload_response), true);
             $file_id = $data['id'] ?? 'unknown';
-            return ['ok' => true, 'detail' => "Uploaded to Google Drive (file: {$file_id})"];
+            return [
+                'ok' => true,
+                'detail' => "Uploaded to Google Drive (file: {$file_id})",
+                'file_id' => $file_id,
+            ];
         }
 
         return ['ok' => false, 'detail' => "Drive upload HTTP {$upload_code}"];
@@ -970,6 +1265,7 @@ TXT;
         }
 
         $filename = basename($file_path);
+        $remote_path = '/Avonix Backups/' . $filename;
         $file_content = file_get_contents($file_path);
         if ($file_content === false) {
             return ['ok' => false, 'detail' => 'Cannot read backup file.'];
@@ -981,7 +1277,7 @@ TXT;
                 'Authorization' => 'Bearer ' . $token,
                 'Content-Type' => 'application/octet-stream',
                 'Dropbox-API-Arg' => wp_json_encode([
-                    'path' => '/Avonix Backups/' . $filename,
+                    'path' => $remote_path,
                     'mode' => 'add',
                     'autorename' => true,
                 ]),
@@ -996,11 +1292,296 @@ TXT;
         $code = wp_remote_retrieve_response_code($response);
         if ($code === 200) {
             $data = json_decode(wp_remote_retrieve_body($response), true);
-            $path = $data['path_display'] ?? $filename;
-            return ['ok' => true, 'detail' => "Uploaded to Dropbox: {$path}"];
+            $path = $data['path_display'] ?? ($data['path_lower'] ?? $remote_path);
+            return [
+                'ok' => true,
+                'detail' => "Uploaded to Dropbox: {$path}",
+                'file_id' => $path,
+            ];
         }
 
-        return ['ok' => false, 'detail' => "Dropbox HTTP {$code}"];
+        $body = wp_remote_retrieve_body($response);
+        return ['ok' => false, 'detail' => "Dropbox HTTP {$code}" . ($body ? ': ' . substr($body, 0, 180) : '')];
+    }
+
+    private function download_dropbox_file($path, $dest_path, $credentials)
+    {
+        $token = $credentials['access_token'] ?? '';
+        if (!$token) {
+            throw new \Exception('No Dropbox access token for restore.');
+        }
+
+        $response = wp_remote_post('https://content.dropboxapi.com/2/files/download', [
+            'timeout' => 600,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Dropbox-API-Arg' => wp_json_encode(['path' => $path]),
+            ],
+        ]);
+        if (is_wp_error($response)) {
+            throw new \Exception('Dropbox download failed: ' . $response->get_error_message());
+        }
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            throw new \Exception('Dropbox download HTTP ' . $code);
+        }
+        $body = wp_remote_retrieve_body($response);
+        if ($body === '' || file_put_contents($dest_path, $body) === false) {
+            throw new \Exception('Cannot save Dropbox backup package.');
+        }
+    }
+
+    /**
+     * Upload to OneDrive via Microsoft Graph.
+     */
+    private function upload_onedrive($file_path, $credentials)
+    {
+        $token = $credentials['access_token'] ?? '';
+        if (!$token) {
+            return ['ok' => false, 'detail' => 'No OneDrive access token.'];
+        }
+
+        $filename = basename($file_path);
+        $file_content = file_get_contents($file_path);
+        if ($file_content === false) {
+            return ['ok' => false, 'detail' => 'Cannot read backup file.'];
+        }
+
+        $rel = 'Avonix Backups/' . $filename;
+        $encoded = implode('/', array_map('rawurlencode', explode('/', $rel)));
+        $url = 'https://graph.microsoft.com/v1.0/me/drive/root:/' . $encoded . ':/content';
+
+        $response = wp_remote_request($url, [
+            'method' => 'PUT',
+            'timeout' => 300,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Content-Type' => 'application/zip',
+            ],
+            'body' => $file_content,
+        ]);
+
+        if (is_wp_error($response)) {
+            return ['ok' => false, 'detail' => 'OneDrive error: ' . $response->get_error_message()];
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code === 200 || $code === 201) {
+            $data = json_decode(wp_remote_retrieve_body($response), true);
+            $id = $data['id'] ?? '';
+            $name = $data['name'] ?? $filename;
+            return [
+                'ok' => true,
+                'detail' => "Uploaded to OneDrive: {$name}",
+                'file_id' => $id !== '' ? $id : ('path:Avonix Backups/' . $filename),
+            ];
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        return ['ok' => false, 'detail' => "OneDrive HTTP {$code}" . ($body ? ': ' . substr($body, 0, 180) : '')];
+    }
+
+    private function download_onedrive_file($item_id, $archive_name, $dest_path, $credentials)
+    {
+        $token = $credentials['access_token'] ?? '';
+        if (!$token) {
+            throw new \Exception('No OneDrive access token for restore.');
+        }
+
+        if ($item_id !== '' && strpos($item_id, 'path:') === 0) {
+            $path = substr($item_id, 5);
+            $encoded = implode('/', array_map('rawurlencode', explode('/', $path)));
+            $url = 'https://graph.microsoft.com/v1.0/me/drive/root:/' . $encoded . ':/content';
+        } elseif ($item_id !== '') {
+            $url = 'https://graph.microsoft.com/v1.0/me/drive/items/' . rawurlencode($item_id) . '/content';
+        } else {
+            $path = 'Avonix Backups/' . basename($archive_name);
+            $encoded = implode('/', array_map('rawurlencode', explode('/', $path)));
+            $url = 'https://graph.microsoft.com/v1.0/me/drive/root:/' . $encoded . ':/content';
+        }
+
+        $response = wp_remote_get($url, [
+            'timeout' => 600,
+            'headers' => ['Authorization' => 'Bearer ' . $token],
+            'redirection' => 5,
+        ]);
+        if (is_wp_error($response)) {
+            throw new \Exception('OneDrive download failed: ' . $response->get_error_message());
+        }
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            throw new \Exception('OneDrive download HTTP ' . $code);
+        }
+        $body = wp_remote_retrieve_body($response);
+        if ($body === '' || file_put_contents($dest_path, $body) === false) {
+            throw new \Exception('Cannot save OneDrive backup package.');
+        }
+    }
+
+    /**
+     * Upload to S3-compatible storage (AWS / R2 / MinIO) with SigV4.
+     */
+    private function upload_s3($file_path, $credentials)
+    {
+        $bucket = trim((string) ($credentials['bucket'] ?? ''));
+        $access_key = trim((string) ($credentials['access_key'] ?? ''));
+        $secret_key = (string) ($credentials['secret_key'] ?? '');
+
+        if ($bucket === '' || $access_key === '' || $secret_key === '') {
+            if (!empty($credentials['webhook_url'])) {
+                $wh = $this->upload_via_webhook($file_path, $credentials);
+                if ($wh['ok']) {
+                    $wh['file_id'] = 'webhook:' . basename($file_path);
+                }
+                return $wh;
+            }
+            return ['ok' => false, 'detail' => 'S3 credentials incomplete. Set Access key, Secret, and Bucket in Integrations.'];
+        }
+
+        $filename = basename($file_path);
+        $prefix = trim((string) ($credentials['prefix'] ?? 'avonix-backups'), '/');
+        $key = ($prefix !== '' ? $prefix . '/' : '') . $filename;
+
+        $body = file_get_contents($file_path);
+        if ($body === false) {
+            return ['ok' => false, 'detail' => 'Cannot read backup file.'];
+        }
+
+        $result = $this->s3_signed_request('PUT', $key, $body, 'application/zip', $credentials);
+        if ($result['ok']) {
+            return [
+                'ok' => true,
+                'detail' => "Uploaded to S3: s3://{$bucket}/{$key}",
+                'file_id' => $key,
+            ];
+        }
+        return $result;
+    }
+
+    private function download_s3_file($key, $dest_path, $credentials)
+    {
+        if (strpos($key, 'webhook:') === 0) {
+            throw new \Exception('This backup was uploaded via webhook and cannot be restored automatically. Re-upload with S3 credentials.');
+        }
+
+        $result = $this->s3_signed_request('GET', $key, '', '', $credentials);
+        if (!$result['ok']) {
+            throw new \Exception($result['detail'] ?? 'S3 download failed.');
+        }
+        if (($result['body'] ?? '') === '' || file_put_contents($dest_path, $result['body']) === false) {
+            throw new \Exception('Cannot save S3 backup package.');
+        }
+    }
+
+    /**
+     * Signed S3 REST request (SigV4). Returns ok/detail and body for GET.
+     */
+    private function s3_signed_request($method, $key, $payload, $content_type, $credentials)
+    {
+        $access_key = trim((string) ($credentials['access_key'] ?? ''));
+        $secret_key = (string) ($credentials['secret_key'] ?? '');
+        $bucket = trim((string) ($credentials['bucket'] ?? ''));
+        $region = trim((string) ($credentials['region'] ?? 'us-east-1')) ?: 'us-east-1';
+        $endpoint = preg_replace('#^https?://#i', '', rtrim((string) ($credentials['endpoint'] ?? ''), '/'));
+
+        if ($access_key === '' || $secret_key === '' || $bucket === '') {
+            return ['ok' => false, 'detail' => 'Missing S3 credentials.'];
+        }
+
+        $encoded_key = implode('/', array_map('rawurlencode', explode('/', ltrim($key, '/'))));
+        if ($endpoint !== '') {
+            $host = $endpoint;
+            $uri = '/' . $bucket . '/' . $encoded_key;
+            $url = 'https://' . $host . $uri;
+        } else {
+            $host = $bucket . '.s3.' . $region . '.amazonaws.com';
+            $uri = '/' . $encoded_key;
+            $url = 'https://' . $host . $uri;
+        }
+
+        $amz_date = gmdate('Ymd\THis\Z');
+        $date_stamp = gmdate('Ymd');
+        $payload_hash = hash('sha256', $payload === '' && $method === 'GET' ? '' : $payload);
+
+        $headers = [
+            'host' => $host,
+            'x-amz-content-sha256' => $payload_hash,
+            'x-amz-date' => $amz_date,
+        ];
+        if ($method === 'PUT' && $content_type !== '') {
+            $headers['content-type'] = $content_type;
+        }
+
+        ksort($headers);
+        $canonical_headers = '';
+        $signed_headers_list = [];
+        foreach ($headers as $hk => $hv) {
+            $canonical_headers .= $hk . ':' . trim($hv) . "\n";
+            $signed_headers_list[] = $hk;
+        }
+        $signed_headers = implode(';', $signed_headers_list);
+
+        $canonical_request = implode("\n", [
+            $method,
+            $uri,
+            '',
+            $canonical_headers,
+            $signed_headers,
+            $payload_hash,
+        ]);
+
+        $credential_scope = $date_stamp . '/' . $region . '/s3/aws4_request';
+        $string_to_sign = implode("\n", [
+            'AWS4-HMAC-SHA256',
+            $amz_date,
+            $credential_scope,
+            hash('sha256', $canonical_request),
+        ]);
+
+        $k_date = hash_hmac('sha256', $date_stamp, 'AWS4' . $secret_key, true);
+        $k_region = hash_hmac('sha256', $region, $k_date, true);
+        $k_service = hash_hmac('sha256', 's3', $k_region, true);
+        $k_signing = hash_hmac('sha256', 'aws4_request', $k_service, true);
+        $signature = hash_hmac('sha256', $string_to_sign, $k_signing);
+
+        $authorization = 'AWS4-HMAC-SHA256 Credential=' . $access_key . '/' . $credential_scope
+            . ', SignedHeaders=' . $signed_headers
+            . ', Signature=' . $signature;
+
+        $req_headers = [
+            'Authorization' => $authorization,
+            'x-amz-content-sha256' => $payload_hash,
+            'x-amz-date' => $amz_date,
+        ];
+        if ($method === 'PUT' && $content_type !== '') {
+            $req_headers['Content-Type'] = $content_type;
+        }
+
+        $args = [
+            'method' => $method,
+            'timeout' => 600,
+            'headers' => $req_headers,
+        ];
+        if ($method === 'PUT') {
+            $args['body'] = $payload;
+        }
+
+        $response = wp_remote_request($url, $args);
+        if (is_wp_error($response)) {
+            return ['ok' => false, 'detail' => 'S3 error: ' . $response->get_error_message()];
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code >= 200 && $code < 300) {
+            return [
+                'ok' => true,
+                'detail' => 'S3 OK',
+                'body' => wp_remote_retrieve_body($response),
+            ];
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        return ['ok' => false, 'detail' => "S3 HTTP {$code}" . ($body ? ': ' . substr(strip_tags($body), 0, 200) : '')];
     }
 
     /**
@@ -1032,7 +1613,7 @@ TXT;
     /**
      * Report job status back to the cloud.
      */
-    private function report($client, $job_id, $status, $size_label = '', $detail = '', $progress = null)
+    private function report($client, $job_id, $status, $size_label = '', $detail = '', $progress = null, $archive_file_name = '', $remote_file_id = '')
     {
         $payload = [
             'job_id' => $job_id,
@@ -1041,6 +1622,8 @@ TXT;
         if ($size_label) $payload['size_label'] = $size_label;
         if ($detail) $payload['detail'] = $detail;
         if ($progress !== null) $payload['progress'] = (int) $progress;
+        if ($archive_file_name) $payload['archive_file_name'] = $archive_file_name;
+        if ($remote_file_id) $payload['remote_file_id'] = $remote_file_id;
 
         $client->forward('/api/v1/connector/commands/report', $payload);
     }

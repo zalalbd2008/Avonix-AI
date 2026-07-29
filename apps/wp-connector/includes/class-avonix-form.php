@@ -3,6 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Form')) {
+    return;
+}
+
 /**
  * The [avonix_form] shortcode: a lead form that posts through WordPress to the
  * Avonix API.

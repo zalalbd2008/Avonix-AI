@@ -3,6 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Client')) {
+    return;
+}
+
 /**
  * Talks to the Avonix API. The only file that knows the wire format.
  */

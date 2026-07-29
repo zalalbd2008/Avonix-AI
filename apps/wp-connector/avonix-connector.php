@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Avonix AI Connector
  * Description:       Sends this site's form submissions and chat leads to Avonix AI.
- * Version:           1.3.2
+ * Version:           1.3.4
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AVONIX_VERSION', '1.3.2');
+define('AVONIX_VERSION', '1.3.4');
 define('AVONIX_PLUGIN_FILE', __FILE__);
 define('AVONIX_OPT_KEY', 'avonix_connector_key');
 define('AVONIX_OPT_ENDPOINT', 'avonix_endpoint');
@@ -94,7 +94,14 @@ add_filter('cron_schedules', function ($schedules) {
 
 /** Register with the cloud on activation so the dashboard turns green immediately. */
 register_activation_hook(__FILE__, function () {
-    (new Avonix_Client())->register();
+    // Never let a network/API failure block activation.
+    try {
+        if (class_exists('Avonix_Client')) {
+            (new Avonix_Client())->register();
+        }
+    } catch (\Throwable $e) {
+        // Ignore — admin can reconnect from settings.
+    }
     if (!wp_next_scheduled('avonix_heartbeat')) {
         wp_schedule_event(time() + 300, 'hourly', 'avonix_heartbeat');
     }

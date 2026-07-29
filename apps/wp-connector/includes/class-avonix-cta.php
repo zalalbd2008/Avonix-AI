@@ -3,6 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Cta')) {
+    return;
+}
+
 /**
  * Smart Buttons injector (ADR-009) — Nexus Lead Suite bottom-nav parity.
  *

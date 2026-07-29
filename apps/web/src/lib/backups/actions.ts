@@ -119,6 +119,7 @@ export async function actionQueueBackupNow(input: {
           destination: base.destination,
           sizeLabel: "",
           createdAt: new Date().toISOString(),
+          progress: 0,
         };
 
   const next =

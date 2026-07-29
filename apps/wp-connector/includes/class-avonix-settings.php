@@ -3,6 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Settings')) {
+    return;
+}
+
 /** Settings → Avonix AI. Key, endpoint, connection status. */
 class Avonix_Settings
 {

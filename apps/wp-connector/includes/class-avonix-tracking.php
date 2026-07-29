@@ -16,6 +16,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Tracking')) {
+    return;
+}
+
 class Avonix_Tracking
 {
     /** Prefix => event type. Longest prefix wins, so order matters. */

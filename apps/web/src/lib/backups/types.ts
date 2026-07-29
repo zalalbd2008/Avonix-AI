@@ -29,6 +29,8 @@ export type BackupHistoryEntry = {
   sizeLabel: string;
   createdAt: string;
   finishedAt?: string;
+  /** 0–100 while running; 100 on success. */
+  progress?: number;
 };
 
 export type BackupsSettings = {
@@ -167,7 +169,45 @@ function normalizeHistory(raw: unknown): BackupHistoryEntry[] {
         typeof h.createdAt === "string"
       );
     })
+    .map((h) => {
+      const progress = normalizeProgress(h.progress, h.status);
+      return progress === undefined ? h : { ...h, progress };
+    })
     .slice(0, 100);
+}
+
+function normalizeProgress(
+  raw: unknown,
+  status: BackupRunStatus,
+): number | undefined {
+  if (status === "success") return 100;
+  if (status === "pending") return typeof raw === "number" ? clampProgress(raw) : 0;
+  if (status === "running") {
+    if (typeof raw === "number") return clampProgress(raw);
+    return 5;
+  }
+  if (typeof raw === "number") return clampProgress(raw);
+  return undefined;
+}
+
+function clampProgress(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+/** Best-effort progress for UI when connector has not reported yet. */
+export function backupProgressPercent(entry: BackupHistoryEntry): number {
+  if (typeof entry.progress === "number") return clampProgress(entry.progress);
+  switch (entry.status) {
+    case "success":
+      return 100;
+    case "running":
+      return 5;
+    case "pending":
+      return 0;
+    default:
+      return 0;
+  }
 }
 
 export function backupsConfigScore(settings: BackupsSettings): number {

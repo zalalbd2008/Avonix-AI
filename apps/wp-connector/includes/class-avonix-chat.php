@@ -3,6 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Chat')) {
+    return;
+}
+
 /**
  * Injects the CEP chat widget and proxies its messages (ADR-011 P1).
  *

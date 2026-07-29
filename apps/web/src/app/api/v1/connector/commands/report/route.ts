@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     return connectorError("unauthorized", 401, "Invalid connector key.");
   }
 
-  const limit = await rateLimit(`cmd-report:${identity.websiteId}`, 120, 3600);
+  const limit = await rateLimit(`cmd-report:${identity.websiteId}`, 300, 3600);
   if (!limit.ok) {
     return connectorError("rate_limited", 429, "Too many reports.", {
       retry_after: limit.retryAfterSeconds,
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     size_label?: string;
     detail?: string;
     error?: string;
+    progress?: number;
   };
   try {
     body = await request.json();
@@ -48,6 +49,13 @@ export async function POST(request: Request) {
     return connectorError("bad_request", 400, "Invalid status.");
   }
 
+  const progress =
+    typeof body.progress === "number" && Number.isFinite(body.progress)
+      ? Math.min(100, Math.max(0, Math.round(body.progress)))
+      : body.status === "success"
+        ? 100
+        : undefined;
+
   const updated = await withAgency(identity.agencyId, async (tx) => {
     const [site] = await tx
       .select({ settings: websites.settings })
@@ -60,15 +68,23 @@ export async function POST(request: Request) {
     const idx = backups.history.findIndex((h) => h.id === body.job_id);
     if (idx === -1) return false;
 
+    const prev = backups.history[idx]!;
     const entry: BackupHistoryEntry = {
-      ...backups.history[idx]!,
+      ...prev,
       status: body.status!,
-      sizeLabel: body.size_label ?? backups.history[idx]!.sizeLabel,
-      detail: body.detail ?? body.error ?? backups.history[idx]!.detail,
+      sizeLabel: body.size_label ?? prev.sizeLabel,
+      detail: body.detail ?? body.error ?? prev.detail,
+      progress:
+        progress ??
+        (body.status === "success"
+          ? 100
+          : body.status === "running"
+            ? Math.max(prev.progress ?? 5, 5)
+            : prev.progress),
       finishedAt:
         body.status === "success" || body.status === "failed"
           ? new Date().toISOString()
-          : backups.history[idx]!.finishedAt,
+          : prev.finishedAt,
     };
     backups.history[idx] = entry;
 

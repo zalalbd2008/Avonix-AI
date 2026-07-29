@@ -3,6 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Popup')) {
+    return;
+}
+
 /**
  * Popup Experience injector (ADR-010).
  *

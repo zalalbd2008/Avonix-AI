@@ -22,6 +22,7 @@ import {
   mergeBackupsSettings,
   newBackupId,
   destinationLabel,
+  backupProgressPercent,
   type BackupDestinationId,
   type BackupHistoryEntry,
   type BackupsSettings,
@@ -74,6 +75,23 @@ export function BackupsStudio({
       router.refresh();
     }
   }, [oauthStatus, router]);
+
+  // Keep local history in sync while server polls (progress updates).
+  useEffect(() => {
+    if (!initial) return;
+    setSettings((prev) => {
+      const next = mergeBackupsSettings(initial);
+      // Preserve unsaved form toggles if history is the only change we care about mid-run.
+      const active = next.history.some(
+        (h) => h.status === "pending" || h.status === "running",
+      );
+      if (!active && pending) return prev;
+      return {
+        ...prev,
+        history: next.history,
+      };
+    });
+  }, [initial, pending]);
 
   function connectDrive() {
     setError(null);
@@ -152,6 +170,7 @@ export function BackupsStudio({
       destination: settings.destination,
       sizeLabel: "",
       createdAt: new Date().toISOString(),
+      progress: 0,
     };
     const next = mergeBackupsSettings({
       ...settings,
@@ -173,7 +192,7 @@ export function BackupsStudio({
         return;
       }
       if (res.triggered) {
-        setTriggerNote("Backup started on your WordPress site.");
+        setTriggerNote(null);
       } else if (res.triggerNote) {
         setTriggerNote(res.triggerNote);
       }
@@ -183,15 +202,50 @@ export function BackupsStudio({
     });
   }
 
-  const hasQueued = history.some((h) => h.status === "pending");
-  const hasRunning = history.some((h) => h.status === "running");
+  const activeJob = useMemo(
+    () =>
+      history.find((h) => h.status === "running") ??
+      history.find((h) => h.status === "pending") ??
+      null,
+    [history],
+  );
+  const hasQueued = Boolean(activeJob && activeJob.status === "pending");
+  const hasRunning = Boolean(activeJob && activeJob.status === "running");
   const siteConnected = snapshot.website.status === "connected";
+  const activeProgress = activeJob ? backupProgressPercent(activeJob) : 0;
 
   useEffect(() => {
     if (!hasQueued && !hasRunning) return;
-    const id = window.setInterval(() => router.refresh(), 4000);
+    const id = window.setInterval(() => router.refresh(), 2000);
     return () => window.clearInterval(id);
   }, [hasQueued, hasRunning, router]);
+
+  const [displayProgress, setDisplayProgress] = useState(activeProgress);
+  useEffect(() => {
+    setDisplayProgress((p) => Math.max(p, activeProgress));
+  }, [activeProgress]);
+  useEffect(() => {
+    if (!hasQueued && !hasRunning) {
+      setDisplayProgress(0);
+      return;
+    }
+    if (hasQueued && displayProgress < 8) {
+      const id = window.setInterval(() => {
+        setDisplayProgress((p) => (p < 8 ? p + 0.4 : p));
+      }, 400);
+      return () => window.clearInterval(id);
+    }
+    if (hasRunning && displayProgress < 92 && activeProgress < 90) {
+      const id = window.setInterval(() => {
+        setDisplayProgress((p) => {
+          const cap = Math.min(92, Math.max(activeProgress + 6, p + 0.35));
+          return p < cap ? Math.min(cap, p + 0.35) : p;
+        });
+      }, 500);
+      return () => window.clearInterval(id);
+    }
+  }, [hasQueued, hasRunning, displayProgress, activeProgress]);
+
   const destReady =
     settings.destination !== "none" &&
     (settings.destination === "google_drive"
@@ -246,28 +300,44 @@ export function BackupsStudio({
         }
       />
 
-      {(hasQueued || hasRunning) ? (
+      {activeJob ? (
         <div
-          className={`mb-4 rounded-lg border px-4 py-3 text-[13px] ${
+          className={`mb-4 rounded-xl border px-4 py-4 ${
             siteConnected
-              ? "border-brand/30 bg-[rgba(255,102,0,.06)] text-ink"
-              : "border-bad/30 bg-[rgba(220,38,38,.06)] text-bad"
+              ? "border-brand/30 bg-[rgba(255,102,0,.06)]"
+              : "border-bad/30 bg-[rgba(220,38,38,.06)]"
           }`}
         >
-          {siteConnected ? (
-            hasRunning ? (
-              <>Backup running on your WordPress site…</>
-            ) : (
-              <>
-                Backup queued — starting now on your site. If it stays here,
-                open wp-admin once or check that the Avonix plugin is v1.3.2+.
-              </>
-            )
-          ) : (
-            <>
+          {!siteConnected ? (
+            <p className="text-[13px] text-bad">
               Backup is queued but this site is not connected. Install the
               Avonix connector plugin on WordPress and paste the connector key
               under website settings.
+            </p>
+          ) : (
+            <>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[13px] font-semibold text-ink">
+                  {hasRunning ? "Backup in progress" : "Starting backup…"}
+                </p>
+                <span className="text-[13px] font-bold tabular-nums text-brand">
+                  {Math.round(Math.min(100, displayProgress))}%
+                </span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-white/80 ring-1 ring-[#e8edf5]">
+                <div
+                  className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
+                  style={{
+                    width: `${Math.min(100, Math.max(2, displayProgress))}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-[12.5px] text-muted">
+                {activeJob.detail ||
+                  (hasRunning
+                    ? "Working on your WordPress site…"
+                    : "Waiting for the connector to pick up the job…")}
+              </p>
             </>
           )}
         </div>
@@ -621,15 +691,27 @@ export function BackupsStudio({
 
 function HistoryRow({ row }: { row: BackupHistoryEntry }) {
   const tone = backupStatusTone(row.status);
+  const showBar = row.status === "pending" || row.status === "running";
+  const pct = backupProgressPercent(row);
   return (
     <div className="grid grid-cols-[1fr_1.2fr_auto_auto] items-center gap-3 border-b border-[#edf0f5] px-4 py-3 last:border-b-0">
-      <span className="text-[13px] font-medium text-ink">{row.label}</span>
+      <div className="min-w-0">
+        <span className="block text-[13px] font-medium text-ink">{row.label}</span>
+        {showBar ? (
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#eef2f7]">
+            <div
+              className="h-full rounded-full bg-brand transition-[width] duration-500"
+              style={{ width: `${Math.max(2, pct)}%` }}
+            />
+          </div>
+        ) : null}
+      </div>
       <span className="text-[12.5px] text-muted">{row.detail}</span>
       <span className="text-[12px] text-muted">{row.sizeLabel || "—"}</span>
       <span
         className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone.bg} ${tone.text}`}
       >
-        {backupStatusLabel(row.status)}
+        {showBar ? `${pct}%` : backupStatusLabel(row.status)}
       </span>
     </div>
   );

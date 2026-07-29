@@ -3,6 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (class_exists('Avonix_Backup')) {
+    return;
+}
+
 /**
  * Handles backup commands from the Avonix cloud.
  *
@@ -174,28 +178,45 @@ class Avonix_Backup
         $job_id = $job['id'] ?? '';
         if (!$job_id) return;
 
-        // Report running
-        $this->report($client, $job_id, 'running', '', 'Backup in progress…');
+        $this->report($client, $job_id, 'running', '', 'Starting backup…', 5);
 
         try {
-            // Build the backup ZIP
             $include_db = !empty($job['include_database']);
             $include_uploads = !empty($job['include_uploads']);
-            $zip_path = $this->create_backup_zip($include_db, $include_uploads);
+
+            if ($include_db) {
+                $this->report($client, $job_id, 'running', '', 'Dumping database…', 20);
+            }
+
+            $zip_path = $this->create_backup_zip(
+                $include_db,
+                $include_uploads,
+                function ($pct, $label) use ($client, $job_id) {
+                    $this->report($client, $job_id, 'running', '', $label, $pct);
+                }
+            );
 
             if (!$zip_path || !file_exists($zip_path)) {
-                $this->report($client, $job_id, 'failed', '', 'Failed to create backup archive.');
+                $this->report($client, $job_id, 'failed', '', 'Failed to create backup archive.', 0);
                 return;
             }
 
             $size = filesize($zip_path);
             $size_label = $this->format_size($size);
 
-            // Upload to destination
             $destination = $job['destination'] ?? 'host';
             $credentials = $job['credentials'] ?? [];
             $upload_ok = false;
             $detail = '';
+
+            $this->report(
+                $client,
+                $job_id,
+                'running',
+                $size_label,
+                'Uploading to ' . $destination . '…',
+                75
+            );
 
             switch ($destination) {
                 case 'google_drive':
@@ -211,7 +232,6 @@ class Avonix_Backup
                     break;
 
                 case 's3':
-                    // S3 would need a webhook/proxy approach
                     $result = $this->upload_via_webhook($zip_path, $credentials);
                     $upload_ok = $result['ok'];
                     $detail = $result['detail'];
@@ -225,20 +245,18 @@ class Avonix_Backup
                     break;
             }
 
-            // Clean up temp file (local copy kept by store_locally)
             if ($destination !== 'host' && file_exists($zip_path)) {
                 @unlink($zip_path);
             }
 
             if ($upload_ok) {
-                $this->report($client, $job_id, 'success', $size_label, $detail);
+                $this->report($client, $job_id, 'success', $size_label, $detail, 100);
             } else {
-                $this->report($client, $job_id, 'failed', $size_label, $detail ?: 'Upload failed.');
+                $this->report($client, $job_id, 'failed', $size_label, $detail ?: 'Upload failed.', 0);
             }
 
         } catch (\Exception $e) {
-            $this->report($client, $job_id, 'failed', '', 'Error: ' . $e->getMessage());
-            // Clean up
+            $this->report($client, $job_id, 'failed', '', 'Error: ' . $e->getMessage(), 0);
             if (isset($zip_path) && file_exists($zip_path)) {
                 @unlink($zip_path);
             }
@@ -247,12 +265,22 @@ class Avonix_Backup
 
     /**
      * Create a ZIP backup of the site.
+     *
+     * @param bool          $include_db
+     * @param bool          $include_uploads
+     * @param callable|null $on_progress function(int $pct, string $label)
      */
-    private function create_backup_zip($include_db, $include_uploads)
+    private function create_backup_zip($include_db, $include_uploads, $on_progress = null)
     {
         if (!class_exists('ZipArchive')) {
             throw new \Exception('ZipArchive extension is not available.');
         }
+
+        $notify = function ($pct, $label) use ($on_progress) {
+            if (is_callable($on_progress)) {
+                call_user_func($on_progress, $pct, $label);
+            }
+        };
 
         $backup_dir = $this->backup_directory();
         $filename = 'avonix-backup-' . date('Y-m-d-His') . '.zip';
@@ -265,27 +293,31 @@ class Avonix_Backup
 
         // Database dump
         if ($include_db) {
+            $notify(25, 'Dumping database…');
             $sql_path = $backup_dir . '/db-dump-' . uniqid() . '.sql';
             $this->dump_database($sql_path);
             if (file_exists($sql_path)) {
                 $zip->addFile($sql_path, 'database.sql');
             }
+            $notify(40, 'Database packed…');
         }
 
         // Uploads directory
         if ($include_uploads) {
+            $notify(50, 'Packing uploads…');
             $uploads = wp_upload_dir();
             $uploads_base = $uploads['basedir'];
             if (is_dir($uploads_base)) {
                 $this->add_directory_to_zip($zip, $uploads_base, 'uploads');
             }
+            $notify(65, 'Uploads packed…');
         }
 
         // wp-config.php (for reference, sanitized)
+        $notify(70, 'Finalizing archive…');
         $config_path = ABSPATH . 'wp-config.php';
         if (file_exists($config_path)) {
             $config_content = file_get_contents($config_path);
-            // Sanitize sensitive data
             $config_content = preg_replace(
                 "/define\s*\(\s*['\"]DB_PASSWORD['\"].*?\)/",
                 "define('DB_PASSWORD', '***REDACTED***')",
@@ -296,7 +328,6 @@ class Avonix_Backup
 
         $zip->close();
 
-        // Clean up temp SQL
         if (isset($sql_path) && file_exists($sql_path)) {
             @unlink($sql_path);
         }
@@ -657,7 +688,7 @@ class Avonix_Backup
     /**
      * Report job status back to the cloud.
      */
-    private function report($client, $job_id, $status, $size_label = '', $detail = '')
+    private function report($client, $job_id, $status, $size_label = '', $detail = '', $progress = null)
     {
         $payload = [
             'job_id' => $job_id,
@@ -665,8 +696,8 @@ class Avonix_Backup
         ];
         if ($size_label) $payload['size_label'] = $size_label;
         if ($detail) $payload['detail'] = $detail;
+        if ($progress !== null) $payload['progress'] = (int) $progress;
 
-        // Use the client's forward method
         $client->forward('/api/v1/connector/commands/report', $payload);
     }
 

@@ -361,8 +361,8 @@ export function BackupsStudio({
           Backup file name
         </label>
         <p className="mt-1 text-[12.5px] text-muted">
-          One complete zip (database + full site files inside). Leave blank to
-          use the site title.
+          One final zip containing a folder of separate files (db, plugins,
+          themes, uploads, mu-plugins, others) — easy to find and restore.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input
@@ -708,15 +708,15 @@ export function BackupsStudio({
             </h2>
             <ul className="space-y-2 px-4 py-4 text-[12.5px] text-muted">
               <li>
-                Full backups include WordPress core, themes, plugins, uploads,
-                configs, and the database — enough to restore an identical site.
+                Final backup is one zip folder with separate parts: database,
+                plugins, themes, uploads, mu-plugins, and others (core/config) —
+                like UpdraftPlus, but packaged together.
               </li>
               <li>
-                Restore runs on the host or backup plugin — Avonix tracks status
-                and restore points only. Unpack the zip, restore{" "}
-                <code className="text-[11px]">database.sql</code>, then copy the{" "}
-                <code className="text-[11px]">wordpress/</code> folder over the
-                site root.
+                Restore: import the{" "}
+                <code className="text-[11px]">*-db.sql</code>, then unpack each
+                component zip into the matching WordPress path (see RESTORE.txt
+                inside the package).
               </li>
               <li>
                 Cloud destinations reuse credentials from{" "}

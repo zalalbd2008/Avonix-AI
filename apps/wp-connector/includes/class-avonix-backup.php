@@ -276,12 +276,17 @@ class Avonix_Backup
     }
 
     /**
-     * Create a ZIP backup of the site.
+     * Create the final backup package (one zip / folder of component archives).
      *
-     * Full site layout inside the archive:
-     *   RESTORE.txt
-     *   database.sql
-     *   wordpress/   ← entire ABSPATH (core, themes, plugins, uploads, configs)
+     * Layout (Updraft-style components, single package):
+     *   {name}/
+     *     RESTORE.txt
+     *     {name}-db.sql
+     *     {name}-plugins.zip
+     *     {name}-themes.zip
+     *     {name}-uploads.zip
+     *     {name}-mu-plugins.zip
+     *     {name}-others.zip   (core + remaining wp-content + root files)
      *
      * @param bool          $include_db
      * @param bool          $include_uploads
@@ -307,102 +312,163 @@ class Avonix_Backup
             $safe = $this->sanitize_archive_name(get_bloginfo('name'));
         }
         if ($safe === '') {
-            $safe = 'avonix-backup-' . date('Y-m-d-His');
-        } else {
-            $safe = $safe . '-' . date('Ymd-His');
+            $safe = 'avonix-backup';
         }
-        $filename = $safe . '.zip';
+        $stamp = date('Ymd-His');
+        $folder = $safe . '-' . $stamp;
+        $filename = $folder . '.zip';
         $zip_path = $backup_dir . '/' . $filename;
 
-        $zip = new \ZipArchive();
-        if ($zip->open($zip_path, \ZipArchive::CREATE) !== true) {
-            throw new \Exception('Cannot create ZIP file.');
+        $work = $backup_dir . '/tmp-' . uniqid('bkp_', true);
+        if (!wp_mkdir_p($work)) {
+            throw new \Exception('Cannot create temporary backup workspace.');
         }
 
-        $zip->addFromString('RESTORE.txt', $this->restore_instructions());
+        $component_dir = $work . '/' . $folder;
+        wp_mkdir_p($component_dir);
 
-        // Database dump — all tables for accurate restore
-        if ($include_db) {
-            $notify(18, 'Dumping database…');
-            $sql_path = $backup_dir . '/db-dump-' . uniqid() . '.sql';
-            $this->dump_database($sql_path);
-            if (file_exists($sql_path)) {
-                $zip->addFile($sql_path, 'database.sql');
+        $prefix = $folder;
+        $temps = [];
+
+        try {
+            file_put_contents(
+                $component_dir . '/RESTORE.txt',
+                $this->restore_instructions($folder)
+            );
+
+            if ($include_db) {
+                $notify(12, 'Dumping database…');
+                $sql_path = $component_dir . '/' . $prefix . '-db.sql';
+                $this->dump_database($sql_path);
+                $temps[] = $sql_path;
+                $notify(22, 'Database ready…');
             }
-            $notify(30, 'Database packed…');
-        }
 
-        if ($include_full) {
-            $notify(35, 'Packing full WordPress site…');
-            $this->add_wordpress_root_to_zip($zip, $backup_dir, $zip_path, $notify);
-            $notify(72, 'WordPress files packed…');
-        } elseif ($include_uploads) {
-            $notify(45, 'Packing uploads…');
-            $uploads = wp_upload_dir();
-            $uploads_base = $uploads['basedir'];
-            if (is_dir($uploads_base)) {
-                $this->add_directory_to_zip($zip, $uploads_base, 'uploads');
-            }
-            $notify(65, 'Uploads packed…');
+            if ($include_full) {
+                $content = WP_CONTENT_DIR;
 
-            // Partial backup still includes a sanitized config reference
-            $config_path = ABSPATH . 'wp-config.php';
-            if (file_exists($config_path)) {
-                $config_content = file_get_contents($config_path);
-                $config_content = preg_replace(
-                    "/define\s*\(\s*['\"]DB_PASSWORD['\"].*?\)/",
-                    "define('DB_PASSWORD', '***REDACTED***')",
-                    $config_content
+                $notify(28, 'Packing plugins…');
+                $plugins_zip = $component_dir . '/' . $prefix . '-plugins.zip';
+                $this->zip_path_to_file(
+                    $content . '/plugins',
+                    $plugins_zip,
+                    'plugins',
+                    [$backup_dir]
                 );
-                $zip->addFromString('wp-config.php.txt', $config_content);
+                $notify(38, 'Plugins packed…');
+
+                $notify(42, 'Packing themes…');
+                $themes_zip = $component_dir . '/' . $prefix . '-themes.zip';
+                $this->zip_path_to_file(
+                    $content . '/themes',
+                    $themes_zip,
+                    'themes',
+                    [$backup_dir]
+                );
+                $notify(50, 'Themes packed…');
+
+                $notify(54, 'Packing uploads…');
+                $uploads_zip = $component_dir . '/' . $prefix . '-uploads.zip';
+                $uploads = wp_upload_dir();
+                $this->zip_path_to_file(
+                    $uploads['basedir'],
+                    $uploads_zip,
+                    'uploads',
+                    [$backup_dir, $work]
+                );
+                $notify(62, 'Uploads packed…');
+
+                $notify(65, 'Packing mu-plugins…');
+                $mu_zip = $component_dir . '/' . $prefix . '-mu-plugins.zip';
+                $mu_dir = $content . '/mu-plugins';
+                if (is_dir($mu_dir)) {
+                    $this->zip_path_to_file($mu_dir, $mu_zip, 'mu-plugins', [$backup_dir]);
+                } else {
+                    // Empty placeholder so restore layout stays consistent
+                    $z = new \ZipArchive();
+                    if ($z->open($mu_zip, \ZipArchive::CREATE) === true) {
+                        $z->addFromString('mu-plugins/.gitkeep', '');
+                        $z->close();
+                    }
+                }
+                $notify(70, 'mu-plugins packed…');
+
+                $notify(72, 'Packing others (core + configs)…');
+                $others_zip = $component_dir . '/' . $prefix . '-others.zip';
+                $this->zip_others_component($others_zip, $backup_dir, $work, $notify);
+                $notify(82, 'Others packed…');
+            } elseif ($include_uploads) {
+                $notify(40, 'Packing uploads…');
+                $uploads_zip = $component_dir . '/' . $prefix . '-uploads.zip';
+                $uploads = wp_upload_dir();
+                $this->zip_path_to_file(
+                    $uploads['basedir'],
+                    $uploads_zip,
+                    'uploads',
+                    [$backup_dir, $work]
+                );
+                $notify(65, 'Uploads packed…');
             }
-        }
 
-        $notify(74, 'Finalizing archive…');
-        $zip->close();
+            $notify(88, 'Building final backup package…');
+            $final = new \ZipArchive();
+            if ($final->open($zip_path, \ZipArchive::CREATE) !== true) {
+                throw new \Exception('Cannot create final backup zip.');
+            }
 
-        if (isset($sql_path) && file_exists($sql_path)) {
-            @unlink($sql_path);
+            $this->add_directory_to_zip($final, $component_dir, $folder);
+            $final->close();
+            $notify(94, 'Final package ready…');
+        } finally {
+            $this->rrmdir($work);
         }
 
         return $zip_path;
     }
 
-    private function sanitize_archive_name($raw)
+    /**
+     * Zip a directory into a standalone component archive.
+     */
+    private function zip_path_to_file($source_dir, $dest_zip, $prefix_inside, array $exclude_roots = [])
     {
-        $raw = trim((string) $raw);
-        $raw = preg_replace('/\.zip$/i', '', $raw);
-        // Letters, numbers, spaces, dot, underscore, hyphen (Unicode letters OK via \p{L} if available)
-        if (function_exists('preg_replace')) {
-            $cleaned = preg_replace('/[^\p{L}\p{N}\s._-]+/u', '', $raw);
-            if ($cleaned === null) {
-                $cleaned = preg_replace('/[^A-Za-z0-9\s._-]+/', '', $raw);
-            }
-        } else {
-            $cleaned = $raw;
+        $zip = new \ZipArchive();
+        if ($zip->open($dest_zip, \ZipArchive::CREATE) !== true) {
+            throw new \Exception('Cannot create component zip: ' . basename($dest_zip));
         }
-        $cleaned = preg_replace('/\s+/', '_', (string) $cleaned);
-        $cleaned = preg_replace('/_+/', '_', (string) $cleaned);
-        $cleaned = trim((string) $cleaned, '._-');
-        return substr($cleaned, 0, 80);
+
+        if (!is_dir($source_dir)) {
+            $zip->addFromString($prefix_inside . '/.gitkeep', '');
+            $zip->close();
+            return;
+        }
+
+        $exclude_reals = [];
+        foreach ($exclude_roots as $root) {
+            $r = realpath($root);
+            if ($r) $exclude_reals[] = $r;
+        }
+
+        $this->add_directory_to_zip_filtered($zip, $source_dir, $prefix_inside, $exclude_reals);
+        $zip->close();
     }
 
     /**
-     * Pack the entire WordPress installation under wordpress/ in the zip.
+     * Everything except plugins / themes / uploads / mu-plugins (those are separate).
      */
-    private function add_wordpress_root_to_zip(\ZipArchive $zip, $backup_dir, $zip_path, $notify)
+    private function zip_others_component($dest_zip, $backup_dir, $work_dir, $notify)
     {
+        $zip = new \ZipArchive();
+        if ($zip->open($dest_zip, \ZipArchive::CREATE) !== true) {
+            throw new \Exception('Cannot create others.zip');
+        }
+
         $root = rtrim(ABSPATH, '/\\');
         $backup_real = realpath($backup_dir);
-        $zip_real = realpath($zip_path) ?: $zip_path;
+        $work_real = realpath($work_dir);
+        $content = realpath(WP_CONTENT_DIR);
 
-        $exclude_names = [
-            '.git',
-            'node_modules',
-            '.svn',
-            '.hg',
-            'avonix-backups',
-        ];
+        $skip_content_children = ['plugins', 'themes', 'uploads', 'mu-plugins'];
+
         $exclude_path_parts = [
             '/wp-content/cache/',
             '/wp-content/upgrade/',
@@ -411,6 +477,7 @@ class Avonix_Backup
             '/wp-content/backups-dup-lite/',
             '/wp-content/backup-db/',
             '/wp-content/uploads/avonix-backups/',
+            '/avonix-backups/',
         ];
 
         $iterator = new \RecursiveIteratorIterator(
@@ -418,115 +485,163 @@ class Avonix_Backup
             \RecursiveIteratorIterator::SELF_FIRST
         );
 
-        $max_file = 512 * 1024 * 1024; // 512MB per file
-        $max_total = 10 * 1024 * 1024 * 1024; // 10GB total
-        $total = 0;
+        $max_file = 512 * 1024 * 1024;
         $count = 0;
-        $last_pct = 35;
 
         foreach ($iterator as $file) {
             /** @var \SplFileInfo $file */
-            $path = $file->getPathname();
-            $real = realpath($path);
-            if ($real === false) {
-                continue;
-            }
-
-            // Skip our backup folder and the zip being written
-            if ($backup_real && strpos($real, $backup_real) === 0) {
-                continue;
-            }
-            if ($real === $zip_real) {
-                continue;
-            }
+            $real = realpath($file->getPathname());
+            if ($real === false) continue;
+            if ($backup_real && strpos($real, $backup_real) === 0) continue;
+            if ($work_real && strpos($real, $work_real) === 0) continue;
 
             $rel = substr($real, strlen($root) + 1);
-            if ($rel === false || $rel === '') {
-                continue;
-            }
+            if ($rel === false || $rel === '') continue;
             $rel_unix = str_replace('\\', '/', $rel);
 
-            $skip = false;
-            foreach ($exclude_names as $name) {
-                if ($rel_unix === $name || strpos($rel_unix, $name . '/') === 0) {
-                    $skip = true;
-                    break;
+            // Skip dedicated component trees under wp-content
+            if ($content && strpos($real, $content) === 0) {
+                $after = ltrim(substr($real, strlen($content)), '/\\');
+                $top = explode('/', str_replace('\\', '/', $after))[0];
+                if (in_array($top, $skip_content_children, true)) {
+                    continue;
                 }
             }
-            if ($skip) {
-                continue;
-            }
+
+            if (strpos($rel_unix, '.git/') === 0 || $rel_unix === '.git') continue;
+            if (strpos($rel_unix, 'node_modules/') === 0) continue;
 
             $check = '/' . $rel_unix . '/';
+            $skip = false;
             foreach ($exclude_path_parts as $part) {
                 if (strpos($check, $part) !== false) {
                     $skip = true;
                     break;
                 }
             }
-            if ($skip) {
-                continue;
-            }
+            if ($skip) continue;
 
             if ($file->isDir()) {
-                $zip->addEmptyDir('wordpress/' . $rel_unix);
+                $zip->addEmptyDir('others/' . $rel_unix);
                 continue;
             }
+            if (!$file->isFile()) continue;
+            if ($file->getSize() > $max_file) continue;
 
-            if (!$file->isFile()) {
-                continue;
-            }
-
-            $size = $file->getSize();
-            if ($size > $max_file) {
-                continue;
-            }
-            $total += $size;
-            if ($total > $max_total) {
-                throw new \Exception('Backup exceeds 10GB size limit. Contact support or exclude large media.');
-            }
-
-            $zip->addFile($real, 'wordpress/' . $rel_unix);
+            $zip->addFile($real, 'others/' . $rel_unix);
             $count++;
+            if ($count % 400 === 0) {
+                $notify(min(80, 72 + (int) ($count / 800)), 'Packing others… (' . number_format($count) . ')');
+            }
+        }
 
-            if ($count % 250 === 0) {
-                $pct = min(70, 35 + (int) (($count / 50)));
-                if ($pct > $last_pct) {
-                    $last_pct = $pct;
-                    $notify($pct, 'Packing files… (' . number_format($count) . ')');
+        $zip->close();
+    }
+
+    private function add_directory_to_zip_filtered(\ZipArchive $zip, $dir, $prefix, array $exclude_reals)
+    {
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        $max_file = 512 * 1024 * 1024;
+        $root = realpath($dir);
+        if ($root === false) return;
+
+        foreach ($iterator as $file) {
+            /** @var \SplFileInfo $file */
+            $real = realpath($file->getPathname());
+            if ($real === false) continue;
+
+            foreach ($exclude_reals as $ex) {
+                if (strpos($real, $ex) === 0) {
+                    continue 2;
                 }
             }
+
+            // Skip nested avonix-backups under uploads
+            if (strpos(str_replace('\\', '/', $real), '/avonix-backups/') !== false) {
+                continue;
+            }
+
+            $rel = substr($real, strlen($root) + 1);
+            if ($rel === false || $rel === '') continue;
+            $rel_unix = str_replace('\\', '/', $rel);
+
+            if ($file->isDir()) {
+                $zip->addEmptyDir($prefix . '/' . $rel_unix);
+                continue;
+            }
+            if (!$file->isFile()) continue;
+            if ($file->getSize() > $max_file) continue;
+
+            $zip->addFile($real, $prefix . '/' . $rel_unix);
         }
     }
 
-    private function restore_instructions()
+    private function rrmdir($dir)
     {
+        if (!is_dir($dir)) return;
+        $items = scandir($dir);
+        if ($items === false) return;
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') continue;
+            $path = $dir . '/' . $item;
+            if (is_dir($path)) {
+                $this->rrmdir($path);
+            } else {
+                @unlink($path);
+            }
+        }
+        @rmdir($dir);
+    }
+
+    private function sanitize_archive_name($raw)
+    {
+        $raw = trim((string) $raw);
+        $raw = preg_replace('/\.zip$/i', '', $raw);
+        $cleaned = preg_replace('/[^\p{L}\p{N}\s._-]+/u', '', $raw);
+        if ($cleaned === null) {
+            $cleaned = preg_replace('/[^A-Za-z0-9\s._-]+/', '', $raw);
+        }
+        $cleaned = preg_replace('/\s+/', '_', (string) $cleaned);
+        $cleaned = preg_replace('/_+/', '_', (string) $cleaned);
+        $cleaned = trim((string) $cleaned, '._-');
+        return substr($cleaned, 0, 80);
+    }
+
+    private function restore_instructions($folder = '')
+    {
+        $folder = $folder ?: 'backup-folder';
         return <<<TXT
-Avonix Full Website Backup
-==========================
+Avonix Component Backup
+=======================
 
-This archive can restore an identical WordPress site.
+This package is ONE final zip. Inside it is a folder of separate component files
+(like UpdraftPlus), so you can restore selectively or all at once.
 
-Contents
---------
-- database.sql     Full MySQL dump (all tables)
-- wordpress/       Complete site files (core, themes, plugins, uploads, wp-config.php, .htaccess, …)
-- RESTORE.txt      This file
+{$folder}/
+  RESTORE.txt
+  {$folder}-db.sql
+  {$folder}-plugins.zip
+  {$folder}-themes.zip
+  {$folder}-uploads.zip
+  {$folder}-mu-plugins.zip
+  {$folder}-others.zip     ← wp-admin, wp-includes, wp-config, root, other wp-content
 
-Restore steps
--------------
-1. Create an empty database (or empty the target DB).
-2. Import database.sql via phpMyAdmin / mysql CLI.
-3. Replace the WordPress site root with the contents of wordpress/
-   (or copy wordpress/* into the site document root).
-4. Update wp-config.php DB credentials if the new host differs.
-5. If the domain changed, update siteurl/home in wp_options (or use WP-CLI search-replace).
-6. Visit the site and flush permalinks (Settings → Permalinks → Save).
+Full restore
+------------
+1. Import {$folder}-db.sql into MySQL.
+2. Unpack {$folder}-others.zip → copy "others/" contents into the WordPress root.
+3. Unpack plugins.zip → wp-content/plugins/
+4. Unpack themes.zip → wp-content/themes/
+5. Unpack uploads.zip → wp-content/uploads/
+6. Unpack mu-plugins.zip → wp-content/mu-plugins/ (if used)
+7. Fix wp-config.php DB credentials if the host changed.
+8. Settings → Permalinks → Save.
 
-Notes
------
-- Temporary caches and previous Avonix/other backup folders were excluded.
-- Keep this archive private — it contains credentials and all site data.
+Keep this archive private — it contains credentials and all site data.
 TXT;
     }
 

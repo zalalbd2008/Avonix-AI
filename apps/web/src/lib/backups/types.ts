@@ -43,9 +43,11 @@ export type BackupsSettings = {
   retentionDays: number;
   destination: BackupDestinationId;
   notifyOnFailure: boolean;
-  /** Include uploads folder in full backup requests. */
+  /** Include entire WordPress tree (core, themes, plugins, uploads, configs). */
+  includeFullSite: boolean;
+  /** Include uploads folder (used when full site is off). */
   includeUploads: boolean;
-  /** Include database dump in full backup requests. */
+  /** Include database dump in backup requests. */
   includeDatabase: boolean;
   history: BackupHistoryEntry[];
 };
@@ -98,6 +100,7 @@ export const DEFAULT_BACKUPS: BackupsSettings = {
   retentionDays: 30,
   destination: "none",
   notifyOnFailure: true,
+  includeFullSite: true,
   includeUploads: true,
   includeDatabase: true,
   history: [],
@@ -135,6 +138,7 @@ export function mergeBackupsSettings(
       : DEFAULT_BACKUPS.retentionDays,
     destination: normalizeDestination(raw.destination),
     notifyOnFailure: raw.notifyOnFailure !== false,
+    includeFullSite: raw.includeFullSite !== false,
     includeUploads: raw.includeUploads !== false,
     includeDatabase: raw.includeDatabase !== false,
     history: normalizeHistory(raw.history),
@@ -216,7 +220,8 @@ export function backupsConfigScore(settings: BackupsSettings): number {
   if (settings.enabled) score += 25;
   if (settings.history.some((h) => h.status === "success")) score += 25;
   if (settings.notifyOnFailure) score += 10;
-  if (settings.includeDatabase && settings.includeUploads) score += 5;
+  if (settings.includeDatabase && (settings.includeFullSite || settings.includeUploads))
+    score += 5;
   return Math.min(100, score);
 }
 

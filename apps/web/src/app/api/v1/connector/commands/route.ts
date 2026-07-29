@@ -106,6 +106,7 @@ export async function GET(request: Request) {
         destination: dest,
         include_database: backups.includeDatabase,
         include_uploads: backups.includeUploads,
+        include_full_site: backups.includeFullSite,
         credentials,
         report_url: "/api/v1/connector/commands/report",
       };

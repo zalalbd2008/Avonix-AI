@@ -76,7 +76,8 @@ export async function processScheduledBackups(
     // Queue a new backup job
     const parts: string[] = [];
     if (backups.includeDatabase) parts.push("database");
-    if (backups.includeUploads) parts.push("uploads");
+    if (backups.includeFullSite) parts.push("full site files");
+    else if (backups.includeUploads) parts.push("uploads");
     const scope = parts.length ? parts.join(" + ") : "files";
 
     const entry: BackupHistoryEntry = {

@@ -178,19 +178,29 @@ class Avonix_Backup
         $job_id = $job['id'] ?? '';
         if (!$job_id) return;
 
-        $this->report($client, $job_id, 'running', '', 'Starting backup…', 5);
+        @set_time_limit(0);
+        if (function_exists('wp_raise_memory_limit')) {
+            wp_raise_memory_limit('admin');
+        }
+
+        $this->report($client, $job_id, 'running', '', 'Starting full site backup…', 5);
 
         try {
             $include_db = !empty($job['include_database']);
             $include_uploads = !empty($job['include_uploads']);
+            // Default to full site when the cloud sends the flag (or omit = true for older jobs after update).
+            $include_full = array_key_exists('include_full_site', $job)
+                ? !empty($job['include_full_site'])
+                : true;
 
             if ($include_db) {
-                $this->report($client, $job_id, 'running', '', 'Dumping database…', 20);
+                $this->report($client, $job_id, 'running', '', 'Dumping database…', 15);
             }
 
             $zip_path = $this->create_backup_zip(
                 $include_db,
                 $include_uploads,
+                $include_full,
                 function ($pct, $label) use ($client, $job_id) {
                     $this->report($client, $job_id, 'running', '', $label, $pct);
                 }
@@ -266,11 +276,17 @@ class Avonix_Backup
     /**
      * Create a ZIP backup of the site.
      *
+     * Full site layout inside the archive:
+     *   RESTORE.txt
+     *   database.sql
+     *   wordpress/   ← entire ABSPATH (core, themes, plugins, uploads, configs)
+     *
      * @param bool          $include_db
      * @param bool          $include_uploads
+     * @param bool          $include_full
      * @param callable|null $on_progress function(int $pct, string $label)
      */
-    private function create_backup_zip($include_db, $include_uploads, $on_progress = null)
+    private function create_backup_zip($include_db, $include_uploads, $include_full = true, $on_progress = null)
     {
         if (!class_exists('ZipArchive')) {
             throw new \Exception('ZipArchive extension is not available.');
@@ -291,41 +307,46 @@ class Avonix_Backup
             throw new \Exception('Cannot create ZIP file.');
         }
 
-        // Database dump
+        $zip->addFromString('RESTORE.txt', $this->restore_instructions());
+
+        // Database dump — all tables for accurate restore
         if ($include_db) {
-            $notify(25, 'Dumping database…');
+            $notify(18, 'Dumping database…');
             $sql_path = $backup_dir . '/db-dump-' . uniqid() . '.sql';
             $this->dump_database($sql_path);
             if (file_exists($sql_path)) {
                 $zip->addFile($sql_path, 'database.sql');
             }
-            $notify(40, 'Database packed…');
+            $notify(30, 'Database packed…');
         }
 
-        // Uploads directory
-        if ($include_uploads) {
-            $notify(50, 'Packing uploads…');
+        if ($include_full) {
+            $notify(35, 'Packing full WordPress site…');
+            $this->add_wordpress_root_to_zip($zip, $backup_dir, $zip_path, $notify);
+            $notify(72, 'WordPress files packed…');
+        } elseif ($include_uploads) {
+            $notify(45, 'Packing uploads…');
             $uploads = wp_upload_dir();
             $uploads_base = $uploads['basedir'];
             if (is_dir($uploads_base)) {
                 $this->add_directory_to_zip($zip, $uploads_base, 'uploads');
             }
             $notify(65, 'Uploads packed…');
+
+            // Partial backup still includes a sanitized config reference
+            $config_path = ABSPATH . 'wp-config.php';
+            if (file_exists($config_path)) {
+                $config_content = file_get_contents($config_path);
+                $config_content = preg_replace(
+                    "/define\s*\(\s*['\"]DB_PASSWORD['\"].*?\)/",
+                    "define('DB_PASSWORD', '***REDACTED***')",
+                    $config_content
+                );
+                $zip->addFromString('wp-config.php.txt', $config_content);
+            }
         }
 
-        // wp-config.php (for reference, sanitized)
-        $notify(70, 'Finalizing archive…');
-        $config_path = ABSPATH . 'wp-config.php';
-        if (file_exists($config_path)) {
-            $config_content = file_get_contents($config_path);
-            $config_content = preg_replace(
-                "/define\s*\(\s*['\"]DB_PASSWORD['\"].*?\)/",
-                "define('DB_PASSWORD', '***REDACTED***')",
-                $config_content
-            );
-            $zip->addFromString('wp-config.php.txt', $config_content);
-        }
-
+        $notify(74, 'Finalizing archive…');
         $zip->close();
 
         if (isset($sql_path) && file_exists($sql_path)) {
@@ -336,33 +357,175 @@ class Avonix_Backup
     }
 
     /**
-     * Dump the WordPress database to a SQL file.
+     * Pack the entire WordPress installation under wordpress/ in the zip.
+     */
+    private function add_wordpress_root_to_zip(\ZipArchive $zip, $backup_dir, $zip_path, $notify)
+    {
+        $root = rtrim(ABSPATH, '/\\');
+        $backup_real = realpath($backup_dir);
+        $zip_real = realpath($zip_path) ?: $zip_path;
+
+        $exclude_names = [
+            '.git',
+            'node_modules',
+            '.svn',
+            '.hg',
+            'avonix-backups',
+        ];
+        $exclude_path_parts = [
+            '/wp-content/cache/',
+            '/wp-content/upgrade/',
+            '/wp-content/updraft/',
+            '/wp-content/ai1wm-backups/',
+            '/wp-content/backups-dup-lite/',
+            '/wp-content/backup-db/',
+            '/wp-content/uploads/avonix-backups/',
+        ];
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        $max_file = 512 * 1024 * 1024; // 512MB per file
+        $max_total = 10 * 1024 * 1024 * 1024; // 10GB total
+        $total = 0;
+        $count = 0;
+        $last_pct = 35;
+
+        foreach ($iterator as $file) {
+            /** @var \SplFileInfo $file */
+            $path = $file->getPathname();
+            $real = realpath($path);
+            if ($real === false) {
+                continue;
+            }
+
+            // Skip our backup folder and the zip being written
+            if ($backup_real && strpos($real, $backup_real) === 0) {
+                continue;
+            }
+            if ($real === $zip_real) {
+                continue;
+            }
+
+            $rel = substr($real, strlen($root) + 1);
+            if ($rel === false || $rel === '') {
+                continue;
+            }
+            $rel_unix = str_replace('\\', '/', $rel);
+
+            $skip = false;
+            foreach ($exclude_names as $name) {
+                if ($rel_unix === $name || strpos($rel_unix, $name . '/') === 0) {
+                    $skip = true;
+                    break;
+                }
+            }
+            if ($skip) {
+                continue;
+            }
+
+            $check = '/' . $rel_unix . '/';
+            foreach ($exclude_path_parts as $part) {
+                if (strpos($check, $part) !== false) {
+                    $skip = true;
+                    break;
+                }
+            }
+            if ($skip) {
+                continue;
+            }
+
+            if ($file->isDir()) {
+                $zip->addEmptyDir('wordpress/' . $rel_unix);
+                continue;
+            }
+
+            if (!$file->isFile()) {
+                continue;
+            }
+
+            $size = $file->getSize();
+            if ($size > $max_file) {
+                continue;
+            }
+            $total += $size;
+            if ($total > $max_total) {
+                throw new \Exception('Backup exceeds 10GB size limit. Contact support or exclude large media.');
+            }
+
+            $zip->addFile($real, 'wordpress/' . $rel_unix);
+            $count++;
+
+            if ($count % 250 === 0) {
+                $pct = min(70, 35 + (int) (($count / 50)));
+                if ($pct > $last_pct) {
+                    $last_pct = $pct;
+                    $notify($pct, 'Packing files… (' . number_format($count) . ')');
+                }
+            }
+        }
+    }
+
+    private function restore_instructions()
+    {
+        return <<<TXT
+Avonix Full Website Backup
+==========================
+
+This archive can restore an identical WordPress site.
+
+Contents
+--------
+- database.sql     Full MySQL dump (all tables)
+- wordpress/       Complete site files (core, themes, plugins, uploads, wp-config.php, .htaccess, …)
+- RESTORE.txt      This file
+
+Restore steps
+-------------
+1. Create an empty database (or empty the target DB).
+2. Import database.sql via phpMyAdmin / mysql CLI.
+3. Replace the WordPress site root with the contents of wordpress/
+   (or copy wordpress/* into the site document root).
+4. Update wp-config.php DB credentials if the new host differs.
+5. If the domain changed, update siteurl/home in wp_options (or use WP-CLI search-replace).
+6. Visit the site and flush permalinks (Settings → Permalinks → Save).
+
+Notes
+-----
+- Temporary caches and previous Avonix/other backup folders were excluded.
+- Keep this archive private — it contains credentials and all site data.
+TXT;
+    }
+
+    /**
+     * Dump the WordPress database to a SQL file (all tables in the DB).
      */
     private function dump_database($output_path)
     {
         global $wpdb;
 
-        $tables = $wpdb->get_col("SHOW TABLES LIKE '{$wpdb->prefix}%'");
+        $tables = $wpdb->get_col('SHOW TABLES');
         if (empty($tables)) return;
 
         $handle = fopen($output_path, 'w');
         if (!$handle) return;
 
-        fwrite($handle, "-- Avonix Backup Database Dump\n");
+        fwrite($handle, "-- Avonix Full Site Database Dump\n");
         fwrite($handle, "-- Generated: " . date('Y-m-d H:i:s') . "\n");
-        fwrite($handle, "-- WordPress: " . get_bloginfo('version') . "\n\n");
+        fwrite($handle, "-- WordPress: " . get_bloginfo('version') . "\n");
+        fwrite($handle, "-- Site URL: " . home_url() . "\n\n");
         fwrite($handle, "SET NAMES utf8mb4;\n");
         fwrite($handle, "SET FOREIGN_KEY_CHECKS = 0;\n\n");
 
         foreach ($tables as $table) {
-            // CREATE TABLE
             $create = $wpdb->get_row("SHOW CREATE TABLE `{$table}`", ARRAY_N);
             if ($create && isset($create[1])) {
                 fwrite($handle, "DROP TABLE IF EXISTS `{$table}`;\n");
                 fwrite($handle, $create[1] . ";\n\n");
             }
 
-            // INSERT rows (batched)
             $offset = 0;
             $batch = 500;
             while (true) {

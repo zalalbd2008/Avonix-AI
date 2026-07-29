@@ -160,7 +160,8 @@ export function BackupsStudio({
   function backupNow() {
     const parts: string[] = [];
     if (settings.includeDatabase) parts.push("database");
-    if (settings.includeUploads) parts.push("uploads");
+    if (settings.includeFullSite) parts.push("full site files");
+    else if (settings.includeUploads) parts.push("uploads");
     const scope = parts.length ? parts.join(" + ") : "files";
     const entry = {
       id: newBackupId(),
@@ -635,15 +636,26 @@ export function BackupsStudio({
                 }
               />
               <Toggle
+                label="Full website files"
+                checked={settings.includeFullSite}
+                onChange={(includeFullSite) => patch({ includeFullSite })}
+              />
+              <p className="-mt-1 text-[11.5px] leading-snug text-muted">
+                Core + themes + plugins + uploads + configs (needed for full
+                restore).
+              </p>
+              <Toggle
                 label="Include database"
                 checked={settings.includeDatabase}
                 onChange={(includeDatabase) => patch({ includeDatabase })}
               />
-              <Toggle
-                label="Include uploads"
-                checked={settings.includeUploads}
-                onChange={(includeUploads) => patch({ includeUploads })}
-              />
+              {!settings.includeFullSite ? (
+                <Toggle
+                  label="Include uploads only"
+                  checked={settings.includeUploads}
+                  onChange={(includeUploads) => patch({ includeUploads })}
+                />
+              ) : null}
               <Toggle
                 label="Email on failure"
                 checked={settings.notifyOnFailure}
@@ -658,8 +670,15 @@ export function BackupsStudio({
             </h2>
             <ul className="space-y-2 px-4 py-4 text-[12.5px] text-muted">
               <li>
+                Full backups include WordPress core, themes, plugins, uploads,
+                configs, and the database — enough to restore an identical site.
+              </li>
+              <li>
                 Restore runs on the host or backup plugin — Avonix tracks status
-                and restore points only.
+                and restore points only. Unpack the zip, restore{" "}
+                <code className="text-[11px]">database.sql</code>, then copy the{" "}
+                <code className="text-[11px]">wordpress/</code> folder over the
+                site root.
               </li>
               <li>
                 Cloud destinations reuse credentials from{" "}

@@ -104,7 +104,8 @@ export async function actionQueueBackupNow(input: {
 
   const parts: string[] = [];
   if (base.includeDatabase) parts.push("database");
-  if (base.includeUploads) parts.push("uploads");
+  if (base.includeFullSite) parts.push("full site files");
+  else if (base.includeUploads) parts.push("uploads");
   const scope = parts.length ? parts.join(" + ") : "files";
 
   const latest = base.history[0];

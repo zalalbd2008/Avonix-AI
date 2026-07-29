@@ -4,6 +4,7 @@ import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
 import { websites, type WebsiteSettings } from "@/lib/db/schema";
 import {
+  appBaseUrl,
   smtpOauthCallbackUrl,
   verifySmtpOauthState,
 } from "@/lib/website-email/oauth-state";
@@ -136,6 +137,7 @@ export async function GET(
   }
 
   const url = new URL(req.url);
+  const base = appBaseUrl();
   const err = url.searchParams.get("error");
   const code = url.searchParams.get("code");
   const stateRaw = url.searchParams.get("state") ?? "";
@@ -143,7 +145,7 @@ export async function GET(
   const state = verifySmtpOauthState(stateRaw);
   if (!state || state.provider !== provider) {
     return NextResponse.redirect(
-      new URL("/websites?oauth=invalid_state", url.origin),
+      new URL("/websites?oauth=invalid_state", base),
     );
   }
 
@@ -153,13 +155,13 @@ export async function GET(
     return NextResponse.redirect(
       new URL(
         `${returnPath}?oauth=denied&reason=${encodeURIComponent(err)}`,
-        url.origin,
+        base,
       ),
     );
   }
   if (!code) {
     return NextResponse.redirect(
-      new URL(`${returnPath}?oauth=missing_code`, url.origin),
+      new URL(`${returnPath}?oauth=missing_code`, base),
     );
   }
 
@@ -169,7 +171,7 @@ export async function GET(
     return NextResponse.redirect(
       new URL(
         `/sign-in?callbackURL=${encodeURIComponent(returnPath)}`,
-        url.origin,
+        base,
       ),
     );
   }
@@ -242,7 +244,7 @@ export async function GET(
     return NextResponse.redirect(
       new URL(
         `${returnPath}?oauth=ok&email=${encodeURIComponent(tokens.oauthVerifiedEmail)}`,
-        url.origin,
+        base,
       ),
     );
   } catch (e) {
@@ -250,7 +252,7 @@ export async function GET(
     return NextResponse.redirect(
       new URL(
         `${returnPath}?oauth=error&reason=${encodeURIComponent(message)}`,
-        url.origin,
+        base,
       ),
     );
   }

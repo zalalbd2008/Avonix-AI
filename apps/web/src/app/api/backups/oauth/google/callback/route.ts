@@ -5,6 +5,7 @@ import { withAgency } from "@/lib/db";
 import { websites, type WebsiteSettings } from "@/lib/db/schema";
 import { mergeBackupsSettings } from "@/lib/backups/types";
 import {
+  appBaseUrl,
   driveOauthCallbackUrl,
   getGoogleDriveOAuthConfig,
   mergeBackupsDriveOAuth,
@@ -61,6 +62,7 @@ async function exchangeGoogle(
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
+  const base = appBaseUrl();
   const err = url.searchParams.get("error");
   const code = url.searchParams.get("code");
   const stateRaw = url.searchParams.get("state") ?? "";
@@ -68,7 +70,7 @@ export async function GET(req: Request) {
   const state = verifyDriveOauthState(stateRaw);
   if (!state) {
     return NextResponse.redirect(
-      new URL("/websites?oauth=invalid_state", url.origin),
+      new URL("/websites?oauth=invalid_state", base),
     );
   }
 
@@ -78,13 +80,13 @@ export async function GET(req: Request) {
     return NextResponse.redirect(
       new URL(
         `${returnPath}?oauth=denied&reason=${encodeURIComponent(err)}`,
-        url.origin,
+        base,
       ),
     );
   }
   if (!code) {
     return NextResponse.redirect(
-      new URL(`${returnPath}?oauth=missing_code`, url.origin),
+      new URL(`${returnPath}?oauth=missing_code`, base),
     );
   }
 
@@ -94,7 +96,7 @@ export async function GET(req: Request) {
     return NextResponse.redirect(
       new URL(
         `/sign-in?callbackURL=${encodeURIComponent(returnPath)}`,
-        url.origin,
+        base,
       ),
     );
   }
@@ -105,7 +107,7 @@ export async function GET(req: Request) {
     return NextResponse.redirect(
       new URL(
         `${returnPath}?oauth=error&reason=${encodeURIComponent("Google Drive is not configured on this platform.")}`,
-        url.origin,
+        base,
       ),
     );
   }
@@ -174,14 +176,14 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.redirect(
-      new URL(`${returnPath}?oauth=ok`, url.origin),
+      new URL(`${returnPath}?oauth=ok`, base),
     );
   } catch (e) {
     const message = e instanceof Error ? e.message : "OAuth failed";
     return NextResponse.redirect(
       new URL(
         `${returnPath}?oauth=error&reason=${encodeURIComponent(message)}`,
-        url.origin,
+        base,
       ),
     );
   }

@@ -22,8 +22,8 @@ export function pagespeedApiKey(): string | null {
 export function isPageSpeedCacheFresh(cache?: PageSpeedCache | null): boolean {
   if (!cache?.fetchedAt) return false;
   if (cache.score == null && cache.error) {
-    // Retry failed lookups sooner (1h).
-    return Date.now() - new Date(cache.fetchedAt).getTime() < 60 * 60 * 1000;
+    // Retry failed lookups quickly (PSI is flaky per-strategy).
+    return Date.now() - new Date(cache.fetchedAt).getTime() < 5 * 60 * 1000;
   }
   return Date.now() - new Date(cache.fetchedAt).getTime() < CACHE_MS;
 }
@@ -96,9 +96,19 @@ export async function resolvePageSpeedForSite(opts: {
   save?: (next: PageSpeedCache) => Promise<void>;
 }): Promise<PageSpeedCache | null> {
   if (!pagespeedApiKey()) return null;
-  if (isPageSpeedCacheFresh(opts.cache) && opts.cache) return opts.cache;
+  // Only serve successful scores from cache; retry failures (PSI is flaky).
+  if (
+    opts.cache?.score != null &&
+    isPageSpeedCacheFresh(opts.cache)
+  ) {
+    return opts.cache;
+  }
 
-  const next = await fetchPageSpeedScore(opts.siteUrl, "mobile");
+  let next = await fetchPageSpeedScore(opts.siteUrl, "mobile");
+  // Mobile PSI often 500s on heavy WP themes; desktop usually succeeds.
+  if (next.score == null) {
+    next = await fetchPageSpeedScore(opts.siteUrl, "desktop");
+  }
   if (opts.save) {
     try {
       await opts.save(next);

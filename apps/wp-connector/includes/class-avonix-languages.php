@@ -106,26 +106,30 @@ class Avonix_Languages
 }
 #avonix-lang-root * { box-sizing: border-box; }
 #avonix-lang-root .avonix-lang-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  position: relative;
+  width: var(--avonix-lang-size, 42px);
+  height: var(--avonix-lang-size, 42px);
   pointer-events: auto;
 }
-#avonix-lang-root .avonix-lang-stack.is-start { align-items: flex-start; }
-#avonix-lang-root .avonix-lang-stack.is-end { align-items: flex-end; }
 #avonix-lang-root .avonix-lang-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
   width: 220px;
-  max-height: 280px;
+  max-height: min(280px, 50vh);
   overflow: auto;
   background: #fff;
   border: 1px solid #e8edf5;
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(11, 30, 58, 0.16);
+  z-index: 2;
+}
+#avonix-lang-root .avonix-lang-stack.is-start .avonix-lang-panel { left: 0; }
+#avonix-lang-root .avonix-lang-stack.is-end .avonix-lang-panel { right: 0; }
+#avonix-lang-root .avonix-lang-stack.is-below .avonix-lang-panel {
+  bottom: auto;
+  top: calc(100% + 8px);
 }
 #avonix-lang-root .avonix-lang-panel-h {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 10px 12px;
   border-bottom: 1px solid #eef2f7;
   font-size: 12px;
@@ -153,16 +157,22 @@ class Avonix_Languages
 }
 #avonix-lang-root .avonix-lang-flag { font-size: 15px; line-height: 1; }
 #avonix-lang-root .avonix-lang-btn {
+  position: absolute;
+  left: 0;
+  top: 0;
   display: grid;
   place-items: center;
+  width: var(--avonix-lang-size, 42px);
+  height: var(--avonix-lang-size, 42px);
   border: 0;
   cursor: pointer;
   color: #fff;
   background: #e15d1a;
   box-shadow: 0 8px 22px rgba(225, 93, 26, 0.35);
-  transition: transform 0.15s ease, filter 0.15s ease;
+  transition: filter 0.15s ease;
+  z-index: 1;
 }
-#avonix-lang-root .avonix-lang-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+#avonix-lang-root .avonix-lang-btn:hover { filter: brightness(1.05); }
 #avonix-lang-root .avonix-lang-btn:focus-visible {
   outline: 2px solid #0b1e3a;
   outline-offset: 2px;
@@ -302,6 +312,7 @@ CSS;
   root.id = "avonix-lang-root";
   root.setAttribute("translate", "no");
   root.className = "notranslate";
+  root.style.setProperty("--avonix-lang-size", outer + "px");
 
   var xPct = Math.max(0, Math.min(100, Number(placement.xPercent) || 90));
   var yPct = Math.max(0, Math.min(100, Number(placement.yPercent) || 8));
@@ -310,13 +321,13 @@ CSS;
 
   var align = xPct < 50 ? "start" : "end";
   var stack = document.createElement("div");
-  stack.className = "avonix-lang-stack is-" + align;
+  stack.className =
+    "avonix-lang-stack is-" + align + (yPct < 28 ? " is-below" : "");
 
   var panel = document.createElement("div");
   panel.className = "avonix-lang-panel";
   panel.hidden = true;
-  panel.innerHTML =
-    '<div class="avonix-lang-panel-h"><span>Languages</span><span style="font-size:11px;color:#94a3b8;cursor:pointer" data-close>×</span></div>';
+  panel.innerHTML = '<div class="avonix-lang-panel-h">Languages</div>';
   var list = document.createElement("div");
   CFG.locales.forEach(function (loc) {
     var row = document.createElement("button");
@@ -339,8 +350,7 @@ CSS;
   btn.type = "button";
   btn.className = "avonix-lang-btn";
   btn.setAttribute("aria-label", "Languages");
-  btn.style.width = outer + "px";
-  btn.style.height = outer + "px";
+  btn.setAttribute("aria-expanded", "false");
   btn.style.borderRadius = radius + "px";
   btn.innerHTML =
     '<span class="avonix-lang-glyph" style="font-size:' +
@@ -369,29 +379,32 @@ CSS;
   }
 
   function setOpen(v) {
-    open = v;
+    open = !!v;
     panel.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
   btn.addEventListener("click", function (e) {
     e.preventDefault();
+    e.stopPropagation();
     setOpen(!open);
   });
   panel.addEventListener("click", function (e) {
+    e.stopPropagation();
     var t = e.target;
-    if (t && t.getAttribute && t.getAttribute("data-close") !== null) {
-      setOpen(false);
-      return;
-    }
     var row = t && t.closest ? t.closest("[data-code]") : null;
     if (!row) return;
     selectLang(row.getAttribute("data-code"));
   });
-  document.addEventListener("click", function (e) {
-    if (!open) return;
-    if (root.contains(e.target)) return;
-    setOpen(false);
-  });
+  document.addEventListener(
+    "pointerdown",
+    function (e) {
+      if (!open) return;
+      if (root.contains(e.target)) return;
+      setOpen(false);
+    },
+    true
+  );
 
   var translateReady = false;
   var pendingCode = null;

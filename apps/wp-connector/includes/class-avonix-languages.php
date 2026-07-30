@@ -129,13 +129,6 @@ class Avonix_Languages
   bottom: auto;
   top: calc(100% + 8px);
 }
-#avonix-lang-root .avonix-lang-panel-h {
-  padding: 10px 12px;
-  border-bottom: 1px solid #eef2f7;
-  font-size: 12px;
-  font-weight: 700;
-  color: #0b1e3a;
-}
 #avonix-lang-root .avonix-lang-row {
   display: flex;
   width: 100%;
@@ -288,23 +281,30 @@ CSS;
     });
   }
 
-  var current =
-    readChoice() ||
-    CFG.defaultLocale ||
-    (CFG.locales[0] && CFG.locales[0].code) ||
-    "en";
+  function readGoogTransTo() {
+    var m = document.cookie.match(/(?:^|; )googtrans=\/[^/;]+\/([^;]+)/);
+    return m ? decodeURIComponent(m[1]).toLowerCase() : "";
+  }
 
-  if (
-    !readChoice() &&
-    CFG.detection &&
-    CFG.detection.browser &&
-    navigator.language
-  ) {
-    var nav = String(navigator.language).toLowerCase().slice(0, 2);
-    var match = CFG.locales.find(function (l) {
-      return l.code === nav;
+  function ourCodeFromGoogle(g) {
+    g = String(g || "").toLowerCase();
+    if (g === "zh-cn") return "zh";
+    if (g === "iw") return "he";
+    var short = g.split("-")[0];
+    var hit = CFG.locales.find(function (l) {
+      return googleCode(l.code).toLowerCase() === g || l.code === short;
     });
-    if (match) current = match.code;
+    return hit ? hit.code : "";
+  }
+
+  // Default page language until the visitor clicks a locale.
+  // Do not browser-detect or force-translate on load.
+  var current = CFG.defaultLocale || (CFG.locales[0] && CFG.locales[0].code) || "en";
+  var activeGoogle = ourCodeFromGoogle(readGoogTransTo());
+  if (activeGoogle) {
+    current = activeGoogle;
+  } else {
+    clearGoogTrans();
   }
 
   var open = false;
@@ -327,7 +327,6 @@ CSS;
   var panel = document.createElement("div");
   panel.className = "avonix-lang-panel";
   panel.hidden = true;
-  panel.innerHTML = '<div class="avonix-lang-panel-h">Languages</div>';
   var list = document.createElement("div");
   CFG.locales.forEach(function (loc) {
     var row = document.createElement("button");
@@ -499,20 +498,8 @@ CSS;
     location.reload();
   }
 
-  // Restore translation on load when remembered / non-default
-  if (CFG.engine && CFG.engine !== "none" && current !== (CFG.defaultLocale || "en")) {
-    var from0 = googleCode(CFG.defaultLocale || "en");
-    var to0 = googleCode(current);
-    if (document.cookie.indexOf("googtrans=") === -1) {
-      setGoogTrans(from0, to0);
-    }
-    loadGoogle(function () {});
-  } else if (CFG.engine && CFG.engine !== "none") {
-    // Preload quietly for faster first switch
-    setTimeout(function () {
-      loadGoogle(function () {});
-    }, 1200);
-  }
+  // No auto-translate on load. Translation only after a locale click
+  // (click sets googtrans cookie, then reload applies it).
 })();
 JS;
     }

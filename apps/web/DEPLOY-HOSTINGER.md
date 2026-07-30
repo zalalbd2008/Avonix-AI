@@ -184,13 +184,28 @@ On Vercel, `apps/web/vercel.json` already schedules `*/5 * * * *` — set the sa
 | `node_modules/` | Run `npm ci` on the server |
 | `.next/` | Run `npm run build` on the server |
 
-## Updates later
+## Updates later (copy-paste every deploy)
+
+Production app: **PM2 `avonix-web` on port `3002`** · code: `/root/Avonix-AI` · proxy: Apache → `127.0.0.1:3002`.
 
 ```bash
-cd ~/Avonix-AI
+# 1) App (avonixai.com)
+cd /root/Avonix-AI
 git pull
 cd apps/web
-npm ci
 SKIP_TYPECHECK=1 npm run build
-pm2 restart avonix
+pm2 delete avonix-web
+pm2 start npm --name avonix-web --cwd /root/Avonix-AI/apps/web -- start -- -p 3002
+pm2 save
+curl -sI http://127.0.0.1:3002 | head -3
 ```
+
+```bash
+# 2) WP connector zip (only when plugin version changed)
+cd /root/Avonix-AI
+zip -r /tmp/avonix-connector.zip apps/wp-connector -x '*.DS_Store'
+# Download /tmp/avonix-connector.zip → WP Admin → Plugins → upload/replace
+# Or: Avonix → connector download (after app deploy)
+```
+
+Check: `pm2 list` · `ss -tlnp | grep 3002` · `https://avonixai.com`

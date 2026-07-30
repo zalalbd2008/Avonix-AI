@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Avonix AI Connector
  * Description:       Sends this site's form submissions and chat leads to Avonix AI.
- * Version:           1.3.10
+ * Version:           1.3.11
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AVONIX_VERSION', '1.3.10');
+define('AVONIX_VERSION', '1.3.11');
 define('AVONIX_PLUGIN_FILE', __FILE__);
 define('AVONIX_OPT_KEY', 'avonix_connector_key');
 define('AVONIX_OPT_ENDPOINT', 'avonix_endpoint');
@@ -37,6 +37,7 @@ require_once __DIR__ . '/includes/class-avonix-chat.php';
 require_once __DIR__ . '/includes/class-avonix-tracking.php';
 require_once __DIR__ . '/includes/class-avonix-cta.php';
 require_once __DIR__ . '/includes/class-avonix-popup.php';
+require_once __DIR__ . '/includes/class-avonix-languages.php';
 require_once __DIR__ . '/includes/class-avonix-backup.php';
 
 /**
@@ -78,6 +79,7 @@ add_action('plugins_loaded', function () {
     new Avonix_Tracking();
     new Avonix_Cta();
     new Avonix_Popup();
+    new Avonix_Languages();
     new Avonix_Backup();
 });
 

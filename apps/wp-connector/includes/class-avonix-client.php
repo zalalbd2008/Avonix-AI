@@ -295,6 +295,30 @@ class Avonix_Client
         return is_array($data) ? $data : null;
     }
 
+    /**
+     * GET languages / translator switcher config for this site.
+     */
+    public function get_languages_config()
+    {
+        if (!$this->is_configured()) {
+            return null;
+        }
+
+        $response = $this->get('/api/v1/connector/languages', 8);
+
+        if (is_wp_error($response)) {
+            return null;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            return null;
+        }
+
+        $data = json_decode(wp_remote_retrieve_body($response), true);
+        return is_array($data) ? $data : null;
+    }
+
     private function get($path, $timeout = 10)
     {
         return $this->request('GET', $path, null, $timeout);

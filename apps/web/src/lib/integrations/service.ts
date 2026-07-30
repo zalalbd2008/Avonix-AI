@@ -8,6 +8,7 @@ import {
   ENTERPRISE_INTEGRATIONS,
   OPTIONAL_INTEGRATIONS,
   connectionFor,
+  isTelegramPhoneConnected,
   mergeIntegrationsSettings,
   type CoreModuleStatus,
   type IntegrationsSnapshot,
@@ -154,7 +155,12 @@ export function loadIntegrationsSnapshot(input: {
       (meta.id === "google_drive" && isDriveConnected(driveOAuth)) ||
       (meta.id === "dropbox" && isCloudConnected(dropboxOAuth)) ||
       (meta.id === "onedrive" && isCloudConnected(oneDriveOAuth));
-    const connected = conn.connected || !!auto || oauthConnected;
+    const telegramOk =
+      meta.id === "telegram" && isTelegramPhoneConnected(conn);
+    const connected =
+      (meta.id === "telegram"
+        ? telegramOk
+        : conn.connected || !!auto || oauthConnected);
     const labelText =
       (meta.id === "google_drive" && isDriveConnected(driveOAuth)
         ? `Drive (${driveOAuth.email || "connected"})`
@@ -162,7 +168,9 @@ export function loadIntegrationsSnapshot(input: {
           ? `Dropbox (${dropboxOAuth.email || dropboxOAuth.accountName || "connected"})`
           : meta.id === "onedrive" && isCloudConnected(oneDriveOAuth)
             ? `OneDrive (${oneDriveOAuth.email || oneDriveOAuth.accountName || "connected"})`
-            : conn.label.trim()) ||
+            : meta.id === "telegram" && telegramOk
+              ? `Telegram (${conn.meta?.phone || "connected"})`
+              : conn.label.trim()) ||
       auto?.label.trim() ||
       (connected ? "Connected" : "");
 

@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import {
   actionConnectIntegration,
+  actionConnectTelegramPhone,
   actionDisconnectIntegration,
   actionSaveIntegrations,
 } from "@/lib/integrations/actions";
 import {
   connectionFor,
   integrationsConfigScore,
+  isTelegramPhoneConnected,
   mergeIntegrationsSettings,
   optionalMeta,
   type IntegrationsSettings,
@@ -34,6 +37,7 @@ export function IntegrationsStudio({
   snapshot: IntegrationsSnapshot;
   initial?: Partial<IntegrationsSettings> | null;
 }) {
+  const router = useRouter();
   const [settings, setSettings] = useState(() =>
     mergeIntegrationsSettings(initial),
   );
@@ -41,6 +45,22 @@ export function IntegrationsStudio({
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [telegramPhone, setTelegramPhone] = useState("");
+  const [telegramLink, setTelegramLink] = useState<string | null>(null);
+
+  // Keep settings in sync after Telegram webhook confirms.
+  useEffect(() => {
+    if (!initial) return;
+    setSettings(mergeIntegrationsSettings(initial));
+  }, [initial]);
+
+  const tg = connectionFor(settings, "telegram");
+  const waitingTg = tg.meta?.pending === "1" && !isTelegramPhoneConnected(tg);
+  useEffect(() => {
+    if (!waitingTg) return;
+    const id = window.setInterval(() => router.refresh(), 3000);
+    return () => window.clearInterval(id);
+  }, [waitingTg, router]);
 
   const base = `/clients/${clientId}/websites/${websiteId}`;
   const score = useMemo(() => integrationsConfigScore(settings), [settings]);
@@ -87,6 +107,42 @@ export function IntegrationsStudio({
 
   function connect(id: OptionalIntegrationId) {
     startTransition(async () => {
+      if (id === "telegram") {
+        const conn = connectionFor(settings, "telegram");
+        const res = await actionConnectTelegramPhone({
+          websiteId,
+          clientId,
+          phone: telegramPhone || conn.meta?.phone || "",
+          label: conn.label,
+        });
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
+        setTelegramLink(res.deepLink);
+        setSettings((s) =>
+          mergeIntegrationsSettings({
+            connections: s.connections.map((c) =>
+              c.id === "telegram"
+                ? {
+                    ...c,
+                    connected: false,
+                    label: c.label || telegramPhone,
+                    meta: {
+                      ...(c.meta ?? {}),
+                      phone: telegramPhone.trim(),
+                      pending: "1",
+                      chatId: "",
+                    },
+                  }
+                : c,
+            ),
+          }),
+        );
+        window.open(res.deepLink, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       const conn = connectionFor(settings, id);
       const res = await actionConnectIntegration({
         websiteId,
@@ -252,7 +308,7 @@ export function IntegrationsStudio({
         <LevelCard
           level={2}
           title="Optional Integrations"
-          subtitle="Enable with your own API key or webhook"
+          subtitle="Enable with phone, OAuth, or webhook — no bot tokens for Telegram"
           tone="brand"
         >
           <div className="grid gap-2 sm:grid-cols-2">
@@ -326,6 +382,86 @@ export function IntegrationsStudio({
                               ? "Manage on Backups"
                               : "Connect on Backups →"}
                           </Link>
+                        </>
+                      ) : meta.usesPhone ? (
+                        <>
+                          <p className="text-[12px] text-muted">
+                            Enter your phone number, then tap Connect — Telegram
+                            opens once to confirm. No bot token needed.
+                          </p>
+                          <Field label="Phone number">
+                            <input
+                              className={input}
+                              type="tel"
+                              inputMode="tel"
+                              placeholder="+8801XXXXXXXXX"
+                              value={
+                                telegramPhone ||
+                                conn.meta?.phone ||
+                                ""
+                              }
+                              onChange={(e) => {
+                                setTelegramPhone(e.target.value);
+                                setTelegramLink(null);
+                                patchConnection(card.id, {
+                                  meta: {
+                                    ...(conn.meta ?? {}),
+                                    phone: e.target.value,
+                                  },
+                                });
+                              }}
+                            />
+                          </Field>
+                          {isTelegramPhoneConnected(conn) ? (
+                            <p className="text-[12px] font-semibold text-ok">
+                              Connected · {conn.meta?.phone || conn.label}
+                            </p>
+                          ) : conn.meta?.pending === "1" ? (
+                            <p className="text-[12px] font-medium text-brand">
+                              Waiting — open Telegram and tap Start to finish.
+                            </p>
+                          ) : null}
+                          {telegramLink ? (
+                            <a
+                              href={telegramLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-block text-[12px] font-semibold text-brand hover:underline"
+                            >
+                              Open Telegram again →
+                            </a>
+                          ) : null}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {isTelegramPhoneConnected(conn) ? (
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() => disconnect(card.id)}
+                                className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-semibold text-muted hover:text-ink disabled:opacity-60"
+                              >
+                                Disconnect
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() => connect(card.id)}
+                                className="rounded-lg bg-brand px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+                              >
+                                {pending ? "Opening…" : "Connect with phone"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditing(null);
+                                setTelegramLink(null);
+                              }}
+                              className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-semibold text-muted hover:text-ink"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </>
                       ) : (
                         <>

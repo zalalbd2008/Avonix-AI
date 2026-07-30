@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
 import { websites, type WebsiteSettings } from "@/lib/db/schema";
+import { mergeAutomationSettings } from "@/lib/automation/types";
 import {
   canConnectConnection,
   mergeIntegrationsSettings,
@@ -12,6 +13,12 @@ import {
   type IntegrationsSettings,
   type OptionalIntegrationId,
 } from "./types";
+import {
+  ensureTelegramWebhook,
+  isTelegramBotEnabled,
+  normalizeTelegramPhone,
+  telegramDeepLink,
+} from "@/lib/telegram/platform-bot";
 
 function canEditWebsites(permissions: string[] | "*") {
   if (permissions === "*") return true;
@@ -125,9 +132,133 @@ export async function actionDisconnectIntegration(input: {
     ),
   });
 
+  // Also clear automation Telegram link when disconnecting.
+  if (input.id === "telegram") {
+    const ctx = await requireAgency();
+    if (!canEditWebsites(ctx.permissions)) {
+      return { ok: false, error: "No permission." };
+    }
+    await withAgency(ctx.agencyId, async (tx) => {
+      const [row] = await tx
+        .select({ settings: websites.settings })
+        .from(websites)
+        .where(eq(websites.id, input.websiteId))
+        .limit(1);
+      if (!row) return;
+      const automation = mergeAutomationSettings(row.settings?.automation);
+      const socialAccounts = automation.socialAccounts.map((a) =>
+        a.provider === "telegram"
+          ? {
+              ...a,
+              connected: false,
+              accountId: "",
+              accessToken: "",
+              connectedAt: "",
+            }
+          : a,
+      );
+      const nextSettings: WebsiteSettings = {
+        ...(row.settings ?? {}),
+        integrations: next,
+        automation: { ...automation, socialAccounts },
+      };
+      await tx
+        .update(websites)
+        .set({ settings: nextSettings, updatedAt: new Date() })
+        .where(eq(websites.id, input.websiteId));
+    });
+    const path = `/clients/${input.clientId}/websites/${input.websiteId}`;
+    revalidatePath(path);
+    revalidatePath(`${path}/integrations`);
+    revalidatePath(`${path}/automation`);
+    return { ok: true };
+  }
+
   return actionSaveIntegrations({
     websiteId: input.websiteId,
     clientId: input.clientId,
     settings: next,
   });
+}
+
+/**
+ * Connect Telegram with phone only — platform bot, no user bot token.
+ * Returns a deep link; user taps Start in Telegram to finish.
+ */
+export async function actionConnectTelegramPhone(input: {
+  websiteId: string;
+  clientId: string;
+  phone: string;
+  label?: string;
+}): Promise<
+  | { ok: true; deepLink: string; pending: true }
+  | { ok: false; error: string }
+> {
+  const ctx = await requireAgency();
+  if (!canEditWebsites(ctx.permissions)) {
+    return { ok: false, error: "No permission." };
+  }
+
+  if (!isTelegramBotEnabled()) {
+    return {
+      ok: false,
+      error:
+        "Telegram is not enabled on this platform. Ask your admin to set TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME.",
+    };
+  }
+
+  const phone = normalizeTelegramPhone(input.phone);
+  if (!phone) {
+    return {
+      ok: false,
+      error: "Enter a valid phone number with country code (e.g. +8801XXXXXXXXX).",
+    };
+  }
+
+  await ensureTelegramWebhook();
+
+  const deepLink = telegramDeepLink(input.websiteId);
+
+  await withAgency(ctx.agencyId, async (tx) => {
+    const [row] = await tx
+      .select({ settings: websites.settings })
+      .from(websites)
+      .where(eq(websites.id, input.websiteId))
+      .limit(1);
+    if (!row) return;
+
+    const integrations = mergeIntegrationsSettings(row.settings?.integrations);
+    const updatedConnections = integrations.connections.map((c) =>
+      c.id === "telegram"
+        ? {
+            ...c,
+            connected: false,
+            apiKey: "",
+            label: input.label?.trim() || phone,
+            connectedAt: "",
+            meta: {
+              phone,
+              chatId: "",
+              pending: "1",
+            },
+          }
+        : c,
+    );
+
+    const next: WebsiteSettings = {
+      ...(row.settings ?? {}),
+      integrations: { connections: updatedConnections },
+    };
+
+    await tx
+      .update(websites)
+      .set({ settings: next, updatedAt: new Date() })
+      .where(eq(websites.id, input.websiteId));
+  });
+
+  const base = `/clients/${input.clientId}/websites/${input.websiteId}`;
+  revalidatePath(base);
+  revalidatePath(`${base}/integrations`);
+
+  return { ok: true, deepLink, pending: true };
 }

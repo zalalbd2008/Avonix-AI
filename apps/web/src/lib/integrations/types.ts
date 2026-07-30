@@ -83,6 +83,8 @@ export const OPTIONAL_INTEGRATIONS: {
   usesWebhook: boolean;
   usesApiKey: boolean;
   usesOAuth?: boolean;
+  /** Phone-number connect (platform Telegram bot). */
+  usesPhone?: boolean;
   webhookLabel?: string;
   apiKeyLabel?: string;
   automationProvider?: SocialProvider;
@@ -90,10 +92,10 @@ export const OPTIONAL_INTEGRATIONS: {
   {
     id: "telegram",
     label: "Telegram",
-    hint: "Bot alerts to a channel or group",
+    hint: "Connect with your phone number — no bot token",
     usesWebhook: false,
-    usesApiKey: true,
-    apiKeyLabel: "Bot token",
+    usesApiKey: false,
+    usesPhone: true,
     automationProvider: "telegram",
   },
   {
@@ -253,8 +255,17 @@ export function canConnectConnection(
   conn: IntegrationConnection,
 ): boolean {
   if (meta.usesOAuth) return conn.connected;
+  if (meta.usesPhone) {
+    return Boolean((conn.meta?.phone ?? "").trim());
+  }
   if (meta.usesWebhook && !conn.webhookUrl.trim()) return false;
   if (meta.usesApiKey && !conn.apiKey.trim()) return false;
-  if (!meta.usesWebhook && !meta.usesApiKey && !meta.usesOAuth) return false;
+  if (!meta.usesWebhook && !meta.usesApiKey && !meta.usesOAuth && !meta.usesPhone) {
+    return false;
+  }
   return true;
+}
+
+export function isTelegramPhoneConnected(conn: IntegrationConnection): boolean {
+  return Boolean(conn.connected && (conn.meta?.chatId ?? "").trim());
 }

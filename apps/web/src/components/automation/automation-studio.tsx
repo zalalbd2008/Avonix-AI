@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { actionSaveAutomation } from "@/lib/automation/actions";
+import { actionConnectTelegramPhone } from "@/lib/integrations/actions";
 import {
   AUTOMATION_ACTIONS,
   AUTOMATION_TRIGGERS,
@@ -86,6 +87,27 @@ export function AutomationStudio({
   }
 
   function connectSocial(provider: SocialProvider) {
+    if (provider === "telegram") {
+      startTransition(async () => {
+        const account =
+          settings.socialAccounts.find((a) => a.provider === "telegram") ??
+          emptySocialAccount("telegram");
+        const res = await actionConnectTelegramPhone({
+          websiteId,
+          clientId,
+          phone: account.accountId,
+          label: account.label,
+        });
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
+        window.open(res.deepLink, "_blank", "noopener,noreferrer");
+        setError(null);
+        setEditingSocial(null);
+      });
+      return;
+    }
     const account =
       settings.socialAccounts.find((a) => a.provider === provider) ??
       emptySocialAccount(provider);
@@ -456,21 +478,28 @@ export function AutomationStudio({
                             }
                           />
                         </Field>
-                        <Field label={meta.tokenLabel} color="rose">
-                          <input
-                            className={input}
-                            type="password"
-                            autoComplete="off"
-                            value={account.accessToken}
-                            placeholder="Paste token"
-                            onChange={(e) =>
-                              patchSocial(meta.id, {
-                                accessToken: e.target.value,
-                                connected: false,
-                              })
-                            }
-                          />
-                        </Field>
+                        {meta.id !== "telegram" ? (
+                          <Field label={meta.tokenLabel} color="rose">
+                            <input
+                              className={input}
+                              type="password"
+                              autoComplete="off"
+                              value={account.accessToken}
+                              placeholder="Paste token"
+                              onChange={(e) =>
+                                patchSocial(meta.id, {
+                                  accessToken: e.target.value,
+                                  connected: false,
+                                })
+                              }
+                            />
+                          </Field>
+                        ) : (
+                          <p className="text-[11.5px] text-muted">
+                            Enter phone, then Connect — Telegram opens once to
+                            confirm. Platform bot handles the rest.
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-2 pt-1">
                           {account.connected ? (
                             <button

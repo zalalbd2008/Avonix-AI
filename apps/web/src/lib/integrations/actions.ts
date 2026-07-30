@@ -217,7 +217,7 @@ export async function actionConnectTelegramPhone(input: {
 
   await ensureTelegramWebhook();
 
-  const deepLink = telegramDeepLink(input.websiteId);
+  const deepLink = telegramDeepLink(input.websiteId, ctx.agencyId);
 
   await withAgency(ctx.agencyId, async (tx) => {
     const [row] = await tx

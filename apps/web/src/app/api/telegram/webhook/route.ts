@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { withAgency } from "@/lib/db";
 import { adminDb } from "@/lib/db/admin";
 import { websites, type WebsiteSettings } from "@/lib/db/schema";
 import { mergeAutomationSettings } from "@/lib/automation/types";
@@ -17,6 +18,13 @@ type TgUpdate = {
     from?: { id?: number; first_name?: string; username?: string };
     contact?: { phone_number?: string; user_id?: number };
   };
+};
+
+type WebsiteRow = {
+  id: string;
+  agencyId: string;
+  clientId: string;
+  settings: WebsiteSettings | null;
 };
 
 /**
@@ -60,16 +68,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const [row] = await adminDb
-    .select({
-      id: websites.id,
-      agencyId: websites.agencyId,
-      clientId: websites.clientId,
-      settings: websites.settings,
-    })
-    .from(websites)
-    .where(eq(websites.id, parsed.websiteId))
-    .limit(1);
+  let row: WebsiteRow | null = null;
+
+  if (parsed.agencyId) {
+    // Preferred: tenant context so RLS sees the website (DATABASE_URL / avonix_app).
+    row = await withAgency(parsed.agencyId, async (tx) => {
+      const [found] = await tx
+        .select({
+          id: websites.id,
+          agencyId: websites.agencyId,
+          clientId: websites.clientId,
+          settings: websites.settings,
+        })
+        .from(websites)
+        .where(eq(websites.id, parsed.websiteId))
+        .limit(1);
+      return found ?? null;
+    });
+  } else {
+    // Legacy deep links: needs ADMIN_DATABASE_URL (bypasses RLS).
+    const [found] = await adminDb
+      .select({
+        id: websites.id,
+        agencyId: websites.agencyId,
+        clientId: websites.clientId,
+        settings: websites.settings,
+      })
+      .from(websites)
+      .where(eq(websites.id, parsed.websiteId))
+      .limit(1);
+    row = found ?? null;
+  }
 
   if (!row) {
     await sendTelegramMessage({
@@ -79,6 +108,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  const agencyId = row.agencyId;
   const integrations = mergeIntegrationsSettings(row.settings?.integrations);
   const phone =
     integrations.connections.find((c) => c.id === "telegram")?.meta?.phone ??
@@ -124,10 +154,12 @@ export async function POST(req: Request) {
     automation: { ...automation, socialAccounts },
   };
 
-  await adminDb
-    .update(websites)
-    .set({ settings: next, updatedAt: new Date() })
-    .where(eq(websites.id, row.id));
+  await withAgency(agencyId, async (tx) => {
+    await tx
+      .update(websites)
+      .set({ settings: next, updatedAt: new Date() })
+      .where(eq(websites.id, row!.id));
+  });
 
   await sendTelegramMessage({
     chatId,

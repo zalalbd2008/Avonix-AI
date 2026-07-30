@@ -58,25 +58,82 @@ export function normalizeTelegramPhone(raw: string): string | null {
   return null;
 }
 
-export function makeTelegramStartPayload(websiteId: string): string {
-  const id = websiteId.replace(/-/g, "").toLowerCase();
-  if (!/^[0-9a-f]{32}$/.test(id)) {
-    throw new Error("Invalid website id for Telegram link.");
+function uuidToBuf(id: string): Buffer {
+  const hex = id.replace(/-/g, "").toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(hex)) {
+    throw new Error("Invalid uuid for Telegram link.");
   }
+  return Buffer.from(hex, "hex");
+}
+
+function bufToUuid(buf: Buffer): string {
+  const hex = buf.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
+}
+
+/**
+ * Deep-link payload (Telegram start param ≤64 chars, [A-Za-z0-9_-] only).
+ * Encodes websiteId + agencyId so the webhook can set RLS tenant context.
+ * Format: base64url(16B website + 16B agency) + 8-char base64url HMAC ≈ 51 chars.
+ */
+export function makeTelegramStartPayload(
+  websiteId: string,
+  agencyId: string,
+): string {
+  const body = Buffer.concat([
+    uuidToBuf(websiteId),
+    uuidToBuf(agencyId),
+  ]).toString("base64url");
   const sig = createHmac("sha256", stateSecret())
-    .update(`tg:${id}`)
-    .digest("hex")
+    .update(`tg2:${body}`)
+    .digest("base64url")
     .slice(0, 8);
-  return `${id}${sig}`;
+  return `${body}${sig}`;
 }
 
 export function parseTelegramStartPayload(
   raw: string,
-): { websiteId: string } | null {
-  const token = raw.trim().toLowerCase();
-  if (!/^[0-9a-f]{40}$/.test(token)) return null;
-  const id = token.slice(0, 32);
-  const sig = token.slice(32);
+): { websiteId: string; agencyId: string } | null {
+  const token = raw.trim();
+
+  // New format: base64url body (43) + sig (8)
+  if (/^[A-Za-z0-9_-]{48,56}$/.test(token) && token.length >= 48) {
+    const body = token.slice(0, -8);
+    const sig = token.slice(-8);
+    const expected = createHmac("sha256", stateSecret())
+      .update(`tg2:${body}`)
+      .digest("base64url")
+      .slice(0, 8);
+    try {
+      const a = Buffer.from(sig);
+      const b = Buffer.from(expected);
+      if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    } catch {
+      return null;
+    }
+    try {
+      const buf = Buffer.from(body, "base64url");
+      if (buf.length !== 32) return null;
+      return {
+        websiteId: bufToUuid(buf.subarray(0, 16)),
+        agencyId: bufToUuid(buf.subarray(16, 32)),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // Legacy: website hex (32) + sig hex (8) — no agency; caller must use adminDb
+  const legacy = token.toLowerCase();
+  if (!/^[0-9a-f]{40}$/.test(legacy)) return null;
+  const id = legacy.slice(0, 32);
+  const sig = legacy.slice(32);
   const expected = createHmac("sha256", stateSecret())
     .update(`tg:${id}`)
     .digest("hex")
@@ -88,19 +145,16 @@ export function parseTelegramStartPayload(
   } catch {
     return null;
   }
-  const websiteId = [
-    id.slice(0, 8),
-    id.slice(8, 12),
-    id.slice(12, 16),
-    id.slice(16, 20),
-    id.slice(20),
-  ].join("-");
-  return { websiteId };
+  const websiteId = bufToUuid(Buffer.from(id, "hex"));
+  return { websiteId, agencyId: "" };
 }
 
-export function telegramDeepLink(websiteId: string): string {
+export function telegramDeepLink(
+  websiteId: string,
+  agencyId: string,
+): string {
   const { username } = getTelegramBotConfig();
-  const payload = makeTelegramStartPayload(websiteId);
+  const payload = makeTelegramStartPayload(websiteId, agencyId);
   return `https://t.me/${username}?start=${payload}`;
 }
 

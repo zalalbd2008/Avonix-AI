@@ -12,6 +12,8 @@ export type Organization = {
   role: "owner" | "admin" | "member";
   clients: number;
   websites: number;
+  members: number;
+  connected: number;
 };
 
 /**
@@ -37,26 +39,34 @@ export const listOrganizations = cache(async (userId: string): Promise<Organizat
 
   for (const row of rows) {
     const org = await withAgency(row.agencyId, async (tx) => {
-      const [[agency], [clientCount], [websiteCount]] = await Promise.all([
-        tx
-          .select({
-            name: agencies.name,
-            plan: agencies.plan,
-            status: agencies.status,
-            deletedAt: agencies.deletedAt,
-          })
-          .from(agencies)
-          .where(eq(agencies.id, row.agencyId))
-          .limit(1),
-        tx
-          .select({ n: count() })
-          .from(clients)
-          .where(isNull(clients.deletedAt)),
-        tx
-          .select({ n: count() })
-          .from(websites)
-          .where(isNull(websites.deletedAt)),
-      ]);
+      const [[agency], [clientCount], [websiteCount], [memberCount], [connectedCount]] =
+        await Promise.all([
+          tx
+            .select({
+              name: agencies.name,
+              plan: agencies.plan,
+              status: agencies.status,
+              deletedAt: agencies.deletedAt,
+            })
+            .from(agencies)
+            .where(eq(agencies.id, row.agencyId))
+            .limit(1),
+          tx
+            .select({ n: count() })
+            .from(clients)
+            .where(isNull(clients.deletedAt)),
+          tx
+            .select({ n: count() })
+            .from(websites)
+            .where(isNull(websites.deletedAt)),
+          tx.select({ n: count() }).from(memberships),
+          tx
+            .select({ n: count() })
+            .from(websites)
+            .where(
+              and(isNull(websites.deletedAt), eq(websites.status, "connected")),
+            ),
+        ]);
 
       // A membership can outlive the agency it points at.
       if (!agency || agency.deletedAt) return null;
@@ -69,6 +79,8 @@ export const listOrganizations = cache(async (userId: string): Promise<Organizat
         role: row.role,
         clients: clientCount.n,
         websites: websiteCount.n,
+        members: memberCount.n,
+        connected: connectedCount.n,
       };
     });
 

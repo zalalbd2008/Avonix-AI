@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Field, FormError, SubmitButton } from "@/components/ui/field";
@@ -9,7 +10,6 @@ import {
   inviteMemberAction,
   revokeInviteAction,
   seedTemplateRolesAction,
-  updateRolePermissionsAction,
 } from "@/lib/team/actions";
 
 type MemberRow = {
@@ -69,7 +69,6 @@ export function TeamPanel({
   const [showInvite, setShowInvite] = useState(false);
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
   useEffect(() => {
     function openInvite() {
@@ -412,7 +411,7 @@ export function TeamPanel({
                 type="button"
                 disabled={pending}
                 onClick={() => run(() => seedTemplateRolesAction())}
-                className="rounded-lg border-[1.5px] border-line px-3.5 py-2 text-[13px] font-semibold text-muted hover:border-brand hover:text-brand disabled:opacity-60"
+                className="rounded-lg border-[1.5px] border-[#E1B280] bg-[#E1B280]/20 px-3.5 py-2 text-[13px] font-semibold text-[#7a5430] hover:bg-[#E1B280] hover:text-white disabled:opacity-60"
               >
                 {pending ? "Adding…" : "Add templates"}
               </button>
@@ -420,10 +419,9 @@ export function TeamPanel({
                 type="button"
                 onClick={() => {
                   setShowCreateRole((v) => !v);
-                  setEditingRoleId(null);
                   setSelectedPerms([]);
                 }}
-                className="rounded-lg bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
+                className="rounded-lg bg-[#4E9C86] px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-[#3f8571]"
               >
                 {showCreateRole ? "Close" : "+ New role"}
               </button>
@@ -432,7 +430,7 @@ export function TeamPanel({
         </div>
 
         {canManage && showCreateRole ? (
-          <div className="mb-3.5 overflow-hidden rounded-xl border border-brand bg-white">
+          <div className="mb-3.5 overflow-hidden rounded-xl border border-[#4E9C86] bg-white">
             <div className="border-b border-[#edf0f5] px-4 py-[13px] text-sm font-semibold">
               Create role
             </div>
@@ -490,7 +488,7 @@ export function TeamPanel({
                     type="button"
                     disabled={pending}
                     onClick={() => run(() => seedTemplateRolesAction())}
-                    className="mt-3.5 inline-block rounded-lg bg-brand px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-brand-dark"
+                    className="mt-3.5 inline-block rounded-lg bg-[#4E9C86] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#3f8571]"
                   >
                     Add templates
                   </button>
@@ -501,26 +499,30 @@ export function TeamPanel({
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {roles.map((r) => {
-              const editing = editingRoleId === r.id;
               const assigned = members.filter((m) => m.customRoleId === r.id).length;
               return (
                 <div
                   key={r.id}
-                  className={`flex flex-col rounded-xl border bg-white p-4 ${
-                    editing ? "border-brand" : "border-line"
-                  }`}
+                  className="flex flex-col rounded-xl border border-[#E1B280]/55 bg-[#E9F3B8]/35 p-4 shadow-[0_4px_18px_rgba(78,156,134,.08)] transition hover:shadow-[0_8px_24px_rgba(78,156,134,.14)]"
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2.5">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-[#4E9C86] text-[13px] font-bold text-white">
+                      {r.name.charAt(0).toUpperCase()}
+                    </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[15px] font-bold tracking-[-0.01em]">
+                        <span className="text-[15px] font-bold tracking-[-0.01em] text-ink">
                           {r.name}
                         </span>
                         {r.isSystem ? (
-                          <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">
+                          <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-semibold text-white">
                             template
                           </span>
-                        ) : null}
+                        ) : (
+                          <span className="rounded-full bg-[#99E2A7]/40 px-2 py-0.5 text-[11px] font-semibold text-[#2f6b52]">
+                            custom
+                          </span>
+                        )}
                       </div>
                       <p className="mt-1 min-h-[36px] text-[12.5px] leading-[1.45] text-muted">
                         {r.description || "Custom permission set for this organization."}
@@ -528,84 +530,34 @@ export function TeamPanel({
                     </div>
                   </div>
 
-                  <div className="mt-3 flex gap-3 text-[12px] text-faint">
-                    <span>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-[#99E2A7]/45 px-2.5 py-1 text-[11.5px] font-semibold text-[#2f6b52]">
                       {r.permissions.length} permission
                       {r.permissions.length === 1 ? "" : "s"}
                     </span>
-                    <span>·</span>
-                    <span>
+                    <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11.5px] font-semibold text-[#4E9C86] ring-1 ring-[#4E9C86]/20">
                       {assigned} member{assigned === 1 ? "" : "s"}
                     </span>
                   </div>
 
-                  {editing ? (
-                    <div className="mt-3 rounded-[10px] border border-[#edf0f5] bg-[#fafbfc] px-3 py-3">
-                      <PermissionPicker
-                        groups={permissionGroups}
-                        selected={selectedPerms}
-                        onToggle={togglePerm}
-                      />
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="button"
-                          disabled={pending}
-                          className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-60"
-                          onClick={() =>
-                            run(async () => {
-                              const res = await updateRolePermissionsAction({
-                                roleId: r.id,
-                                permissions: selectedPerms,
-                              });
-                              if (res.ok) setEditingRoleId(null);
-                              return res;
-                            })
-                          }
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg px-3 py-2 text-[13px] font-semibold text-muted hover:text-ink"
-                          onClick={() => setEditingRoleId(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-auto flex gap-2 pt-3.5">
-                      {canManage ? (
-                        <>
-                          <button
-                            type="button"
-                            className="flex-1 rounded-lg border border-line py-2.5 text-center text-[13px] font-semibold text-muted hover:border-brand hover:text-brand"
-                            onClick={() => {
-                              setShowCreateRole(false);
-                              setEditingRoleId(r.id);
-                              setSelectedPerms(r.permissions);
-                            }}
-                          >
-                            Edit permissions
-                          </button>
-                          {!r.isSystem ? (
-                            <button
-                              type="button"
-                              disabled={pending}
-                              className="rounded-lg px-3 py-2.5 text-[13px] font-semibold text-bad hover:underline"
-                              onClick={() => run(() => deleteRoleAction(r.id))}
-                            >
-                              Delete
-                            </button>
-                          ) : null}
-                        </>
-                      ) : (
-                        <div className="w-full rounded-lg bg-[#f1f4f8] py-2.5 text-center text-[13px] font-semibold text-muted">
-                          View only
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-auto flex gap-2 pt-3.5">
+                    <Link
+                      href={`/settings/members/roles/${r.id}` as never}
+                      className="flex-1 rounded-lg border border-[#4E9C86]/40 bg-[#4E9C86]/10 py-2.5 text-center text-[13px] font-semibold text-[#2f6b52] transition hover:border-[#4E9C86] hover:bg-[#4E9C86] hover:text-white"
+                    >
+                      {canManage ? "Edit permissions" : "View details"}
+                    </Link>
+                    {canManage && !r.isSystem ? (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        className="rounded-lg border border-[#fecaca] bg-white px-3 py-2.5 text-[13px] font-semibold text-bad hover:bg-[#fff5f5]"
+                        onClick={() => run(() => deleteRoleAction(r.id))}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
@@ -661,15 +613,15 @@ function PermissionPicker({
                   key={p.key}
                   className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-[12.5px] transition-colors ${
                     on
-                      ? "border-brand/35 bg-brand/5"
-                      : "border-[#edf0f5] bg-white hover:border-[#dbe1ea]"
+                      ? "border-[#4E9C86]/40 bg-[#99E2A7]/25"
+                      : "border-[#edf0f5] bg-white hover:border-[#E1B280]/60"
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={on}
                     onChange={() => onToggle(p.key)}
-                    className="accent-brand"
+                    className="accent-[#4E9C86]"
                   />
                   <span className="font-medium text-ink">{p.label}</span>
                 </label>

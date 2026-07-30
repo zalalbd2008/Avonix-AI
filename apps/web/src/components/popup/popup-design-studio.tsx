@@ -3141,8 +3141,8 @@ export function PopupDesignStudio({
               Full screen
             </button>
           </div>
-          <div className="flex justify-center overflow-x-auto rounded-xl bg-[rgba(15,23,42,0.35)] p-2 sm:p-3">
-            <div className="w-full max-w-[min(100%,550px)] origin-top sm:scale-[0.92]">
+          <div className="flex justify-center overflow-x-visible rounded-xl bg-[rgba(15,23,42,0.35)] p-3 sm:p-4">
+            <div className="w-full min-w-0 max-w-[min(100%,640px)]">
               <PopupLivePreview
                 payload={payload}
                 formOptions={formOptions}
@@ -3168,7 +3168,7 @@ export function PopupDesignStudio({
     </div>
     {previewOpen ? (
       <div
-        className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+        className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto p-4 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-label="Popup preview"
@@ -3179,7 +3179,7 @@ export function PopupDesignStudio({
           aria-label="Close preview"
           onClick={() => setPreviewOpen(false)}
         />
-        <div className="relative z-10 w-full max-w-[550px]">
+        <div className="relative z-10 my-auto w-full max-w-[min(100%,640px)]">
           <PopupLivePreview
             payload={payload}
             formOptions={formOptions}

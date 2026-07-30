@@ -10,12 +10,14 @@ import {
   formTemplateVersions,
   marketplaceInstalls,
   marketplaceListings,
+  marketplacePurchases,
   type FormField,
   type FormSettings,
   type MarketplaceListing,
 } from "@/lib/db/schema";
 import { BUILT_IN_FORM_TEMPLATES } from "@/lib/forms/form-templates";
 import { DEFAULT_SETTINGS } from "@/lib/forms/fields";
+import { normalizeListingPriceCents } from "@/lib/forms/marketplace-pricing";
 
 export type MarketplaceCard = {
   id: string;
@@ -27,6 +29,7 @@ export type MarketplaceCard = {
   isOfficial: boolean;
   isPremium: boolean;
   priceCents: number;
+  currency: string;
   installCount: number;
   fieldCount: number;
   publisherAgencyId: string | null;
@@ -50,6 +53,7 @@ export function listOfficialMarketplaceCards(): MarketplaceCard[] {
     isOfficial: true,
     isPremium: false,
     priceCents: 0,
+    currency: "usd",
     installCount: 0,
     fieldCount: t.fields.length,
     publisherAgencyId: null,
@@ -116,6 +120,7 @@ export async function listMarketplaceCatalog(
       isOfficial: r.isOfficial,
       isPremium: r.isPremium,
       priceCents: r.priceCents,
+      currency: r.currency || "usd",
       installCount: r.installCount,
       fieldCount: r.fields?.length ?? 0,
       publisherAgencyId: r.agencyId,
@@ -151,6 +156,9 @@ export async function publishTemplateToMarketplace(
     category?: string;
     tags?: string[];
     publish?: boolean;
+    /** One-time price in cents. 0 = free. */
+    priceCents?: number;
+    currency?: string;
   },
 ): Promise<{ ok: true; listingId: string } | { ok: false; error: string }> {
   if (role === "member") {
@@ -159,6 +167,9 @@ export async function publishTemplateToMarketplace(
       error: "Only admins can publish to the marketplace.",
     };
   }
+
+  const priceCents = normalizeListingPriceCents(opts.priceCents ?? 0);
+  const currency = (opts.currency ?? "usd").trim().toLowerCase().slice(0, 3) || "usd";
 
   return withAgency(agencyId, async (tx) => {
     const [tpl] = await tx
@@ -187,8 +198,9 @@ export async function publishTemplateToMarketplace(
         status: publish ? "published" : "draft",
         visibility: "public",
         isOfficial: false,
-        isPremium: false,
-        priceCents: 0,
+        isPremium: priceCents > 0,
+        priceCents,
+        currency,
         fields: cloneJson(tpl.fields),
         settings: cloneJson(tpl.settings ?? { steps: [] }),
         submitLabel: tpl.submitLabel,
@@ -243,13 +255,58 @@ export async function setMarketplaceListingStatus(
   });
 }
 
+export async function updateMarketplaceListingPrice(
+  agencyId: string,
+  userId: string,
+  role: "owner" | "admin" | "member",
+  listingId: string,
+  priceCentsRaw: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (role === "member") {
+    return { ok: false, error: "Only admins can change listing price." };
+  }
+  const priceCents = normalizeListingPriceCents(priceCentsRaw);
+  return withAgency(agencyId, async (tx) => {
+    const [row] = await tx
+      .select({ id: marketplaceListings.id })
+      .from(marketplaceListings)
+      .where(
+        and(
+          eq(marketplaceListings.id, listingId),
+          eq(marketplaceListings.agencyId, agencyId),
+          isNull(marketplaceListings.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (!row) return { ok: false as const, error: "Listing not found." };
+
+    await tx
+      .update(marketplaceListings)
+      .set({
+        priceCents,
+        isPremium: priceCents > 0,
+        updatedBy: userId,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(marketplaceListings.id, listingId));
+    return { ok: true as const };
+  });
+}
+
 export async function installMarketplaceListing(
   agencyId: string,
   userId: string,
   listingId: string,
+  opts?: { skipPaymentGate?: boolean },
 ): Promise<
   | { ok: true; templateId: string; name: string }
-  | { ok: false; error: string }
+  | {
+      ok: false;
+      error: string;
+      code?: "needs_purchase";
+      priceCents?: number;
+      currency?: string;
+    }
 > {
   // Official code packs
   if (listingId.startsWith("official:")) {
@@ -290,11 +347,37 @@ export async function installMarketplaceListing(
   ) {
     return { ok: false, error: "Listing is not published." };
   }
-  if (listing.isPremium && listing.priceCents > 0) {
-    return {
-      ok: false,
-      error: "Paid listings are not enabled yet.",
-    };
+
+  const isPublisher = listing.agencyId === agencyId;
+  const needsPay =
+    !opts?.skipPaymentGate &&
+    !isPublisher &&
+    listing.isPremium &&
+    listing.priceCents > 0;
+
+  if (needsPay) {
+    const paid = await withAgency(agencyId, async (tx) => {
+      const [row] = await tx
+        .select({ id: marketplacePurchases.id })
+        .from(marketplacePurchases)
+        .where(
+          and(
+            eq(marketplacePurchases.listingId, listing.id),
+            eq(marketplacePurchases.status, "paid"),
+          ),
+        )
+        .limit(1);
+      return Boolean(row);
+    });
+    if (!paid) {
+      return {
+        ok: false,
+        error: "Purchase required before installing this premium listing.",
+        code: "needs_purchase",
+        priceCents: listing.priceCents,
+        currency: listing.currency,
+      };
+    }
   }
 
   const result = await installSnapshot(agencyId, userId, {

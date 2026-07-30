@@ -76,3 +76,29 @@ export async function resumeOnboardingCheckout(
     cancelUrl: "/onboarding/billing",
   });
 }
+
+/**
+ * Escape hatch: if the user has another paid org, leave the unpaid paywall.
+ */
+export async function switchToPaidOrganization(): Promise<
+  { ok: true; href: string } | { ok: false; error: string }
+> {
+  const ctx = await requireAgencyMembership();
+  const { listOrganizations } = await import("@/lib/agency/organizations");
+  const { writeActiveOrgCookie } = await import("@/lib/auth/active-org");
+  const { agencyHasPaidAccess } = await import("@/lib/billing/access");
+
+  const orgs = await listOrganizations(ctx.userId);
+  for (const org of orgs) {
+    if (org.id === ctx.agencyId) continue;
+    if (await agencyHasPaidAccess(org.id)) {
+      await writeActiveOrgCookie(org.id);
+      return { ok: true, href: "/organizations" };
+    }
+  }
+
+  return {
+    ok: false,
+    error: "No other active organization found. Complete payment to continue.",
+  };
+}

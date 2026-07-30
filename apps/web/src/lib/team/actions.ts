@@ -81,7 +81,10 @@ export async function updateRolePermissionsAction(input: {
     roleId: input.roleId,
     permissions: input.permissions,
   });
-  if (result.ok) revalidatePath("/settings/members");
+  if (result.ok) {
+    revalidatePath("/settings/members");
+    revalidatePath(`/settings/members/roles/${input.roleId}`);
+  }
   return result;
 }
 

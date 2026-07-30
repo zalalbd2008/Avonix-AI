@@ -8,7 +8,10 @@ import { agencies, memberships } from "@/lib/db/schema";
 import type { BillingInterval } from "@/lib/billing/catalog";
 import { startCheckoutForAgency } from "@/lib/billing/actions";
 import { assertNotPlatformOwnerForOrg } from "@/lib/platform/owner";
-import { writeActiveOrgCookie } from "@/lib/auth/active-org";
+import {
+  readActiveOrgCookie,
+  writeActiveOrgCookie,
+} from "@/lib/auth/active-org";
 
 function slugify(name: string) {
   return (
@@ -21,15 +24,15 @@ function slugify(name: string) {
 }
 
 /** Self-serve purchasable plans (Enterprise is sales-assisted). */
-export const SELF_SERVE_PLANS = [
+const SELF_SERVE_PLANS = [
   "starter",
   "professional",
   "agency",
 ] as const;
 
-export type SelfServePlan = (typeof SELF_SERVE_PLANS)[number];
+type SelfServePlan = (typeof SELF_SERVE_PLANS)[number];
 
-export type CreateAgencyResult =
+type CreateAgencyResult =
   | { ok: true; agencyId: string; checkoutUrl: string }
   | { ok: false; error: string };
 
@@ -65,6 +68,18 @@ export async function createAgency(formData: FormData): Promise<CreateAgencyResu
     return { ok: false, error: "Give your organization a name." };
   }
 
+  const website = String(formData.get("website") ?? "").trim();
+  const billingName = String(formData.get("billingName") ?? "").trim();
+  const billingEmail = String(formData.get("billingEmail") ?? "").trim();
+  const contactPhone = String(formData.get("contactPhone") ?? "").trim();
+  const country = String(formData.get("country") ?? "").trim() || "United States";
+  const industry = String(formData.get("industry") ?? "").trim();
+  const teamSize = String(formData.get("teamSize") ?? "").trim();
+
+  if (billingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(billingEmail)) {
+    return { ok: false, error: "Enter a valid billing email." };
+  }
+
   const planRaw = String(formData.get("plan") ?? "").trim();
   if (!SELF_SERVE_PLANS.includes(planRaw as SelfServePlan)) {
     return {
@@ -94,6 +109,33 @@ export async function createAgency(formData: FormData): Promise<CreateAgencyResu
         slug,
         plan,
         status: "active",
+        billingProfile: {
+          companyName: name,
+          billingName,
+          billingEmail,
+          country,
+          state: "",
+          city: "",
+          zip: "",
+          taxId: "",
+          taxExemptNote: "",
+          taxStatus: "Tax-inclusive pricing",
+          invoiceLanguage: "English",
+          invoicePrefix: "INV-",
+          poNumber: "",
+          currencyDisplay: "USD",
+          website,
+          industry,
+          teamSize,
+          contactPhone,
+          notifications: {
+            paymentSucceeded: true,
+            paymentFailed: true,
+            upcomingRenewal: true,
+            invoiceReady: true,
+            planChanged: true,
+          },
+        },
       });
 
       await tx.insert(memberships).values({
@@ -111,7 +153,10 @@ export async function createAgency(formData: FormData): Promise<CreateAgencyResu
     };
   }
 
-  // Preference cookie so checkout / paid gate resolve this tenant.
+  // Prefer this tenant for checkout return — but restore the previous
+  // cookie if Stripe checkout cannot start, otherwise a paid org user is
+  // trapped on the unpaid paywall and it feels like a logout.
+  const previousOrg = await readActiveOrgCookie();
   await writeActiveOrgCookie(agencyId);
 
   const successUrl =
@@ -126,6 +171,9 @@ export async function createAgency(formData: FormData): Promise<CreateAgencyResu
   });
 
   if (!checkout.ok) {
+    if (previousOrg) {
+      await writeActiveOrgCookie(previousOrg);
+    }
     return {
       ok: false,
       error: checkout.error,

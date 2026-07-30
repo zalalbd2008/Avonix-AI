@@ -80,7 +80,7 @@ export default function NewWebsitePage() {
           placeholder="Main site"
         />
         <Field
-          label="Address"
+          label="Web address"
           name="url"
           required
           placeholder="harbourdental.com"

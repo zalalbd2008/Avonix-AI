@@ -11,11 +11,16 @@ export function ConfirmDelete({
   title,
   description,
   confirmLabel = "Delete permanently",
+  triggerLabel = "Delete…",
+  triggerClassName = "rounded-lg border border-[#fecaca] bg-white px-3.5 py-2 text-[13px] font-semibold text-bad hover:bg-[#fef2f2]",
   onConfirm,
 }: {
   title: string;
   description: string;
   confirmLabel?: string;
+  triggerLabel?: string;
+  /** Override the open-button styles (e.g. quiet text link). */
+  triggerClassName?: string;
   onConfirm: () => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [open, setOpen] = useState(false);
@@ -38,9 +43,9 @@ export function ConfirmDelete({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-[#fecaca] bg-white px-3.5 py-2 text-[13px] font-semibold text-bad hover:bg-[#fef2f2]"
+        className={triggerClassName}
       >
-        Delete…
+        {triggerLabel}
       </button>
 
       {open ? (

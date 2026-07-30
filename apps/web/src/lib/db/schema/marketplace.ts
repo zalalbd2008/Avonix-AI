@@ -58,8 +58,9 @@ export const marketplaceListings = pgTable(
       .notNull()
       .default("public"),
     isOfficial: boolean("is_official").notNull().default(false),
+    /** True when priceCents > 0 — buyers must purchase before install. */
     isPremium: boolean("is_premium").notNull().default(false),
-    /** Reserved — Stripe price id when paid marketplace ships. */
+    /** One-time price in minor units (e.g. cents). 0 = free. */
     priceCents: integer("price_cents").notNull().default(0),
     currency: text("currency").notNull().default("usd"),
 
@@ -127,5 +128,54 @@ export const marketplaceInstalls = pgTable(
   ],
 );
 
+/**
+ * Buyer entitlements for paid listings. Money settles on the platform Stripe
+ * account; seller_net is ledgered for future Connect payouts.
+ */
+export type MarketplacePurchaseStatus =
+  | "pending"
+  | "paid"
+  | "refunded"
+  | "failed";
+
+export const marketplacePurchases = pgTable(
+  "marketplace_purchases",
+  {
+    ...primaryId,
+    /** Buyer organization. */
+    agencyId: agencyId(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => marketplaceListings.id, { onDelete: "cascade" }),
+    /** Publisher org at purchase time (may differ from listing.agency_id if transferred). */
+    sellerAgencyId: uuid("seller_agency_id").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default("usd"),
+    platformFeeCents: integer("platform_fee_cents").notNull().default(0),
+    sellerNetCents: integer("seller_net_cents").notNull().default(0),
+    status: text("status")
+      .$type<MarketplacePurchaseStatus>()
+      .notNull()
+      .default("pending"),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    purchasedBy: text("purchased_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("marketplace_purchases_agency_idx").on(t.agencyId),
+    index("marketplace_purchases_listing_idx").on(t.listingId),
+    index("marketplace_purchases_seller_idx").on(t.sellerAgencyId),
+    uniqueIndex("marketplace_purchases_session_uniq").on(
+      t.stripeCheckoutSessionId,
+    ),
+    uniqueIndex("marketplace_purchases_paid_uniq").on(t.agencyId, t.listingId),
+  ],
+);
+
 export type MarketplaceListing = typeof marketplaceListings.$inferSelect;
 export type MarketplaceInstall = typeof marketplaceInstalls.$inferSelect;
+export type MarketplacePurchase = typeof marketplacePurchases.$inferSelect;

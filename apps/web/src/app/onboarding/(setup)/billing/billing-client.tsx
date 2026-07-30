@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   resumeOnboardingCheckout,
   syncOnboardingBilling,
+  switchToPaidOrganization,
 } from "@/lib/billing/onboarding";
 import { CATALOG_PLANS, formatMoney } from "@/lib/billing/catalog";
 
@@ -159,6 +160,25 @@ export default function OnboardingBillingPage() {
         className="h-10 w-full rounded-lg bg-brand text-[13px] font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
       >
         {pending ? "Opening checkout…" : "Continue to payment"}
+      </button>
+
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            setError(null);
+            const result = await switchToPaidOrganization();
+            if (!result.ok) {
+              setError(result.error);
+              return;
+            }
+            window.location.assign(result.href);
+          })
+        }
+        className="mt-3 w-full text-center text-[13px] font-medium text-muted hover:text-ink disabled:opacity-60"
+      >
+        Back to my other organization
       </button>
     </>
   );

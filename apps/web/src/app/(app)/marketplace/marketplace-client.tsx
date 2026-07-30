@@ -1,44 +1,89 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FormIcon, iconForFieldType } from "@/components/forms/icons";
 import type { FormFieldType } from "@/lib/db/schema";
-import { actionInstallMarketplaceListing } from "@/lib/forms/marketplace-actions";
+import {
+  actionConfirmMarketplacePurchase,
+  actionInstallMarketplaceListing,
+  actionPurchaseMarketplaceListing,
+} from "@/lib/forms/marketplace-actions";
+import { formatListingPrice } from "@/lib/forms/marketplace-pricing";
 import type { MarketplaceCard } from "@/lib/forms/marketplace-service";
 
 type Props = {
   cards: MarketplaceCard[];
   installedIds: string[];
+  purchasedIds: string[];
   currentRole: "owner" | "admin" | "member";
+  agencyId: string;
   agencyName: string;
   initialQuery?: string;
+  purchasedFlash?: boolean;
+  canceledFlash?: boolean;
+  sessionId?: string;
 };
 
 /**
- * Platform + community template marketplace (ADR-008).
+ * Platform + community template marketplace (ADR-008) with paid checkout.
  */
 export function MarketplaceClient({
   cards,
   installedIds: initialInstalled,
+  purchasedIds: initialPurchased,
   currentRole,
+  agencyId,
   agencyName,
   initialQuery = "",
+  purchasedFlash = false,
+  canceledFlash = false,
+  sessionId,
 }: Props) {
   const router = useRouter();
   const [q, setQ] = useState(initialQuery);
-  const [tab, setTab] = useState<"all" | "official" | "community">("all");
+  const [tab, setTab] = useState<"all" | "official" | "community" | "premium">(
+    "all",
+  );
   const [preview, setPreview] = useState<MarketplaceCard | null>(null);
   const [installed, setInstalled] = useState(() => new Set(initialInstalled));
-  const [msg, setMsg] = useState<string | null>(null);
+  const [purchased, setPurchased] = useState(() => new Set(initialPurchased));
+  const [msg, setMsg] = useState<string | null>(
+    canceledFlash
+      ? "Checkout canceled — nothing was charged."
+      : purchasedFlash
+        ? "Payment received — unlocking your template…"
+        : null,
+  );
   const [pending, startTransition] = useTransition();
   const canPublish = currentRole === "owner" || currentRole === "admin";
+
+  useEffect(() => {
+    if (!sessionId || !purchasedFlash) return;
+    let cancelled = false;
+    startTransition(async () => {
+      const r = await actionConfirmMarketplacePurchase(sessionId);
+      if (cancelled) return;
+      if (!r.ok) {
+        setMsg(r.error);
+        return;
+      }
+      setMsg("Purchase complete — template installed in your library.");
+      router.replace("/marketplace");
+      router.refresh();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, purchasedFlash, router]);
 
   const filtered = useMemo(() => {
     let list = [...cards];
     if (tab === "official") list = list.filter((c) => c.source === "official");
     if (tab === "community") list = list.filter((c) => c.source === "community");
+    if (tab === "premium")
+      list = list.filter((c) => c.isPremium && c.priceCents > 0);
     const needle = q.trim().toLowerCase();
     if (needle) {
       list = list.filter((c) =>
@@ -51,11 +96,24 @@ export function MarketplaceClient({
     return list;
   }, [cards, tab, q]);
 
+  function canInstallFree(card: MarketplaceCard) {
+    if (card.source === "official") return true;
+    if (!card.isPremium || card.priceCents <= 0) return true;
+    if (card.publisherAgencyId === agencyId) return true;
+    return purchased.has(card.id);
+  }
+
   function install(card: MarketplaceCard) {
     setMsg(null);
     startTransition(async () => {
       const r = await actionInstallMarketplaceListing(card.id);
       if (!r.ok) {
+        if (r.code === "needs_purchase") {
+          setMsg(
+            `Purchase required (${formatListingPrice(r.priceCents ?? card.priceCents, r.currency ?? card.currency)}).`,
+          );
+          return;
+        }
         setMsg(r.error);
         return;
       }
@@ -63,6 +121,18 @@ export function MarketplaceClient({
       setMsg(`Installed “${r.name}” into ${agencyName} library as a draft.`);
       setPreview(null);
       router.refresh();
+    });
+  }
+
+  function buy(card: MarketplaceCard) {
+    setMsg(null);
+    startTransition(async () => {
+      const r = await actionPurchaseMarketplaceListing(card.id);
+      if (!r.ok) {
+        setMsg(r.error);
+        return;
+      }
+      window.location.href = r.url;
     });
   }
 
@@ -74,6 +144,7 @@ export function MarketplaceClient({
             ["all", "All"],
             ["official", "Official"],
             ["community", "Community"],
+            ["premium", "Paid"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -117,14 +188,17 @@ export function MarketplaceClient({
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#dbe1ea] bg-[#f8fafc] px-6 py-12 text-center">
           <p className="text-[13px] text-muted">
-            No listings match. Official Avonix packs always appear under Official.
-            Admins can publish org templates from the library.
+            No listings match. Official Avonix packs are free. Admins can publish
+            free or paid org templates from the library.
           </p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((c) => {
             const already = installed.has(c.id);
+            const owned = purchased.has(c.id);
+            const freePath = canInstallFree(c);
+            const priceLabel = formatListingPrice(c.priceCents, c.currency);
             return (
               <article
                 key={c.id}
@@ -136,9 +210,14 @@ export function MarketplaceClient({
                       <FormIcon name="pack" size="sm" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-[14px] font-semibold text-[#13233c]">
-                        {c.name}
-                      </h3>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="truncate text-[14px] font-semibold text-[#13233c]">
+                          {c.name}
+                        </h3>
+                        <span className="shrink-0 text-[12.5px] font-bold text-brand">
+                          {priceLabel}
+                        </span>
+                      </div>
                       <p className="mt-0.5 line-clamp-2 text-[12px] text-muted">
                         {c.description || "No description"}
                       </p>
@@ -147,7 +226,12 @@ export function MarketplaceClient({
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
                     <Pill>{c.source}</Pill>
                     {c.isOfficial ? <Pill>Avonix</Pill> : null}
-                    {c.isPremium ? <Pill>Premium</Pill> : <Pill>Free</Pill>}
+                    {c.isPremium && c.priceCents > 0 ? (
+                      <Pill>Premium</Pill>
+                    ) : (
+                      <Pill>Free</Pill>
+                    )}
+                    {owned ? <Pill>Owned</Pill> : null}
                     <Pill>
                       {c.fieldCount} fields
                       {c.source === "community"
@@ -167,14 +251,25 @@ export function MarketplaceClient({
                   >
                     Preview
                   </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => install(c)}
-                    className="rounded-md border border-brand bg-brand px-2 py-1 text-[11.5px] font-semibold text-white disabled:opacity-40"
-                  >
-                    {already ? "Install again" : "Install"}
-                  </button>
+                  {freePath ? (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => install(c)}
+                      className="rounded-md border border-brand bg-brand px-2 py-1 text-[11.5px] font-semibold text-white disabled:opacity-40"
+                    >
+                      {already ? "Install again" : "Install"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => buy(c)}
+                      className="rounded-md border border-brand bg-brand px-2 py-1 text-[11.5px] font-semibold text-white disabled:opacity-40"
+                    >
+                      Buy {priceLabel}
+                    </button>
+                  )}
                 </div>
               </article>
             );
@@ -194,6 +289,9 @@ export function MarketplaceClient({
               <h2 className="text-sm font-semibold text-[#13233c]">
                 {preview.name}
               </h2>
+              <span className="text-[13px] font-bold text-brand">
+                {formatListingPrice(preview.priceCents, preview.currency)}
+              </span>
               <button
                 type="button"
                 onClick={() => setPreview(null)}
@@ -223,14 +321,26 @@ export function MarketplaceClient({
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => install(preview)}
-              className="w-full rounded-lg bg-brand py-2.5 text-[13px] font-semibold text-white disabled:opacity-40"
-            >
-              Install into {agencyName}
-            </button>
+            {canInstallFree(preview) ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => install(preview)}
+                className="w-full rounded-lg bg-brand py-2.5 text-[13px] font-semibold text-white disabled:opacity-40"
+              >
+                Install into {agencyName}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => buy(preview)}
+                className="w-full rounded-lg bg-brand py-2.5 text-[13px] font-semibold text-white disabled:opacity-40"
+              >
+                Buy & install —{" "}
+                {formatListingPrice(preview.priceCents, preview.currency)}
+              </button>
+            )}
           </div>
         </div>
       ) : null}

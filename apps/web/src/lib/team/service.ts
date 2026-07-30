@@ -87,6 +87,11 @@ export async function listRoles(agencyId: string) {
   });
 }
 
+export async function getRole(agencyId: string, roleId: string) {
+  const roles = await listRoles(agencyId);
+  return roles.find((r) => r.id === roleId) ?? null;
+}
+
 export async function listPendingInvites(agencyId: string) {
   return withAgency(agencyId, async (tx) => {
     return tx
@@ -357,17 +362,25 @@ export async function createInvitation(opts: {
         ? "Admin"
         : "Member";
 
-  await sendEmail(
-    inviteEmail({
-      to: email,
-      organizationName: opts.agencyName,
-      roleLabel: roleLabel ?? "Member",
-      url,
-      expiresDays: INVITE_TTL_DAYS,
-    }),
-  );
+  let emailSent = true;
+  try {
+    await sendEmail(
+      inviteEmail({
+        to: email,
+        organizationName: opts.agencyName,
+        roleLabel: roleLabel ?? "Member",
+        url,
+        expiresDays: INVITE_TTL_DAYS,
+      }),
+    );
+  } catch (e) {
+    // Invite row already exists — surface the link so the manager can share it
+    // even when outbound mail is misconfigured (invalid RESEND_API_KEY, etc.).
+    console.error("createInvitation email", e);
+    emailSent = false;
+  }
 
-  return { ok: true as const, url };
+  return { ok: true as const, url, emailSent };
 }
 
 export async function revokeInvitation(opts: {

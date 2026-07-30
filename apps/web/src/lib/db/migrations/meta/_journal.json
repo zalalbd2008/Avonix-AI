@@ -218,6 +218,13 @@
       "when": 1784648000000,
       "tag": "0030_crm_website_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1784649000000,
+      "tag": "0031_marketplace_purchases",
+      "breakpoints": true
     }
   ]
 }

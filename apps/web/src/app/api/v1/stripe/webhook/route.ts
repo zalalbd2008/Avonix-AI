@@ -53,6 +53,18 @@ export async function POST(request: Request) {
         const customerId =
           typeof session.customer === "string" ? session.customer : session.customer?.id;
 
+        if (session.metadata?.purpose === "marketplace_listing") {
+          const { fulfillMarketplacePurchase } = await import(
+            "@/lib/forms/marketplace-billing"
+          );
+          const result = await fulfillMarketplacePurchase(session);
+          if (!result.ok) {
+            console.error("stripe webhook: marketplace fulfill failed", result.error);
+          }
+          if (agencyId && customerId) await linkCustomer(agencyId, customerId);
+          break;
+        }
+
         if (!agencyId || !customerId) {
           console.error("stripe webhook: checkout session missing agency or customer");
           break;

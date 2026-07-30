@@ -1,9 +1,9 @@
-import { count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
 import { requireAgency } from "@/lib/auth/session";
 import { listOrganizations } from "@/lib/agency/organizations";
 import { withAgency } from "@/lib/db";
-import { agencies, clients, websites } from "@/lib/db/schema";
+import { agencies, clients, memberships, websites } from "@/lib/db/schema";
 import { OrganizationCard } from "./organization-card";
 import Link from "next/link";
 
@@ -19,26 +19,36 @@ export default async function OrganizationsPage() {
 
   if (ctx.platformAccess) {
     const detail = await withAgency(ctx.agencyId, async (tx) => {
-      const [[agency], [clientCount], [websiteCount]] = await Promise.all([
-        tx
-          .select({
-            plan: agencies.plan,
-            status: agencies.status,
-          })
-          .from(agencies)
-          .where(eq(agencies.id, ctx.agencyId))
-          .limit(1),
-        tx.select({ n: count() }).from(clients).where(isNull(clients.deletedAt)),
-        tx
-          .select({ n: count() })
-          .from(websites)
-          .where(isNull(websites.deletedAt)),
-      ]);
+      const [[agency], [clientCount], [websiteCount], [memberCount], [connectedCount]] =
+        await Promise.all([
+          tx
+            .select({
+              plan: agencies.plan,
+              status: agencies.status,
+            })
+            .from(agencies)
+            .where(eq(agencies.id, ctx.agencyId))
+            .limit(1),
+          tx.select({ n: count() }).from(clients).where(isNull(clients.deletedAt)),
+          tx
+            .select({ n: count() })
+            .from(websites)
+            .where(isNull(websites.deletedAt)),
+          tx.select({ n: count() }).from(memberships),
+          tx
+            .select({ n: count() })
+            .from(websites)
+            .where(
+              and(isNull(websites.deletedAt), eq(websites.status, "connected")),
+            ),
+        ]);
       return {
         plan: agency?.plan ?? "starter",
         status: agency?.status ?? "active",
         clients: clientCount.n,
         websites: websiteCount.n,
+        members: memberCount.n,
+        connected: connectedCount.n,
       };
     });
 
@@ -57,7 +67,7 @@ export default async function OrganizationsPage() {
           }
         />
 
-        <div className="max-w-md">
+        <div className="max-w-[360px]">
           <OrganizationCard
             org={{
               id: ctx.agencyId,
@@ -67,6 +77,8 @@ export default async function OrganizationsPage() {
               role: "owner",
               clients: detail.clients,
               websites: detail.websites,
+              members: detail.members,
+              connected: detail.connected,
             }}
             active
             platformAccess
@@ -99,7 +111,7 @@ export default async function OrganizationsPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="flex flex-wrap gap-3.5">
         {orgs.map((org) => (
           <OrganizationCard
             key={org.id}
@@ -110,7 +122,7 @@ export default async function OrganizationsPage() {
 
         <Link
           href={"/organizations/new" as never}
-          className="grid min-h-[130px] place-items-center rounded-xl border-[1.5px] border-dashed border-[#c3ccd9] text-[13px] font-semibold text-faint hover:border-brand hover:text-brand"
+          className="grid h-[240px] w-[360px] max-w-full place-items-center rounded-xl border-[1.5px] border-dashed border-[#c3ccd9] text-[13px] font-semibold text-faint hover:border-brand hover:text-brand"
         >
           + New organization
         </Link>

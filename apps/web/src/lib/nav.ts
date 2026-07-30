@@ -115,6 +115,7 @@ export const agencyNav: NavSection[] = [
     items: [
       { label: "Dashboard", href: "/dashboard", status: "v1", permission: "dashboard.view", icon: "home" },
       { label: "Launchpad", href: "/launchpad" as Route, status: "v1", permission: "dashboard.view", icon: "rocket" },
+      { label: "Clients", href: "/clients", status: "v1", permission: "clients.view", icon: "users" },
       { label: "Organizations", href: "/organizations", status: "v1", permission: "organizations.view", icon: "building" },
       {
         label: "Plan & Subscription",
@@ -214,32 +215,65 @@ export function flattenNavHrefs(sections: NavSection[]): string[] {
   return out;
 }
 
-/** Client-level sidebar. `clientId` is substituted at render time. */
+/** Client-level sidebar — workspace first, then leads, then capture tools. */
 export function clientNav(clientId: string): NavSection[] {
   const base = `/clients/${clientId}` as Route;
   return [
     {
+      title: "Workspace",
       items: [
         { label: "Overview", href: base, status: "v1", icon: "home" },
-        { label: "Inbox", href: `${base}/inbox` as Route, status: "v1", icon: "chat" },
+        {
+          label: "Websites",
+          href: `${base}/websites` as Route,
+          status: "v1",
+          icon: "globe",
+        },
       ],
     },
     {
-      title: "CRM",
+      title: "Leads",
       items: [
-        { label: "Contacts", href: `${base}/contacts` as Route, status: "v1", icon: "users" },
-        { label: "Pipeline", href: `${base}/pipeline` as Route, status: "v1", icon: "chart" },
+        {
+          label: "Inbox",
+          href: `${base}/inbox` as Route,
+          status: "v1",
+          icon: "chat",
+        },
+        {
+          label: "Contacts",
+          href: `${base}/contacts` as Route,
+          status: "v1",
+          icon: "users",
+        },
+        {
+          label: "Pipeline",
+          href: `${base}/pipeline` as Route,
+          status: "v1",
+          icon: "chart",
+        },
       ],
     },
     {
       title: "Capture",
       items: [
-        { label: "Forms", href: `${base}/forms` as Route, status: "v1", icon: "form" },
-        { label: "Websites", href: `${base}/websites` as Route, status: "v1", icon: "globe" },
+        {
+          label: "Forms",
+          href: `${base}/forms` as Route,
+          status: "v1",
+          icon: "form",
+        },
       ],
     },
     {
-      items: [{ label: "Settings", href: `${base}/settings` as Route, status: "v1", icon: "gear" }],
+      items: [
+        {
+          label: "Settings",
+          href: `${base}/settings` as Route,
+          status: "v1",
+          icon: "gear",
+        },
+      ],
     },
   ];
 }

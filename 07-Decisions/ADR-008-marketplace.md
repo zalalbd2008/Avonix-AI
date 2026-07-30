@@ -11,8 +11,8 @@ cross-tenant reads of CRM data would break isolation. ADR-007 deferred the
 Platform Marketplace until an explicit amendment.
 
 The product still needs Level 3 of the template architecture: Official /
-community templates that any organization can **browse and install**. Payments
-and a true seller community can wait; the tenancy rule cannot.
+community templates that any organization can **browse and install**. Payments and a true seller **Connect** payout rail can wait; buyer Checkout
+and entitlements ship now. The tenancy rule cannot.
 
 ## Decision
 
@@ -30,8 +30,11 @@ and a true seller community can wait; the tenancy rule cannot.
    for usage analytics inside the installing org.
 5. **Official Avonix packs** may ship as code (`BUILT_IN_FORM_TEMPLATES`) and/or
    DB rows with `is_official = true`; they still install by copy.
-6. **Premium / Stripe split / seller payouts** remain out of scope. v1 listings
-   are free.
+6. **Premium listings** use Stripe Checkout (`mode: payment`) with
+   `price_data` from `price_cents`. Buyer entitlement is stored in
+   `marketplace_purchases`. Funds settle on the platform Stripe account;
+   `seller_net_cents` / `platform_fee_cents` are ledgered for future Connect
+   payouts (`MARKETPLACE_PLATFORM_FEE_BPS`, default 20%).
 7. **Install counters** on another org’s listing are updated only via
    `bump_marketplace_install_count()` (SECURITY DEFINER, published rows only) —
    buyers never gain UPDATE on seller rows.
@@ -49,8 +52,8 @@ and a true seller community can wait; the tenancy rule cannot.
 - ADR-006’s blanket “no sharing between organizations” gains one named
   exception: **published marketplace listing snapshots**.
 - ADR-007 Step 7 can ship without inventing a second database role.
-- Future paid marketplace work adds billing metadata on listings; it does not
-  need a second tenancy model.
+- Future seller **Connect payouts** build on `marketplace_purchases` ledger
+  columns; they do not need a second tenancy model.
 
 ## Rejected
 

@@ -163,7 +163,9 @@ export function PopupLivePreview({
     maxWidth:
       mode === "multi_column"
         ? (payload.design.maxWidth ?? 700)
-        : (payload.design.maxWidth ?? 550),
+        : Boolean(payload.content?.formId)
+          ? (payload.design.maxWidth ?? 640)
+          : (payload.design.maxWidth ?? 550),
     maxHeight: "min(85vh, 720px)",
     minHeight: payload.design.minHeight,
     padding:
@@ -182,6 +184,8 @@ export function PopupLivePreview({
     overflow: "hidden",
     position: "relative",
     width: "100%",
+    boxSizing: "border-box",
+    marginInline: "auto",
     border: "1px solid rgba(15,23,42,0.06)",
     display: "flex",
     flexDirection: mode === "media_split" ? "row" : "column",

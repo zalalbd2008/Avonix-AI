@@ -151,6 +151,8 @@ export function TemplateLibraryClient({
   ]);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
+  const [publishId, setPublishId] = useState<string | null>(null);
+  const [publishPrice, setPublishPrice] = useState("0");
   const [addToId, setAddToId] = useState<string | null>(null);
   const [newCollectionName, setNewCollectionName] = useState("");
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
@@ -247,6 +249,7 @@ export function TemplateLibraryClient({
   const historyTpl = templates.find((t) => t.id === historyId) ?? null;
   const shareTpl = templates.find((t) => t.id === shareId) ?? null;
   const reviewTpl = templates.find((t) => t.id === reviewId) ?? null;
+  const publishTpl = templates.find((t) => t.id === publishId) ?? null;
   const siteOptions = websites.filter((w) => w.clientId === clientId);
   const frameMax =
     PREVIEW_BREAKPOINTS.find((b) => b.id === previewBp)?.frameMax ?? "100%";
@@ -592,16 +595,10 @@ export function TemplateLibraryClient({
                     {isAdmin ? (
                       <ActionBtn
                         disabled={pending}
-                        onClick={() =>
-                          run(
-                            () =>
-                              actionPublishTemplateToMarketplace({
-                                templateId: t.id,
-                                publish: true,
-                              }),
-                            "Published to marketplace.",
-                          )
-                        }
+                        onClick={() => {
+                          setPublishId(t.id);
+                          setPublishPrice("0");
+                        }}
                       >
                         Publish
                       </ActionBtn>
@@ -1089,6 +1086,60 @@ export function TemplateLibraryClient({
               Reject
             </button>
           </div>
+        </Modal>
+      ) : null}
+
+      {publishTpl ? (
+        <Modal
+          title={`Publish to Marketplace · ${publishTpl.name}`}
+          onClose={() => {
+            setPublishId(null);
+            setPublishPrice("0");
+          }}
+        >
+          <p className="mb-3 text-[13px] text-muted">
+            Snapshot this template for other organizations. Set a one-time price
+            or leave at 0 for free. Avonix keeps a platform fee (default 20%);
+            seller payouts via Connect come later — net is ledgered per sale.
+          </p>
+          <label className="mb-3 block">
+            <span className="mb-1 block text-[11.5px] font-semibold text-muted">
+              Price (USD)
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={999.99}
+              step={0.01}
+              value={publishPrice}
+              onChange={(e) => setPublishPrice(e.target.value)}
+              className="w-full rounded-lg border border-[#dbe1ea] px-2.5 py-2 text-[13px]"
+              placeholder="0 = free"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              const dollars = Number(publishPrice);
+              run(
+                () =>
+                  actionPublishTemplateToMarketplace({
+                    templateId: publishTpl.id,
+                    publish: true,
+                    priceDollars: Number.isFinite(dollars) ? dollars : 0,
+                  }),
+                Number(publishPrice) > 0
+                  ? `Published as paid ($${Number(publishPrice).toFixed(2)}).`
+                  : "Published to marketplace (free).",
+              );
+              setPublishId(null);
+              setPublishPrice("0");
+            }}
+            className="w-full rounded-lg bg-brand py-2.5 text-[13px] font-semibold text-white disabled:opacity-40"
+          >
+            Publish listing
+          </button>
         </Modal>
       ) : null}
     </div>

@@ -55,6 +55,15 @@ CREATE POLICY marketplace_listings_write ON marketplace_listings
   USING (agency_id = current_agency_id())
   WITH CHECK (agency_id = current_agency_id());
 
+-- Buyer purchases: tenant-scoped (buyer agency_id). Sellers read nets via
+-- app-layer queries under their own agency when we add payouts.
+ALTER TABLE marketplace_purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE marketplace_purchases FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS marketplace_purchases_tenant ON marketplace_purchases;
+CREATE POLICY marketplace_purchases_tenant ON marketplace_purchases
+  USING (agency_id = current_agency_id())
+  WITH CHECK (agency_id = current_agency_id());
+
 -- Narrow privilege: any authenticated tenant may bump install_count on a
 -- published listing after copying it into their own library (ADR-008).
 CREATE OR REPLACE FUNCTION bump_marketplace_install_count(p_listing_id uuid)

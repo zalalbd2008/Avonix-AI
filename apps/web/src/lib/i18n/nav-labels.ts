@@ -4,6 +4,7 @@ import type { MessageKey } from "./messages";
 export const NAV_LABEL_TO_KEY: Record<string, MessageKey> = {
   Dashboard: "nav.dashboard",
   Organizations: "nav.organizations",
+  Clients: "nav.clients",
   "Plan & billing": "nav.planBilling",
   "Plan & Subscription": "nav.planSubscription",
   "Billing & Payments": "nav.billingPayments",
@@ -27,6 +28,9 @@ export const NAV_LABEL_TO_KEY: Record<string, MessageKey> = {
   Operations: "nav.operations",
   Overview: "nav.overview",
   Websites: "nav.websites",
+  Inbox: "nav.inbox",
+  Contacts: "nav.contacts",
+  Pipeline: "nav.pipeline",
   Reports: "nav.reports",
   Settings: "nav.settings",
   Conversations: "nav.conversations",
@@ -56,6 +60,9 @@ export const NAV_LABEL_TO_KEY: Record<string, MessageKey> = {
 export const SECTION_TITLE_TO_KEY: Record<string, MessageKey> = {
   Accounts: "section.accounts",
   "Website Workspace": "section.websiteWorkspace",
+  Workspace: "section.workspace",
+  Leads: "section.leads",
+  Capture: "section.capture",
 };
 
 export function translateNavLabel(

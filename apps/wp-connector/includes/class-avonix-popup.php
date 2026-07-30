@@ -148,29 +148,39 @@ class Avonix_Popup
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  box-sizing: border-box;
+  padding: max(16px, env(safe-area-inset-top, 0px))
+    max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
   background: rgba(15, 23, 42, 0.52);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 .avonix-popup-root--bottom { align-items: flex-end; }
 .avonix-popup-root--top { align-items: flex-start; }
 .avonix-popup-root--left { justify-content: flex-start; }
 .avonix-popup-root--right { justify-content: flex-end; }
 .avonix-popup-shell {
+  box-sizing: border-box;
+  width: 100%;
   max-width: 100%;
   max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px);
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Keep scaled shells visually centered (avoids left clip). */
+  margin: auto;
 }
 .avonix-popup-card {
   position: relative;
   box-sizing: border-box;
-  width: 550px !important;
-  max-width: min(550px, calc(100vw - 32px)) !important;
-  /* No max-height — height fits via scale. max-height+scroll was the scrollbar. */
+  /* Fit the padded root — never use 100vw (scrollbar / mobile URL bar skew). */
+  width: min(550px, 100%) !important;
+  max-width: 100% !important;
   max-height: none !important;
   overflow: hidden !important;
   overflow-x: hidden !important;
@@ -526,14 +536,21 @@ class Avonix_Popup
 .avonix-popup-form .avx-mode-label {
   display: none !important;
 }
-/* Honeypot must never paint inside the card */
+/* Honeypot must never paint or inflate scrollWidth (left:-9999px caused clip/scale bugs) */
 .avonix-popup-form input[name="hp"],
 .avonix-popup-form-wrap input[name="hp"] {
   position: absolute !important;
-  left: -9999px !important;
+  left: 0 !important;
+  top: 0 !important;
   width: 1px !important;
   height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   opacity: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
   pointer-events: none !important;
 }
 /* Form CSS uses display:flex which overrides the HTML hidden attribute */
@@ -551,8 +568,8 @@ class Avonix_Popup
   display: none !important;
 }
 .avonix-popup-card--form-only {
-  width: 550px !important;
-  max-width: min(550px, calc(100vw - 32px)) !important;
+  width: min(640px, 100%) !important;
+  max-width: 100% !important;
   padding: 20px 20px 16px;
 }
 .avonix-popup-card--form-only .avonix-popup-form-wrap {
@@ -578,9 +595,14 @@ class Avonix_Popup
   overflow: visible;
 }
 @media (max-width: 640px) {
-  .avonix-popup-root { padding: 12px; }
-  .avonix-popup-card { width: 100%; border-radius: 16px; padding: 18px 16px 14px; }
-  .avonix-popup-card--form-only { width: 100%; }
+  .avonix-popup-root { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+  .avonix-popup-card,
+  .avonix-popup-card--form-only {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px;
+    padding: 18px 16px 14px;
+  }
   .avonix-popup-card--grid-media.avonix-popup-card--stack-mobile {
     flex-direction: column !important;
   }
@@ -884,9 +906,17 @@ CSS;
       + (gridMode === "media_split" && stackMobile ? " avonix-popup-card--stack-mobile" : "")
       + (gridMode === "banner_split" ? " avonix-popup-card--grid-banner" : "")
       + (gridMode === "header_band" ? " avonix-popup-card--header-band" : "");
-    // Fixed product width — 550px (responsive on small screens).
-    card.style.setProperty("width", "550px", "important");
-    card.style.setProperty("max-width", "min(550px, calc(100vw - 32px))", "important");
+    // Soft max width — always ≤ padded root (never 100vw). Form-heavy cards get more room.
+    var maxCard =
+      Number(design.maxWidth) > 0
+        ? Number(design.maxWidth)
+        : hasFormSurface
+          ? 640
+          : gridMode === "multi_column"
+            ? 700
+            : 550;
+    card.style.setProperty("width", "min(" + maxCard + "px, 100%)", "important");
+    card.style.setProperty("max-width", "100%", "important");
     card.style.setProperty("overflow", "hidden", "important");
     card.style.setProperty("overflow-x", "hidden", "important");
     card.style.setProperty("overflow-y", "hidden", "important");
@@ -935,13 +965,12 @@ CSS;
       var pad = 32;
       var maxH = Math.max(240, (window.innerHeight || 800) - pad);
       var maxW = Math.max(240, (window.innerWidth || 1200) - pad);
-      // Card clips; body scrolls without a visible scrollbar.
       card.style.setProperty("max-height", maxH + "px", "important");
       card.style.setProperty("overflow", "hidden", "important");
       card.style.setProperty("overflow-x", "hidden", "important");
       card.style.setProperty("overflow-y", "hidden", "important");
-      card.style.setProperty("width", "550px", "important");
-      card.style.setProperty("max-width", "min(550px, calc(100vw - 32px))", "important");
+      card.style.setProperty("width", "min(" + maxCard + "px, 100%)", "important");
+      card.style.setProperty("max-width", "100%", "important");
       var nodes = card.querySelectorAll(".avonix-popup-body, .avonix-popup-form-wrap");
       for (var i = 0; i < nodes.length; i++) {
         nodes[i].style.setProperty("overflow-x", "hidden", "important");
@@ -950,12 +979,21 @@ CSS;
         nodes[i].style.setProperty("-ms-overflow-style", "none", "important");
         nodes[i].style.setProperty("min-height", "0", "important");
       }
-      var h = Math.max(card.scrollHeight, card.offsetHeight, 1);
-      var w = Math.max(card.scrollWidth, card.offsetWidth, 1);
+      // Prefer layout size over scrollWidth (honeypots / absolute children inflate scrollWidth).
+      var rect = card.getBoundingClientRect();
+      var h = Math.max(card.offsetHeight, Math.ceil(rect.height) || 0, 1);
+      var w = Math.max(card.offsetWidth, Math.ceil(rect.width) || 0, 1);
       var scale = Math.min(1, maxH / h, maxW / w);
-      shell.style.transformOrigin = "center center";
-      if (scale < 0.92) {
-        shell.style.transform = "scale(" + Math.max(0.7, scale) + ")";
+      var layout = design.layout || "center_modal";
+      var origin = "center center";
+      if (layout === "slide_left" || layout === "drawer") origin = "left center";
+      else if (layout === "slide_right") origin = "right center";
+      else if (layout === "bottom_bar") origin = "center bottom";
+      else if (layout === "top_bar") origin = "center top";
+      shell.style.transformOrigin = origin;
+      // Only scale when clearly overflowing — scroll handles mild overflow.
+      if (scale < 0.88) {
+        shell.style.transform = "scale(" + Math.max(0.75, scale) + ")";
       }
     }
 
@@ -1412,7 +1450,8 @@ CSS;
         "scrollbar-width:none!important;-ms-overflow-style:none!important}" +
         ".avonix-popup-body{overflow-x:hidden!important;overflow-y:auto!important;" +
         "scrollbar-width:none!important;-ms-overflow-style:none!important;min-height:0!important}" +
-        ".avonix-popup-card{width:550px!important;max-width:min(550px,calc(100vw - 32px))!important;overflow:hidden!important}" +
+        ".avonix-popup-shell{width:100%!important;max-width:100%!important;margin:auto}" +
+        ".avonix-popup-card{width:min(640px,100%)!important;max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important}" +
         ".avonix-popup-root *::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}";
       document.head.appendChild(killCss);
     }

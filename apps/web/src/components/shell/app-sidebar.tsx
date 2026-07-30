@@ -60,19 +60,15 @@ export function AppSidebar({
 
   const allHrefs = flattenNavHrefs(sections);
   const bodySections = sections.filter((s) => Boolean(s.title));
-  // Untitled top items (Overview / Inbox) sit above titled sections on client.
-  const topSections = sections.filter((s) => !s.title);
-  const footerSections =
-    onWebsite || onClient
-      ? onClient
-        ? topSections.filter((s) =>
-            s.items.some((i) => i.label === "Settings"),
-          )
-        : []
-      : sections.filter((s) => !s.title);
-  const headerSections = onClient
-    ? topSections.filter((s) => !s.items.some((i) => i.label === "Settings"))
-    : [];
+  // Untitled sections pin to the footer (Settings).
+  const untitledSections = sections.filter((s) => !s.title);
+  const footerSections = onWebsite
+    ? []
+    : onClient
+      ? untitledSections.filter((s) =>
+          s.items.some((i) => i.label === "Settings"),
+        )
+      : untitledSections;
 
   return (
     <nav
@@ -86,15 +82,25 @@ export function AppSidebar({
         "transition-[transform,visibility] duration-200 ease-out",
       ].join(" ")}
     >
-      {onWebsite && (
+      {onWebsite ? (
         <Link
-          href="/websites"
+          href={`/clients/${scope.clientId}` as never}
           onClick={onNavigate}
           className="px-3 pt-0.5 pb-2 text-xs text-white/50 hover:text-white"
         >
-          {t("shell.backWebsites")}
+          {t("shell.backClient")}
         </Link>
-      )}
+      ) : null}
+
+      {onClient ? (
+        <Link
+          href="/clients"
+          onClick={onNavigate}
+          className="px-3 pt-0.5 pb-2 text-xs text-white/50 hover:text-white"
+        >
+          {t("shell.backClients")}
+        </Link>
+      ) : null}
 
       {onWebsite ? (
         <ScopeSwitcher
@@ -111,6 +117,22 @@ export function AppSidebar({
           newLabel={t("shell.newWebsite")}
           newHref={`/clients/${scope.clientId}/websites/new`}
         />
+      ) : onClient ? (
+        <ScopeSwitcher
+          icon="◆"
+          title={client?.name ?? "Client"}
+          subtitle={`${client?.websites.length ?? 0} site${(client?.websites.length ?? 0) === 1 ? "" : "s"}`}
+          items={clients.map<SwitchItem>((c) => ({
+            id: c.id,
+            label: c.name,
+            href: `/clients/${c.id}`,
+            sub: `${c.websites.length} site${c.websites.length === 1 ? "" : "s"}`,
+            ok: c.websites.some((w) => w.status === "connected"),
+          }))}
+          currentId={scope.clientId}
+          newLabel={t("shell.newClient")}
+          newHref="/clients/new"
+        />
       ) : (
         <button
           onClick={onSearch}
@@ -124,24 +146,27 @@ export function AppSidebar({
         </button>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        {headerSections.map((section, i) => (
-          <SectionBlock
-            key={`top-${i}`}
-            section={section}
-            pathname={pathname}
-            allHrefs={allHrefs}
-            onNavigate={onNavigate}
-          />
-        ))}
+      {(onClient || onWebsite) && (
+        <button
+          onClick={onSearch}
+          className="mb-3 flex cursor-pointer items-center gap-2 rounded-[7px] border border-white/10 bg-white/[.07] px-2.5 py-[7px] text-[13px] text-white/55 hover:bg-white/12"
+        >
+          <span className="font-semibold">⌘</span>
+          <span>{t("shell.search")}</span>
+          <span className="ml-auto rounded border border-white/20 px-[5px] py-px text-[11px]">
+            K
+          </span>
+        </button>
+      )}
 
+      <div className="flex min-h-0 flex-1 flex-col">
         {bodySections.map((section, i) => (
           <SectionBlock
             key={section.title ?? i}
             section={section}
             pathname={pathname}
             allHrefs={allHrefs}
-            showDividerAbove={i > 0 || headerSections.length > 0}
+            showDividerAbove={i > 0}
             onNavigate={onNavigate}
           />
         ))}

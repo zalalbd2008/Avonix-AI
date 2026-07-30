@@ -72,7 +72,23 @@ let provider: EmailProvider | null = null;
 
 export async function sendEmail(email: Email) {
   provider ??= selectProvider();
-  return provider.send(email);
+  try {
+    return await provider.send(email);
+  } catch (err) {
+    // Invalid/expired RESEND_API_KEY still selects Resend over the local
+    // `.mail/` transport. In development, fall back so invites and auth
+    // flows stay usable without a working live key.
+    const isProd = process.env.NODE_ENV === "production";
+    if (!isProd && provider.name !== "console") {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[email] ${provider.name} failed (${message.slice(0, 120)}) — falling back to .mail/ console transport.`,
+      );
+      provider = consoleProvider;
+      return consoleProvider.send(email);
+    }
+    throw err;
+  }
 }
 
 export function emailProviderName() {

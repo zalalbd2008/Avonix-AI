@@ -27,6 +27,11 @@ export type BillingProfile = {
   invoicePrefix: string;
   poNumber: string;
   currencyDisplay: string;
+  /** Public website for the agency (collected at org create). */
+  website: string;
+  industry: string;
+  teamSize: string;
+  contactPhone: string;
   notifications: BillingNotificationPrefs;
 };
 
@@ -57,6 +62,10 @@ export const DEFAULT_BILLING_PROFILE: BillingProfile = {
   invoicePrefix: "INV-",
   poNumber: "",
   currencyDisplay: "USD",
+  website: "",
+  industry: "",
+  teamSize: "",
+  contactPhone: "",
   notifications: {
     paymentSucceeded: true,
     paymentFailed: true,

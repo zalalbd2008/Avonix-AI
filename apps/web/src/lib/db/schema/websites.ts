@@ -38,6 +38,7 @@ import type { IntegrationsSettings } from "@/lib/integrations/types";
 import type { UpdatesSettings } from "@/lib/updates/types";
 import type { UptimeSettings } from "@/lib/uptime/types";
 import type { WebsiteEmailSettings } from "@/lib/website-email/types";
+import type { PageSpeedCache } from "@/lib/pagespeed/client";
 
 export type WebsiteSettings = {
   fonts?: WebsiteFontSettings;
@@ -63,6 +64,8 @@ export type WebsiteSettings = {
   security?: SecuritySettings;
   /** Connector-reported health signals + last diagnostic (see lib/health). */
   health?: HealthSettings;
+  /** Cached Google PageSpeed Insights score (see lib/pagespeed). */
+  pagespeed?: PageSpeedCache;
   /** Runtime error log from connector (see lib/error-log). */
   errorLog?: ErrorLogSettings;
   /** Append-only agency / system audit trail (see lib/audit-log). */

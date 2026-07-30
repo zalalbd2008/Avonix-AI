@@ -115,7 +115,6 @@ export const agencyNav: NavSection[] = [
     items: [
       { label: "Dashboard", href: "/dashboard", status: "v1", permission: "dashboard.view", icon: "home" },
       { label: "Launchpad", href: "/launchpad" as Route, status: "v1", permission: "dashboard.view", icon: "rocket" },
-      { label: "Clients", href: "/clients", status: "v1", permission: "clients.view", icon: "users" },
       { label: "Organizations", href: "/organizations", status: "v1", permission: "organizations.view", icon: "building" },
       {
         label: "Plan & Subscription",

@@ -17,10 +17,15 @@ import {
   conversations,
   forms,
   knowledgeChunks,
+  popups,
   trackedEvents,
   websites,
 } from "@/lib/db/schema";
 import { getShare } from "@/lib/reports/share";
+import {
+  pagespeedApiKey,
+  resolvePageSpeedForSite,
+} from "@/lib/pagespeed/client";
 import {
   mergeWebsiteEmailSettings,
   smtpStatusLabel,
@@ -30,8 +35,8 @@ import { isValidWebsiteUrl } from "@/lib/websites/url";
 /**
  * Route: /clients/[clientId]/websites/[websiteId]
  *
- * Prototype metric cards plus the live signals we already measure (connector,
- * clicks, pageviews, conversion, knowledge). Unbuilt modules show "—" / 0.
+ * Live website signals (connector, forms, popups, chats, knowledge, etc.).
+ * Modules that are still placeholders show "—" / setup badges.
  */
 export default async function WebsiteOverviewPage({
   params,
@@ -46,7 +51,8 @@ export default async function WebsiteOverviewPage({
       const [site] = await tx.select().from(websites).where(eq(websites.id, websiteId)).limit(1);
       if (!site) return null;
 
-      const [[key], [leads], [chats], [formCount], [passages], eventRows] = await Promise.all([
+      const [[key], [leads], [chats], [formCount], [popupCount], [passages], eventRows] =
+        await Promise.all([
         tx
           .select({ prefix: connectorKeys.prefix, createdAt: connectorKeys.createdAt })
           .from(connectorKeys)
@@ -59,6 +65,10 @@ export default async function WebsiteOverviewPage({
           .from(conversations)
           .where(and(eq(conversations.websiteId, websiteId), eq(conversations.channel, "chat"))),
         tx.select({ n: count() }).from(forms).where(eq(forms.websiteId, websiteId)),
+        tx
+          .select({ n: count() })
+          .from(popups)
+          .where(and(eq(popups.websiteId, websiteId), isNull(popups.deletedAt))),
         tx
           .select({ n: count() })
           .from(knowledgeChunks)
@@ -81,6 +91,7 @@ export default async function WebsiteOverviewPage({
         leads: leads.n,
         chats: chats.n,
         forms: formCount.n,
+        popups: popupCount.n,
         passages: passages.n,
         pageviews: byType.pageview ?? 0,
         buttons: byType.button ?? 0,
@@ -102,6 +113,27 @@ export default async function WebsiteOverviewPage({
     );
   }
 
+  const pagespeed = await resolvePageSpeedForSite({
+    siteUrl: site.url,
+    cache: site.settings?.pagespeed ?? null,
+    save: async (next) => {
+      await withAgency(ctx.agencyId, async (tx) => {
+        const [row] = await tx
+          .select({ settings: websites.settings })
+          .from(websites)
+          .where(eq(websites.id, websiteId))
+          .limit(1);
+        await tx
+          .update(websites)
+          .set({
+            settings: { ...(row?.settings ?? {}), pagespeed: next },
+            updatedAt: new Date(),
+          })
+          .where(eq(websites.id, websiteId));
+      });
+    },
+  });
+
   const connected = site.status === "connected";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const reportsHref = `/clients/${clientId}/websites/${websiteId}/reports`;
@@ -122,6 +154,9 @@ export default async function WebsiteOverviewPage({
   const email = mergeWebsiteEmailSettings(site.settings?.email);
   const smtp = smtpStatusLabel(email);
 
+  const perfScore = pagespeed?.score ?? null;
+  const perfConfigured = Boolean(pagespeedApiKey());
+
   const metrics: {
     value: string;
     label: string;
@@ -141,7 +176,11 @@ export default async function WebsiteOverviewPage({
     },
     { value: String(data.leads), label: "Leads" },
     { value: String(data.forms), label: "Forms" },
-    { value: "0", label: "Popups", tone: "text-faint", badge: "demo" },
+    {
+      value: String(data.popups),
+      label: "Popups",
+      badge: data.popups === 0 ? "setup" : undefined,
+    },
     {
       value: chatbotLive ? "1" : "0",
       label: "Chatbot",
@@ -185,7 +224,23 @@ export default async function WebsiteOverviewPage({
         : "text-faint",
       badge: !a11y.enabled ? "setup" : undefined,
     },
-    { value: "—", label: "Performance", tone: "text-faint", badge: "demo" },
+    {
+      value: perfScore != null ? String(perfScore) : "—",
+      label: "Performance",
+      tone:
+        perfScore == null
+          ? "text-faint"
+          : perfScore >= 90
+            ? "text-ok"
+            : perfScore >= 50
+              ? "text-warn"
+              : "text-bad",
+      badge: !perfConfigured
+        ? "setup"
+        : perfScore == null
+          ? "incomplete"
+          : undefined,
+    },
     {
       value: aiHealthy ? "Healthy" : "Needs setup",
       label: "AI Health",

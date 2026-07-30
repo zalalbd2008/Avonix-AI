@@ -9,7 +9,6 @@ export type IntegrationLevel = 1 | 2 | 3;
 
 export type OptionalIntegrationId =
   | "telegram"
-  | "slack"
   | "discord"
   | "microsoft_teams"
   | "google_drive"
@@ -22,7 +21,7 @@ export type IntegrationConnection = {
   label: string;
   /** API key, bot token, or webhook secret. */
   apiKey: string;
-  /** Incoming webhook URL (Slack, Discord, Teams). */
+  /** Incoming webhook URL (Discord, Teams). */
   webhookUrl: string;
   connectedAt: string;
   /** Extra key/value fields for advanced integrations. */
@@ -97,14 +96,6 @@ export const OPTIONAL_INTEGRATIONS: {
     usesApiKey: false,
     usesPhone: true,
     automationProvider: "telegram",
-  },
-  {
-    id: "slack",
-    label: "Slack",
-    hint: "Incoming webhook for alerts",
-    usesWebhook: true,
-    usesApiKey: false,
-    webhookLabel: "Incoming webhook URL",
   },
   {
     id: "discord",

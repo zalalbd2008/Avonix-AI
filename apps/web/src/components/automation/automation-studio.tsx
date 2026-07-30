@@ -368,16 +368,6 @@ export function AutomationStudio({
                   }
                 />
               </Field>
-              <Field label="Default Slack webhook" color="sky">
-                <input
-                  className={input}
-                  value={settings.defaultSlackWebhookUrl}
-                  placeholder="https://hooks.slack.com/services/…"
-                  onChange={(e) =>
-                    patch({ defaultSlackWebhookUrl: e.target.value })
-                  }
-                />
-              </Field>
               <Field label="Missed chat wait (minutes)" color="rose">
                 <input
                   className={input}
@@ -684,14 +674,12 @@ function RuleCard({
   const showFollowUp = rule.actions.includes("schedule_follow_up");
   const showSales = rule.actions.includes("assign_sales");
   const showSms = rule.actions.includes("notify_sms");
-  const showSlack = rule.actions.includes("notify_slack");
   const showMessage =
     showSocial ||
     showThankYou ||
     rule.actions.includes("notify_whatsapp") ||
     showFollowUp ||
-    showSms ||
-    showSlack;
+    showSms;
   const connected = socialAccounts.filter((a) => a.connected);
 
   function toggleTarget(provider: SocialProvider) {
@@ -833,8 +821,7 @@ function RuleCard({
           rule.actions.includes("tag_contact") ||
           showMessage ||
           showSales ||
-          showSms ||
-          showSlack) && (
+          showSms) && (
           <div className="space-y-3 rounded-xl border border-[#eef2f7] bg-[#fbfcfe] p-3">
             <div className="grid gap-3 sm:grid-cols-2">
               {rule.actions.includes("notify_email") ? (
@@ -1043,32 +1030,18 @@ function RuleCard({
               </div>
             ) : null}
 
-            {(showSms || showSlack) && (
+            {showSms ? (
               <div className="grid gap-3 border-t border-[#eef2f7] pt-3 sm:grid-cols-2">
-                {showSms ? (
-                  <Field label="SMS to (optional)" color="sky">
-                    <input
-                      className={input}
-                      value={rule.smsTo}
-                      placeholder="Blank = visitor phone · +8801…"
-                      onChange={(e) => onChange({ smsTo: e.target.value })}
-                    />
-                  </Field>
-                ) : null}
-                {showSlack ? (
-                  <Field label="Slack webhook (optional)" color="cyan">
-                    <input
-                      className={input}
-                      value={rule.slackWebhookUrl}
-                      placeholder="Blank = site default"
-                      onChange={(e) =>
-                        onChange({ slackWebhookUrl: e.target.value })
-                      }
-                    />
-                  </Field>
-                ) : null}
+                <Field label="SMS to (optional)" color="sky">
+                  <input
+                    className={input}
+                    value={rule.smsTo}
+                    placeholder="Blank = visitor phone · +8801…"
+                    onChange={(e) => onChange({ smsTo: e.target.value })}
+                  />
+                </Field>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 

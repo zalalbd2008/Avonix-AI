@@ -41,8 +41,8 @@ export function AdminCrmEditor({
         Admin CRM
       </p>
       <p className="text-[12px] leading-relaxed text-muted">
-        Lead priority, status workflow, tags, assignment defaults, and Slack /
-        Teams / webhook notifications for new submissions.
+        Lead priority, status workflow, tags, assignment defaults, and Teams /
+        webhook notifications for new submissions.
       </p>
 
       <label className="flex items-center gap-2 text-[12.5px] text-muted">
@@ -150,19 +150,6 @@ export function AdminCrmEditor({
                 }
                 placeholder="ops@agency.com, sales@…"
                 className="w-full rounded-lg border border-[#dbe1ea] bg-white px-2.5 py-2 text-[13px] outline-none focus:border-brand"
-              />
-            </label>
-            <label className="mb-2 block">
-              <span className="mb-1 block text-[11.5px] font-semibold text-muted">
-                Slack webhook URL
-              </span>
-              <input
-                value={admin.notifications?.slackWebhookUrl ?? ""}
-                onChange={(e) =>
-                  patchNotifications({ slackWebhookUrl: e.target.value })
-                }
-                placeholder="https://hooks.slack.com/…"
-                className="w-full rounded-lg border border-[#dbe1ea] bg-white px-2.5 py-2 font-mono text-[12px] outline-none focus:border-brand"
               />
             </label>
             <label className="mb-2 block">

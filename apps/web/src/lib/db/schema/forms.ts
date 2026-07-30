@@ -564,7 +564,6 @@ export type FormAdminCrmConfig = {
   notifications?: {
     /** Extra inboxes beyond settings.notificationEmail. */
     emails?: string[];
-    slackWebhookUrl?: string;
     teamsWebhookUrl?: string;
     webhookUrl?: string;
   };

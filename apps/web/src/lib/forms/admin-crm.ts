@@ -33,7 +33,6 @@ export const DEFAULT_ADMIN_CRM: FormAdminCrmConfig = {
   defaultAssignee: "",
   notifications: {
     emails: [],
-    slackWebhookUrl: "",
     teamsWebhookUrl: "",
     webhookUrl: "",
   },
@@ -79,7 +78,6 @@ export function normalizeAdminCrm(
     defaultAssignee: (raw?.defaultAssignee ?? "").trim().slice(0, 160),
     notifications: {
       emails,
-      slackWebhookUrl: sanitizeUrl(raw?.notifications?.slackWebhookUrl),
       teamsWebhookUrl: sanitizeUrl(raw?.notifications?.teamsWebhookUrl),
       webhookUrl: sanitizeUrl(raw?.notifications?.webhookUrl),
     },
@@ -233,14 +231,12 @@ export function priorityLabel(priority?: FormLeadPriority): string {
 /** Extra notification targets from admin config (beyond primary email). */
 export function adminNotifyTargets(admin: FormAdminCrmConfig): {
   emails: string[];
-  slackWebhookUrl?: string;
   teamsWebhookUrl?: string;
   webhookUrl?: string;
 } {
   const n = admin.notifications ?? {};
   return {
     emails: n.emails ?? [],
-    ...(n.slackWebhookUrl ? { slackWebhookUrl: n.slackWebhookUrl } : {}),
     ...(n.teamsWebhookUrl ? { teamsWebhookUrl: n.teamsWebhookUrl } : {}),
     ...(n.webhookUrl ? { webhookUrl: n.webhookUrl } : {}),
   };
@@ -272,18 +268,6 @@ export async function fireCrmWebhooks(opts: {
   };
 
   const jobs: Promise<unknown>[] = [];
-
-  if (targets.slackWebhookUrl) {
-    jobs.push(
-      fetch(targets.slackWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: `${text}\nPriority: ${opts.crm.priority}\n${summarizeValues(opts.values)}`,
-        }),
-      }).catch((err) => console.error("slack webhook failed", err)),
-    );
-  }
 
   if (targets.teamsWebhookUrl) {
     jobs.push(

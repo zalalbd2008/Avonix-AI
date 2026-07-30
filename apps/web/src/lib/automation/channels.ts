@@ -1,27 +1,8 @@
 /**
- * Outbound Slack + SMS helpers for Auto Rules.
+ * Outbound SMS helpers for Auto Rules.
  */
 
 import { mergeTokens, type MergeContext } from "./interpolate";
-
-export async function sendSlackWebhook(opts: {
-  url: string;
-  text: string;
-}): Promise<{ ok: boolean; detail: string }> {
-  const url = opts.url.trim();
-  if (!url || !/^https:\/\//i.test(url)) {
-    return { ok: false, detail: "Slack webhook must be https://" };
-  }
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: opts.text.slice(0, 3500) }),
-  });
-  if (!res.ok) {
-    return { ok: false, detail: `Slack HTTP ${res.status}` };
-  }
-  return { ok: true, detail: "Posted" };
-}
 
 export async function sendTwilioSms(opts: {
   to: string;

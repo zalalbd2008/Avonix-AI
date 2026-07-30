@@ -28,8 +28,7 @@ export type AutomationAction =
   | "notify_whatsapp"
   | "schedule_follow_up"
   | "assign_sales"
-  | "notify_sms"
-  | "notify_slack";
+  | "notify_sms";
 
 export type WorkflowKind = "custom" | "contact" | "quote" | "appointment";
 
@@ -85,8 +84,6 @@ export type AutomationRule = {
   budgetThreshold: number;
   /** AI score ≥ this → high priority assign (0 = ignore). */
   minScore: number;
-  /** Per-rule Slack webhook (overrides site default). */
-  slackWebhookUrl: string;
   /** E.164 or local phone for SMS action (visitor phone used when blank). */
   smsTo: string;
 };
@@ -97,8 +94,6 @@ export type AutomationSettings = {
   defaultWebhookUrl: string;
   /** Fallback notify address (SMTP Setup notify used when blank). */
   defaultNotifyEmail: string;
-  /** Default Slack incoming webhook. */
-  defaultSlackWebhookUrl: string;
   /** Minutes a queued chat waits before chat_missed fires. */
   missedChatMinutes: number;
   /** Connected social / messaging accounts for this website. */
@@ -348,19 +343,12 @@ export const AUTOMATION_ACTIONS: {
     hint: "Twilio text to visitor / number",
     tone: "bg-indigo-50 text-indigo-800 border-indigo-200",
   },
-  {
-    id: "notify_slack",
-    label: "Slack alert",
-    hint: "Post to a Slack channel webhook",
-    tone: "bg-[#f3f4f6] text-[#1a1d21] border-[#d1d5db]",
-  },
 ];
 
 export const DEFAULT_AUTOMATION: AutomationSettings = {
   enabled: false,
   defaultWebhookUrl: "",
   defaultNotifyEmail: "",
-  defaultSlackWebhookUrl: "",
   missedChatMinutes: 15,
   socialAccounts: SOCIAL_PROVIDERS.map((p) => emptySocialAccount(p.id)),
   rules: [],
@@ -469,7 +457,6 @@ export function newAutomationRule(
     salesNotifyEmail: str(partial?.salesNotifyEmail).toLowerCase(),
     budgetThreshold: Math.max(0, Number(partial?.budgetThreshold) || 0),
     minScore: Math.max(0, Math.min(100, Number(partial?.minScore) || 0)),
-    slackWebhookUrl: str(partial?.slackWebhookUrl),
     smsTo: str(partial?.smsTo),
   };
 }
@@ -591,7 +578,6 @@ export function mergeAutomationSettings(
     enabled: Boolean(raw.enabled),
     defaultWebhookUrl: str(raw.defaultWebhookUrl),
     defaultNotifyEmail: str(raw.defaultNotifyEmail).toLowerCase(),
-    defaultSlackWebhookUrl: str(raw.defaultSlackWebhookUrl),
     missedChatMinutes: Math.max(
       5,
       Math.min(240, Number(raw.missedChatMinutes) || 15),

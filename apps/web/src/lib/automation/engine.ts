@@ -11,7 +11,6 @@ import type { FormSubmissionAi, FormSubmissionCrm } from "@/lib/db/schema";
 import { mergeWebsiteEmailSettings } from "@/lib/website-email/types";
 import {
   buildChannelMessage,
-  sendSlackWebhook,
   sendTwilioSms,
 } from "./channels";
 import {
@@ -296,8 +295,6 @@ async function executeAction(opts: {
       return assignSales(rule, event, decision, settings, opts.fallbackNotify);
     case "notify_sms":
       return runSms(rule, event, ctx);
-    case "notify_slack":
-      return runSlack(rule, event, ctx, settings);
     case "post_social":
     case "reply_social":
       return {
@@ -824,29 +821,6 @@ async function runSms(
     });
   }
   return { action: "notify_sms", ok: res.ok, detail: res.detail };
-}
-
-async function runSlack(
-  rule: AutomationRule,
-  event: AutomationEvent,
-  ctx: MergeContext,
-  settings: AutomationSettings,
-): Promise<ActionResult> {
-  const url = (rule.slackWebhookUrl || settings.defaultSlackWebhookUrl).trim();
-  if (!url) {
-    return {
-      action: "notify_slack",
-      ok: false,
-      detail: "No Slack webhook configured",
-    };
-  }
-  const text = buildChannelMessage(
-    rule.socialMessage,
-    ctx,
-    "New Avonix alert — {{form}} · {{name}} · {{email}} · score {{score}}",
-  );
-  const res = await sendSlackWebhook({ url, text });
-  return { action: "notify_slack", ok: res.ok, detail: res.detail };
 }
 
 function normalizePhone(raw?: string | null): string | null {

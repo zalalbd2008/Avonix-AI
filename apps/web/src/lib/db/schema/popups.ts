@@ -470,7 +470,6 @@ export type PopupPayload = {
   devices?: Array<"desktop" | "tablet" | "mobile">;
   automation?: {
     webhookUrl?: string;
-    slackWebhook?: string;
     tags?: string[];
     assignUser?: string;
     notifyEmail?: string;

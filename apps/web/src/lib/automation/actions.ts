@@ -137,15 +137,6 @@ export async function actionSaveAutomation(input: {
         };
       }
     }
-    if (rule.actions.includes("notify_slack")) {
-      const url = rule.slackWebhookUrl || automation.defaultSlackWebhookUrl;
-      if (url && !/^https:\/\//i.test(url)) {
-        return {
-          ok: false,
-          error: `Slack webhook on “${rule.name}” must start with https://`,
-        };
-      }
-    }
   }
 
   if (
@@ -155,16 +146,6 @@ export async function actionSaveAutomation(input: {
     return {
       ok: false,
       error: "Default webhook must start with http:// or https://",
-    };
-  }
-
-  if (
-    automation.defaultSlackWebhookUrl &&
-    !/^https:\/\//i.test(automation.defaultSlackWebhookUrl)
-  ) {
-    return {
-      ok: false,
-      error: "Default Slack webhook must start with https://",
     };
   }
 

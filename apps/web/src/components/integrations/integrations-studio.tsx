@@ -290,7 +290,7 @@ export function IntegrationsStudio({
           <span className="text-muted">
             Level 1 modules run through the Avonix connector — no third party
             required. Add Level 2 webhooks or API keys only when you need
-            Telegram, Slack, cloud backup, etc. Social posting also lives under{" "}
+            Telegram, Discord, cloud backup, etc. Social posting also lives under{" "}
             <Link
               href={automationHref as never}
               className="font-semibold text-brand hover:underline"

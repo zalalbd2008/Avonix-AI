@@ -388,8 +388,11 @@ export function mergeSocialAccount(
   const provider = isProvider(raw?.provider) ? raw!.provider! : fallbackProvider;
   const accountId = str(raw?.accountId);
   const accessToken = str(raw?.accessToken);
+  // Platform Telegram bot uses chat id only — no user bot token.
   const connected =
-    Boolean(raw?.connected) && Boolean(accountId) && Boolean(accessToken);
+    provider === "telegram"
+      ? Boolean(raw?.connected) && Boolean(accountId)
+      : Boolean(raw?.connected) && Boolean(accountId) && Boolean(accessToken);
   return {
     provider,
     connected,

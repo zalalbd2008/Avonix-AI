@@ -140,8 +140,9 @@ export async function POST(req: Request) {
       ? {
           ...a,
           connected: true,
+          // Chat id for delivery; phone stays in label when available.
           accountId: String(chatId),
-          accessToken: "",
+          accessToken: "platform-bot",
           label: a.label || phone || "Telegram alerts",
           connectedAt: new Date().toISOString(),
         }

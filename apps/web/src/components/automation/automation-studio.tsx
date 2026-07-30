@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { actionSaveAutomation } from "@/lib/automation/actions";
@@ -46,9 +53,28 @@ export function AutomationStudio({
   websiteUrl: string;
   initial?: Partial<AutomationSettings> | null;
 }) {
+  const router = useRouter();
   const [settings, setSettings] = useState(() =>
     mergeAutomationSettings(initial),
   );
+  const [waitingTelegram, setWaitingTelegram] = useState(false);
+
+  useEffect(() => {
+    setSettings(mergeAutomationSettings(initial));
+  }, [initial]);
+
+  const telegramAccount = settings.socialAccounts.find(
+    (a) => a.provider === "telegram",
+  );
+  useEffect(() => {
+    if (!waitingTelegram) return;
+    if (telegramAccount?.connected) {
+      setWaitingTelegram(false);
+      return;
+    }
+    const id = window.setInterval(() => router.refresh(), 3000);
+    return () => window.clearInterval(id);
+  }, [waitingTelegram, telegramAccount?.connected, router]);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,9 +129,10 @@ export function AutomationStudio({
           setError(res.error);
           return;
         }
-        window.open(res.deepLink, "_blank", "noopener,noreferrer");
+        setWaitingTelegram(true);
         setError(null);
-        setEditingSocial(null);
+        setEditingSocial("telegram");
+        window.open(res.deepLink, "_blank", "noopener,noreferrer");
       });
       return;
     }
@@ -506,6 +533,13 @@ export function AutomationStudio({
                             confirm. Platform bot handles the rest.
                           </p>
                         )}
+                        {meta.id === "telegram" &&
+                        waitingTelegram &&
+                        !account.connected ? (
+                          <p className="text-[12px] font-medium text-sky-700">
+                            Waiting — open Telegram and tap Start to finish.
+                          </p>
+                        ) : null}
                         <div className="flex flex-wrap gap-2 pt-1">
                           {account.connected ? (
                             <button

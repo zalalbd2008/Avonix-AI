@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import {
+  SetupBadge,
+  type SetupBadgeKind,
+} from "@/components/ui/setup-badge";
+import {
   actionConnectIntegration,
   actionConnectTelegramPhone,
   actionDisconnectIntegration,
@@ -255,12 +259,18 @@ export function IntegrationsStudio({
           tone={
             snapshot.stats.optionalConnected > 0 ? "text-brand" : "text-muted"
           }
+          badge={
+            snapshot.stats.optionalConnected === 0 ? "connect" : undefined
+          }
         />
         <Metric
           value={snapshot.website.status === "connected" ? "Online" : "Pending"}
           label="Connector"
           tone={
             snapshot.website.status === "connected" ? "text-ok" : "text-warn"
+          }
+          badge={
+            snapshot.website.status !== "connected" ? "connect" : undefined
           }
         />
         <Metric
@@ -269,6 +279,7 @@ export function IntegrationsStudio({
           tone={
             score >= 70 ? "text-ok" : score >= 40 ? "text-warn" : "text-muted"
           }
+          badge={score < 40 ? "setup" : score < 70 ? "incomplete" : undefined}
         />
       </div>
 
@@ -322,8 +333,11 @@ export function IntegrationsStudio({
                 >
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13.5px] font-semibold text-ink">
+                      <p className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-semibold text-ink">
                         {card.label}
+                        {!card.connected && !conn.connected ? (
+                          <SetupBadge kind="connect" />
+                        ) : null}
                       </p>
                       <p className="mt-0.5 text-[12px] text-muted">
                         {card.hint}
@@ -574,8 +588,8 @@ export function IntegrationsStudio({
               >
                 {item.label}
                 {!item.available ? (
-                  <span className="ml-1 text-[10px] uppercase tracking-wide text-white/35">
-                    soon
+                  <span className="ml-1.5 inline-block align-middle">
+                    <SetupBadge kind="demo" />
                   </span>
                 ) : null}
               </span>
@@ -707,18 +721,20 @@ function Metric({
   value,
   label,
   tone = "text-ink",
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-[10px] border border-line bg-white px-4 pb-3.5 pt-4">
       <div
-        className={`truncate text-2xl font-bold tracking-[-0.02em] ${tone}`}
+        className={`truncate text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone}`}
         title={value}
       >
-        {value}
+        {badge ? <SetupBadge kind={badge} size="lg" /> : value}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

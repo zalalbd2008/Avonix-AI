@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { DraggablePlacementCanvas } from "@/components/widgets/draggable-placement-canvas";
 import {
   FloatingLauncherButton,
@@ -218,13 +219,25 @@ export function AccessibilityStudio({
 
       <div className="border-b border-[#e8edf5] px-6 py-4 sm:px-8">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Metric value={`${score}`} label="Readiness score" tone={scoreTone} hint="/ 100" />
+          <Metric
+            value={`${score}`}
+            label="Readiness score"
+            tone={scoreTone}
+            hint="/ 100"
+            badge={!settings.enabled ? "setup" : undefined}
+          />
           <Metric
             value={String(featureCount)}
             label="Tools enabled"
             hint={`/ ${totalFeatures}`}
+            badge={featureCount === 0 ? "setup" : undefined}
           />
-          <Metric value={String(profileCount)} label="Profiles" hint="/ 6" />
+          <Metric
+            value={String(profileCount)}
+            label="Profiles"
+            hint="/ 6"
+            badge={profileCount === 0 ? "setup" : undefined}
+          />
           <Metric
             value={settings.targetLevel}
             label="WCAG target"
@@ -701,7 +714,7 @@ export function AccessibilityStudio({
                   />
                   <div className="mt-3 rounded-xl border border-dashed border-[#e8edf5] bg-[#f8fafc] px-4 py-5 text-center">
                     <p className="text-[14px] font-semibold text-ink">
-                      Live audit results
+                      <SetupBadge kind="demo" /> Live audit results
                     </p>
                     <p className="mt-1 text-[12.5px] text-muted">
                       Issue counts and page-level findings appear here after the
@@ -771,19 +784,27 @@ function Metric({
   label,
   tone = "text-ink",
   hint,
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
   hint?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-xl border border-[#e8edf5] px-3.5 py-3">
-      <p className={`text-[20px] font-bold tracking-tight ${tone}`}>
-        {value}
-        {hint ? (
-          <span className="ml-1 text-[12px] font-medium text-faint">{hint}</span>
-        ) : null}
+      <p className={`text-[20px] font-bold tracking-tight ${badge ? "text-bad" : tone}`}>
+        {badge ? (
+          <SetupBadge kind={badge} size="lg" />
+        ) : (
+          <>
+            {value}
+            {hint ? (
+              <span className="ml-1 text-[12px] font-medium text-faint">{hint}</span>
+            ) : null}
+          </>
+        )}
       </p>
       <p className="mt-0.5 text-[12px] text-muted">{label}</p>
     </div>

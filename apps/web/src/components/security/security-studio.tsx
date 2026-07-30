@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { ScrollTable } from "@/components/ui/scroll-table";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import {
   actionQueueSecurityScan,
   actionSaveSecurity,
@@ -161,11 +162,21 @@ export function SecurityStudio({
           value={snapshot.stats.statusLabel}
           label="Security status"
           tone={snapshot.stats.statusTone}
+          badge={
+            snapshot.stats.statusLabel === "Disconnected"
+              ? "connect"
+              : snapshot.stats.statusLabel === "Monitor off"
+                ? "setup"
+                : undefined
+          }
         />
         <Metric
           value={snapshot.stats.malwareLabel}
           label="Malware found"
           tone={snapshot.stats.malwareTone}
+          badge={
+            snapshot.stats.malwareLabel === "—" ? "setup" : undefined
+          }
         />
         <Metric
           value={snapshot.stats.blockedLoginsLabel}
@@ -176,6 +187,9 @@ export function SecurityStudio({
           value={snapshot.stats.firewallLabel}
           label="Firewall"
           tone={snapshot.stats.firewallTone}
+          badge={
+            snapshot.stats.firewallLabel === "Off" ? "setup" : undefined
+          }
         />
       </div>
 
@@ -434,18 +448,20 @@ function Metric({
   value,
   label,
   tone = "text-ink",
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-[10px] border border-line bg-white px-4 pb-3.5 pt-4">
       <div
-        className={`truncate text-2xl font-bold tracking-[-0.02em] ${tone}`}
+        className={`truncate text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone}`}
         title={value}
       >
-        {value}
+        {badge ? <SetupBadge kind={badge} size="lg" /> : value}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

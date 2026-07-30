@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge } from "@/components/ui/setup-badge";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
@@ -80,12 +81,16 @@ export default async function ClientWebsitesPage({
               </div>
               <div className="ml-auto flex items-center gap-4 text-[12px]">
                 {w.version && <span className="text-faint">plugin {w.version}</span>}
-                <span className="text-faint">
+                <span className="flex items-center gap-1.5 text-faint">
                   {w.lastSeenAt ? `seen ${timeAgo(w.lastSeenAt)}` : "never seen"}
+                  {!w.lastSeenAt ? <SetupBadge kind="connect" /> : null}
                 </span>
                 <span className={`flex items-center gap-1.5 font-semibold ${tone[w.status]}`}>
                   <span className="size-1.5 rounded-full bg-current" />
                   {w.status}
+                  {w.status === "pending" || w.status === "disconnected" ? (
+                    <SetupBadge kind="connect" />
+                  ) : null}
                 </span>
               </div>
             </Link>

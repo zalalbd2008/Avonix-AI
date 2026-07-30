@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { ShareReportButton } from "@/components/reports/share-report-button";
 import { PageHeader } from "@/components/shell/page-header";
+import {
+  SetupBadge,
+  type SetupBadgeKind,
+} from "@/components/ui/setup-badge";
 import { FixWebsiteUrlForm } from "@/components/websites/fix-website-url-form";
 import { requireAgency } from "@/lib/auth/session";
 import { accessibilityScore, mergeAccessibilitySettings } from "@/lib/accessibility/types";
@@ -118,11 +122,17 @@ export default async function WebsiteOverviewPage({
   const email = mergeWebsiteEmailSettings(site.settings?.email);
   const smtp = smtpStatusLabel(email);
 
-  const metrics: { value: string; label: string; tone?: string }[] = [
+  const metrics: {
+    value: string;
+    label: string;
+    tone?: string;
+    badge?: SetupBadgeKind;
+  }[] = [
     {
       value: connected ? "Connected" : "Waiting",
       label: "Connector",
       tone: connected ? "text-ok" : "text-warn",
+      badge: connected ? undefined : "connect",
     },
     {
       value: `${health} / 100`,
@@ -131,8 +141,12 @@ export default async function WebsiteOverviewPage({
     },
     { value: String(data.leads), label: "Leads" },
     { value: String(data.forms), label: "Forms" },
-    { value: "0", label: "Popups", tone: "text-faint" },
-    { value: chatbotLive ? "1" : "0", label: "Chatbot" },
+    { value: "0", label: "Popups", tone: "text-faint", badge: "demo" },
+    {
+      value: chatbotLive ? "1" : "0",
+      label: "Chatbot",
+      badge: chatbotLive ? undefined : "setup",
+    },
     { value: String(data.chats), label: "Chat conversations" },
     { value: String(data.buttons), label: "Button clicks" },
     { value: String(data.pageviews), label: "Pageviews" },
@@ -140,13 +154,25 @@ export default async function WebsiteOverviewPage({
       value: conversion === null ? "—" : `${conversion}%`,
       label: "Conversion",
       tone: conversion !== null && conversion >= 5 ? "text-ok" : undefined,
+      badge: conversion === null ? "demo" : undefined,
     },
     {
       value: String(data.passages),
       label: "Knowledge",
       tone: data.passages > 0 ? "text-ok" : "text-warn",
+      badge: data.passages === 0 ? "setup" : undefined,
     },
-    { value: smtp.label, label: "SMTP Setup", tone: smtp.tone },
+    {
+      value: smtp.label,
+      label: "SMTP Setup",
+      tone: smtp.tone,
+      badge:
+        smtp.label === "Off"
+          ? "setup"
+          : smtp.label === "Incomplete" || smtp.label === "Verify OAuth"
+            ? "incomplete"
+            : undefined,
+    },
     {
       value: a11y.enabled ? `${a11yScore}` : "—",
       label: "Accessibility Score",
@@ -157,12 +183,14 @@ export default async function WebsiteOverviewPage({
             ? "text-warn"
             : "text-bad"
         : "text-faint",
+      badge: !a11y.enabled ? "setup" : undefined,
     },
-    { value: "—", label: "Performance", tone: "text-faint" },
+    { value: "—", label: "Performance", tone: "text-faint", badge: "demo" },
     {
       value: aiHealthy ? "Healthy" : "Needs setup",
       label: "AI Health",
       tone: aiHealthy ? "text-ok" : "text-warn",
+      badge: aiHealthy ? undefined : "setup",
     },
   ];
 
@@ -196,8 +224,8 @@ export default async function WebsiteOverviewPage({
             key={m.label}
             className="rounded-[10px] border border-line bg-white px-4 pt-4 pb-3.5"
           >
-            <div className={`text-2xl font-bold tracking-[-0.02em] text-ink ${m.tone ?? ""}`}>
-              {m.value}
+            <div className={`text-2xl font-bold tracking-[-0.02em] ${m.badge ? "text-bad" : `text-ink ${m.tone ?? ""}`}`}>
+              {m.badge ? <SetupBadge kind={m.badge} size="lg" /> : m.value}
             </div>
             <div className="mt-[3px] text-[12.5px] text-muted">{m.label}</div>
           </div>

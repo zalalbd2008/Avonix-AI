@@ -69,6 +69,7 @@ import {
   type FaStyle,
 } from "@/lib/cta/fa-icons";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge } from "@/components/ui/setup-badge";
 
 type GroupRow = CtaButtonGroup & { buttons: CtaButton[] };
 type Device = "desktop" | "tablet" | "mobile";
@@ -811,7 +812,8 @@ export function ButtonDesignStudio({
                 <div className="mx-2 mt-2 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-brand/20 bg-brand/5 p-2">
                   {templates.length === 0 ? (
                     <p className="px-1 py-2 text-[11px] text-muted">
-                      No templates yet — use Save as template on a button.
+                      <SetupBadge kind="setup" /> No templates yet — use Save as
+                      template on a button.
                     </p>
                   ) : (
                     templates.map((t) => (

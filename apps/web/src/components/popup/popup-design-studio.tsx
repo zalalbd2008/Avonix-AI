@@ -38,6 +38,7 @@ import {
   type PopupEditorTab,
 } from "@/lib/popup/defaults";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge } from "@/components/ui/setup-badge";
 import { GoogleFontPicker } from "@/components/fonts/google-font-picker";
 import { googleFontsCssUrl } from "@/lib/fonts/google";
 import { SavePopupTemplateDialog } from "@/components/popup/save-popup-template-dialog";
@@ -512,7 +513,10 @@ export function PopupDesignStudio({
                     </div>
                     <div>
                       <dt className="text-faint">Analytics</dt>
-                      <dd className="font-medium text-muted">— · — · —</dd>
+                      <dd className="font-medium">
+                        <SetupBadge kind="demo" /> · <SetupBadge kind="demo" /> ·{" "}
+                        <SetupBadge kind="demo" />
+                      </dd>
                     </div>
                   </dl>
                   <div className="mt-auto flex flex-wrap gap-1.5 border-t border-[#edf0f5] pt-3">
@@ -2962,7 +2966,13 @@ export function PopupDesignStudio({
                     <p className="text-[10px] font-semibold tracking-wide text-faint uppercase">
                       {k}
                     </p>
-                    <p className="mt-1 text-[18px] font-semibold text-ink">{v}</p>
+                    <p className="mt-1 text-[18px] font-semibold">
+                      {v === "—" ? (
+                        <SetupBadge kind="demo" size="lg" />
+                      ) : (
+                        v
+                      )}
+                    </p>
                   </div>
                 ))}
               </div>

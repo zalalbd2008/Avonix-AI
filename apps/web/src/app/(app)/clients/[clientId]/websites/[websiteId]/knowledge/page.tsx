@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
 import { ReindexButton } from "@/components/reindex-button";
+import { SetupBadge } from "@/components/ui/setup-badge";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
 import { knowledgeChunks, websites } from "@/lib/db/schema";
@@ -65,7 +66,9 @@ export default async function KnowledgePage({
 
       {data.total === 0 ? (
         <div className="rounded-xl border border-line bg-white px-4 py-12 text-center">
-          <p className="text-[14px] font-semibold">Nothing indexed yet</p>
+          <p className="text-[14px] font-semibold">
+            <SetupBadge kind="setup" /> Nothing indexed yet
+          </p>
           <p className="mx-auto mt-1 max-w-md text-[12.5px] text-muted">
             The assistant answers only from this site&apos;s own pages. Until they
             are indexed it will say it does not know and offer to pass questions
@@ -76,15 +79,27 @@ export default async function KnowledgePage({
         <>
           <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
-              { label: "Pages", value: data.pages.length },
-              { label: "Passages", value: data.total },
+              {
+                label: "Pages",
+                value: String(data.pages.length),
+                badge: data.pages.length === 0 ? ("setup" as const) : undefined,
+              },
+              {
+                label: "Passages",
+                value: String(data.total),
+                badge: undefined,
+              },
               {
                 label: "Semantic search",
                 value: data.embedded > 0 ? "On" : "Text only",
+                badge:
+                  data.embedded === 0 ? ("incomplete" as const) : undefined,
               },
             ].map((m) => (
               <div key={m.label} className="rounded-xl border border-line bg-white p-4">
-                <div className="text-2xl font-bold tracking-tight">{m.value}</div>
+                <div className={`text-2xl font-bold tracking-tight ${m.badge ? "text-bad" : ""}`}>
+                  {m.badge ? <SetupBadge kind={m.badge} size="lg" /> : m.value}
+                </div>
                 <div className="mt-0.5 text-[12.5px] text-muted">{m.label}</div>
               </div>
             ))}

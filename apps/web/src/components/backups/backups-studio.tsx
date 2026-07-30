@@ -6,6 +6,10 @@ import { useEffect, useMemo, useState, useTransition, type ReactNode } from "rea
 import { PageHeader } from "@/components/shell/page-header";
 import { ScrollTable } from "@/components/ui/scroll-table";
 import {
+  SetupBadge,
+  type SetupBadgeKind,
+} from "@/components/ui/setup-badge";
+import {
   actionQueueBackupNow,
   actionQueueRestore,
   actionSaveBackups,
@@ -490,6 +494,9 @@ export function BackupsStudio({
           value={snapshot.stats.lastBackupLabel}
           label="Last backup"
           tone={snapshot.stats.lastBackupTone}
+          badge={
+            snapshot.stats.lastBackupLabel === "Never" ? "setup" : undefined
+          }
         />
         <Metric
           value={String(snapshot.stats.restorePoints)}
@@ -497,8 +504,13 @@ export function BackupsStudio({
           tone={
             snapshot.stats.restorePoints > 0 ? "text-ok" : "text-muted"
           }
+          badge={snapshot.stats.restorePoints === 0 ? "setup" : undefined}
         />
-        <Metric value={snapshot.stats.sizeLabel} label="Latest size" />
+        <Metric
+          value={snapshot.stats.sizeLabel}
+          label="Latest size"
+          badge={snapshot.stats.sizeLabel === "—" ? "demo" : undefined}
+        />
         <Metric
           value={snapshot.stats.destinationLabel}
           label="Destination"
@@ -506,6 +518,9 @@ export function BackupsStudio({
             snapshot.stats.destinationLabel === "—"
               ? "text-warn"
               : "text-ink"
+          }
+          badge={
+            snapshot.stats.destinationLabel === "—" ? "connect" : undefined
           }
         />
       </div>
@@ -710,12 +725,8 @@ export function BackupsStudio({
                         Not enabled — contact admin
                       </span>
                     ) : isOauthDest ? (
-                      <span className="mt-0.5 block text-[11px] font-normal text-brand">
-                        {opt.id === "google_drive"
-                          ? "Connect with Google"
-                          : opt.id === "dropbox"
-                            ? "Connect with Dropbox"
-                            : "Connect with Microsoft"}
+                      <span className="mt-0.5 block">
+                        <SetupBadge kind="connect" />
                       </span>
                     ) : null}
                   </button>
@@ -1007,18 +1018,20 @@ function Metric({
   value,
   label,
   tone = "text-ink",
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-[10px] border border-line bg-white px-4 pb-3.5 pt-4">
       <div
-        className={`truncate text-2xl font-bold tracking-[-0.02em] ${tone}`}
+        className={`truncate text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone}`}
         title={value}
       >
-        {value}
+        {badge ? <SetupBadge kind={badge} size="lg" /> : value}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

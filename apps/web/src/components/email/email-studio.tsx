@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import {
   actionSaveWebsiteEmail,
   actionStartWebsiteEmailOauth,
@@ -166,16 +167,29 @@ export function EmailStudio({
       ) : null}
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Metric value={smtp.label} label="SMTP" tone={smtp.tone} />
+        <Metric
+          value={smtp.label}
+          label="SMTP"
+          tone={smtp.tone}
+          badge={
+            smtp.label === "Off"
+              ? "setup"
+              : smtp.label === "Incomplete" || smtp.label === "Verify OAuth"
+                ? "incomplete"
+                : undefined
+          }
+        />
         <Metric
           value={settings.fromEmail || "—"}
           label="From"
           tone={settings.fromEmail ? "text-ink" : "text-muted"}
+          badge={!settings.fromEmail ? "setup" : undefined}
         />
         <Metric
           value={settings.notifyEmail || "—"}
           label="Alerts to"
           tone={settings.notifyEmail ? "text-ink" : "text-muted"}
+          badge={!settings.notifyEmail ? "setup" : undefined}
         />
         <Metric
           value={`${score}%`}
@@ -183,6 +197,7 @@ export function EmailStudio({
           tone={
             score >= 70 ? "text-ok" : score >= 40 ? "text-warn" : "text-muted"
           }
+          badge={score < 40 ? "setup" : score < 70 ? "incomplete" : undefined}
         />
       </div>
 
@@ -637,18 +652,20 @@ function Metric({
   value,
   label,
   tone = "text-ink",
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-[10px] border border-line bg-white px-4 pb-3.5 pt-4">
       <div
-        className={`truncate text-2xl font-bold tracking-[-0.02em] ${tone}`}
+        className={`truncate text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone}`}
         title={value}
       >
-        {value}
+        {badge ? <SetupBadge kind={badge} size="lg" /> : value}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

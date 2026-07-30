@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { ScrollTable } from "@/components/ui/scroll-table";
 import {
   actionClearAuditLog,
@@ -192,6 +193,15 @@ export function AuditLogStudio({
           value={String(snapshot.stats.events30d)}
           label="Events · 30 days"
           tone={snapshot.stats.events30d > 0 ? "text-ink" : "text-muted"}
+          badge={
+            snapshot.stats.events30d === 0
+              ? !settings.enabled
+                ? "setup"
+                : !snapshot.loggingReady
+                  ? "connect"
+                  : undefined
+              : undefined
+          }
         />
         <Metric value={String(snapshot.stats.users)} label="Users" />
         <Metric
@@ -422,18 +432,20 @@ function Metric({
   value,
   label,
   tone = "text-ink",
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-[10px] border border-line bg-white px-4 pb-3.5 pt-4">
       <div
-        className={`truncate text-2xl font-bold tracking-[-0.02em] ${tone}`}
+        className={`truncate text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone}`}
         title={value}
       >
-        {value}
+        {badge ? <SetupBadge kind={badge} size="lg" /> : value}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

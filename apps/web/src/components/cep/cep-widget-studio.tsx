@@ -11,6 +11,7 @@ import type {
 import { defaultCepWidgetPayload, CEP_AI_PROVIDER_OPTIONS } from "@/lib/db/schema";
 import { actionSaveCepWidget } from "@/lib/cep/cep-actions";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { DraggablePlacementCanvas } from "@/components/widgets/draggable-placement-canvas";
 import {
   FloatingLauncherButton,
@@ -197,8 +198,13 @@ export function CepWidgetStudio({
           value={health.live ? "On" : "Off"}
           label="AI answering"
           tone={health.live ? "text-ok" : "text-warn"}
+          badge={!health.live ? "setup" : undefined}
         />
-        <Metric value={String(health.chunks)} label="Knowledge passages" />
+        <Metric
+          value={String(health.chunks)}
+          label="Knowledge passages"
+          badge={health.chunks === 0 ? "setup" : undefined}
+        />
         <Metric
           value={`${health.used.toLocaleString()}`}
           label={`AI replies · ${health.planLabel}`}
@@ -925,21 +931,29 @@ function Metric({
   label,
   hint,
   tone,
+  badge,
 }: {
   value: string;
   label: string;
   hint?: string;
   tone?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-[10px] border border-line bg-white px-4 pt-4 pb-3.5 shadow-[0_1px_0_rgba(11,30,58,.04)]">
       <div
-        className={`text-2xl font-bold tracking-[-0.02em] text-ink ${tone ?? ""}`}
+        className={`text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : `text-ink ${tone ?? ""}`}`}
       >
-        {value}
-        {hint ? (
-          <span className="text-[13px] font-medium text-faint"> {hint}</span>
-        ) : null}
+        {badge ? (
+          <SetupBadge kind={badge} size="lg" />
+        ) : (
+          <>
+            {value}
+            {hint ? (
+              <span className="text-[13px] font-medium text-faint"> {hint}</span>
+            ) : null}
+          </>
+        )}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

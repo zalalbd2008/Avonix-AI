@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { timeAgo } from "@/components/ui/status-pill";
 import { CONNECTOR_VERSION, compareVersions } from "@/lib/connector/version";
 import { actionSaveUpdates } from "@/lib/updates/actions";
@@ -228,10 +229,12 @@ export function UpdatesStudio({
           value={connected ? "Connected" : websiteStatus}
           label="Site status"
           tone={connected ? "text-ok" : "text-warn"}
+          badge={!connected ? "connect" : undefined}
         />
         <Metric
           value={connectorVersion ? `v${connectorVersion}` : "—"}
           label="Connector on site"
+          badge={!connectorVersion ? "connect" : undefined}
         />
         <Metric
           value={`v${CONNECTOR_VERSION}`}
@@ -243,6 +246,7 @@ export function UpdatesStudio({
           tone={
             score >= 70 ? "text-ok" : score >= 40 ? "text-warn" : "text-muted"
           }
+          badge={score < 40 ? "setup" : undefined}
         />
       </div>
 
@@ -645,15 +649,20 @@ function Metric({
   value,
   label,
   tone = "text-ink",
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-[10px] border border-line bg-white px-4 pb-3.5 pt-4">
-      <div className={`text-2xl font-bold tracking-[-0.02em] ${tone}`}>
-        {value}
+      <div
+        className={`truncate text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone}`}
+        title={value}
+      >
+        {badge ? <SetupBadge kind={badge} size="lg" /> : value}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

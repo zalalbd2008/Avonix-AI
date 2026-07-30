@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { actionSaveAutomation } from "@/lib/automation/actions";
 import { actionConnectTelegramPhone } from "@/lib/integrations/actions";
 import {
@@ -241,24 +242,34 @@ export function AutomationStudio({
           label="Status"
           tone={status.tone}
           accent="from-emerald-400/20"
+          badge={
+            status.label === "Off" || status.label === "No rules on"
+              ? "setup"
+              : undefined
+          }
         />
         <Metric
           value={String(settings.rules.length)}
           label="Total rules"
           tone="text-ink"
           accent="from-sky-400/20"
+          badge={settings.rules.length === 0 ? "setup" : undefined}
         />
         <Metric
           value={String(activeCount)}
           label="Turned on"
           tone={activeCount ? "text-ok" : "text-muted"}
           accent="from-amber-400/20"
+          badge={
+            settings.enabled && activeCount === 0 ? "incomplete" : undefined
+          }
         />
         <Metric
           value={String(socialCount)}
           label="Social linked"
           tone={socialCount ? "text-ok" : "text-muted"}
           accent="from-pink-400/20"
+          badge={socialCount === 0 ? "connect" : undefined}
         />
         <Metric
           value={`${score}%`}
@@ -267,6 +278,7 @@ export function AutomationStudio({
             score >= 70 ? "text-ok" : score >= 40 ? "text-warn" : "text-muted"
           }
           accent="from-rose-400/20"
+          badge={score < 40 ? "setup" : score < 70 ? "incomplete" : undefined}
         />
       </div>
 
@@ -443,10 +455,14 @@ export function AutomationStudio({
                         className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                           account.connected
                             ? "bg-emerald-100 text-emerald-800"
-                            : "bg-[#eef2f7] text-faint"
+                            : "bg-[#eef2f7]"
                         }`}
                       >
-                        {account.connected ? "Linked" : "Off"}
+                        {account.connected ? (
+                          "Linked"
+                        ) : (
+                          <SetupBadge kind="connect" />
+                        )}
                       </span>
                     </div>
                     <p className="px-3 pt-1.5 text-[11.5px] text-muted">
@@ -1070,21 +1086,23 @@ function Metric({
   label,
   tone = "text-ink",
   accent = "from-sky-400/15",
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
   accent?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div
       className={`rounded-[12px] border border-line bg-gradient-to-br ${accent} to-white px-4 pb-3.5 pt-4`}
     >
       <div
-        className={`truncate text-2xl font-bold tracking-[-0.02em] ${tone}`}
+        className={`truncate text-2xl font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone}`}
         title={value}
       >
-        {value}
+        {badge ? <SetupBadge kind={badge} size="lg" /> : value}
       </div>
       <div className="mt-[3px] text-[12.5px] text-muted">{label}</div>
     </div>

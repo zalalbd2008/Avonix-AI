@@ -1,6 +1,7 @@
 import type { ReportData } from "@/lib/reports/service";
 import { maskIp } from "@/lib/reports/user-agent";
 import { ScrollTable } from "@/components/ui/scroll-table";
+import { SetupBadge } from "@/components/ui/setup-badge";
 import { ActivityTable } from "./activity-table";
 
 const TYPE_TONE: Record<string, string> = {
@@ -48,11 +49,17 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
               : "No page views yet — the tracking script has not reported in"
           }
           quiet={t.pageviews === 0}
+          badge={t.pageviews === 0 ? "connect" : undefined}
         />
         <ReportCard
           title="Activity"
           detail={`${t.buttons + t.consultations + t.formEvents} tracked interactions across the site`}
           quiet={t.buttons + t.consultations + t.formEvents === 0}
+          badge={
+            t.buttons + t.consultations + t.formEvents === 0
+              ? "connect"
+              : undefined
+          }
         />
       </div>
 
@@ -65,7 +72,11 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
         </div>
 
         <div className="mb-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat value={t.pageviews} label="Page views" />
+          <Stat
+            value={t.pageviews}
+            label="Page views"
+            badge={t.pageviews === 0 ? "connect" : undefined}
+          />
           <Stat value={t.buttons} label="Button clicks" tone="text-brand" />
           <Stat value={t.formEvents} label="Form events" />
           <Stat value={t.leads} label="Leads" tone="text-ok" />
@@ -77,7 +88,9 @@ export function ReportView({ data, maskIps }: { data: ReportData; maskIps: boole
               Activity over time · last {data.range} days
             </p>
             {data.daily.length === 0 ? (
-              <p className="py-8 text-center text-[12.5px] text-faint">Nothing tracked yet</p>
+              <p className="py-8 text-center text-[12.5px] font-bold text-bad">
+                <SetupBadge kind="connect" /> Nothing tracked yet
+              </p>
             ) : (
               <div className="flex h-[110px] items-end gap-1.5">
                 {data.daily.map((d) => (
@@ -177,10 +190,12 @@ function ReportCard({
   title,
   detail,
   quiet,
+  badge,
 }: {
   title: string;
   detail: string;
   quiet?: boolean;
+  badge?: "connect" | "demo" | "setup" | "incomplete";
 }) {
   return (
     <div className="rounded-xl border border-line bg-white p-[18px]">
@@ -188,10 +203,10 @@ function ReportCard({
         <span className="text-[15px] font-bold">{title}</span>
         <span
           className={`ml-auto rounded-full px-2.5 py-[3px] text-[11px] font-bold ${
-            quiet ? "bg-[#f1f4f8] text-faint" : "bg-[rgba(13,148,136,.1)] text-ok"
+            quiet ? "bg-[#f1f4f8]" : "bg-[rgba(13,148,136,.1)] text-ok"
           }`}
         >
-          {quiet ? "No data" : "✓ Included"}
+          {badge ? <SetupBadge kind={badge} /> : quiet ? "No data" : "✓ Included"}
         </span>
       </div>
       <p className="text-[12.5px] leading-[1.5] text-muted">{detail}</p>
@@ -203,15 +218,23 @@ function Stat({
   value,
   label,
   tone,
+  badge,
 }: {
   value: number | string;
   label: string;
   tone?: string;
+  badge?: "connect" | "demo" | "setup" | "incomplete";
 }) {
   return (
     <div className="rounded-[10px] border border-[#edf0f5] bg-[#f8fafc] p-3.5">
-      <div className={`text-[21px] font-bold tracking-[-0.02em] ${tone ?? ""}`}>
-        {typeof value === "number" ? value.toLocaleString() : value}
+      <div className={`text-[21px] font-bold tracking-[-0.02em] ${badge ? "text-bad" : tone ?? ""}`}>
+        {badge ? (
+          <SetupBadge kind={badge} size="lg" />
+        ) : typeof value === "number" ? (
+          value.toLocaleString()
+        ) : (
+          value
+        )}
       </div>
       <div className="mt-0.5 text-[12px] text-muted">{label}</div>
     </div>

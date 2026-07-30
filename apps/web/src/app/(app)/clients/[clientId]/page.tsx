@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, count, eq, isNull } from "drizzle-orm";
+import { SetupBadge } from "@/components/ui/setup-badge";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
 import { clients, contacts, websites } from "@/lib/db/schema";
@@ -112,7 +113,11 @@ export default async function ClientOverviewPage({
                   className={`ml-auto flex shrink-0 items-center gap-1.5 text-[11.5px] font-semibold capitalize ${dot[s.status]}`}
                 >
                   <span className="size-[7px] rounded-full bg-current" />
-                  {s.status}
+                  {s.status === "pending" || s.status === "disconnected" ? (
+                    <SetupBadge kind="connect" />
+                  ) : (
+                    s.status
+                  )}
                 </span>
               </div>
               <div className="mb-3.5 flex gap-4 text-[12.5px] text-muted">

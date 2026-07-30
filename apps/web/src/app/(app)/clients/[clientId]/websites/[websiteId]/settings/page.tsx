@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge } from "@/components/ui/setup-badge";
 import { RotateKeyButton } from "@/components/rotate-key-button";
 import { WebsiteFontsPanel } from "@/components/websites/website-fonts-panel";
 import { WebsiteUrlEditor } from "@/components/websites/website-url-editor";
@@ -52,13 +53,25 @@ export default async function WebsiteSettingsPage({
   const canDelete =
     ctx.permissions === "*" || ctx.permissions.includes("websites.edit");
 
-  const details: [string, string][] = [
-    ["Name", site.name],
-    ["URL", site.url],
-    ["Status", site.status],
-    ["Plugin version", site.connectorVersion ?? "not reported"],
-    ["Last seen", site.lastSeenAt ? new Date(site.lastSeenAt).toLocaleString() : "never"],
-    ["Added", new Date(site.createdAt).toLocaleDateString()],
+  const details: {
+    label: string;
+    value: string;
+    badge?: "connect" | "setup";
+  }[] = [
+    { label: "Name", value: site.name },
+    { label: "URL", value: site.url },
+    { label: "Status", value: site.status },
+    {
+      label: "Plugin version",
+      value: site.connectorVersion ?? "not reported",
+      badge: !site.connectorVersion ? "connect" : undefined,
+    },
+    {
+      label: "Last seen",
+      value: site.lastSeenAt ? new Date(site.lastSeenAt).toLocaleString() : "never",
+      badge: !site.lastSeenAt ? "connect" : undefined,
+    },
+    { label: "Added", value: new Date(site.createdAt).toLocaleDateString() },
   ];
 
   return (
@@ -80,10 +93,13 @@ export default async function WebsiteSettingsPage({
       <section className="mb-4 overflow-hidden rounded-xl border border-line bg-white">
         <h2 className="border-b border-[#edf0f5] px-4 py-3 text-sm font-semibold">Details</h2>
         <dl className="px-4 py-2 text-[13px]">
-          {details.map(([k, v]) => (
-            <div key={k} className="flex gap-3 border-b border-[#f6f8fa] py-2.5 last:border-0">
-              <dt className="w-32 shrink-0 text-muted">{k}</dt>
-              <dd className="min-w-0 break-words capitalize">{v}</dd>
+          {details.map((row) => (
+            <div key={row.label} className="flex gap-3 border-b border-[#f6f8fa] py-2.5 last:border-0">
+              <dt className="w-32 shrink-0 text-muted">{row.label}</dt>
+              <dd className="flex min-w-0 items-center gap-2 break-words capitalize">
+                {row.value}
+                {row.badge ? <SetupBadge kind={row.badge} /> : null}
+              </dd>
             </div>
           ))}
         </dl>
@@ -95,7 +111,10 @@ export default async function WebsiteSettingsPage({
         </h2>
         <div className="flex flex-wrap items-center gap-4 px-4 py-4">
           <div className="min-w-0">
-            <code className="font-mono text-[13px]">{key?.prefix ?? "—"}…</code>
+            <code className="inline-flex items-center gap-2 font-mono text-[13px]">
+              {key?.prefix ?? "—"}…
+              {!key ? <SetupBadge kind="connect" /> : null}
+            </code>
             <p className="mt-1 text-[12px] text-faint">
               {key
                 ? `Issued ${new Date(key.createdAt).toLocaleDateString()}. ${data.keysIssued} issued in total. Only a hash is stored, so the full key cannot be shown again.`
@@ -117,10 +136,11 @@ export default async function WebsiteSettingsPage({
           Indexed content
         </h2>
         <div className="flex items-center gap-4 px-4 py-3.5 text-[13px]">
-          <span className="text-muted">
+          <span className="flex items-center gap-2 text-muted">
             {data.chunks === 0
               ? "Nothing indexed. The assistant has no site content to answer from."
               : `${data.chunks} passages from this site.`}
+            {data.chunks === 0 ? <SetupBadge kind="setup" /> : null}
           </span>
           <Link
             href={`/clients/${clientId}/websites/${websiteId}/knowledge` as never}

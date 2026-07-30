@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { DraggablePlacementCanvas } from "@/components/widgets/draggable-placement-canvas";
 import {
   FloatingLauncherButton,
@@ -247,10 +248,34 @@ export function LanguagesStudio({
 
       <div className="border-b border-[#e8edf5] px-6 py-4 sm:px-8">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Metric value={`${score}`} label="Readiness score" tone={scoreTone} hint="/ 100" />
-          <Metric value={String(active.length)} label="Active locales" />
-          <Metric value={`${coverage}%`} label="Avg. coverage" />
-          <Metric value={`${surfacesOn}/7`} label="Surfaces" />
+          <Metric
+            value={`${score}`}
+            label="Readiness score"
+            tone={scoreTone}
+            hint="/ 100"
+            badge={!settings.enabled ? "setup" : undefined}
+          />
+          <Metric
+            value={String(active.length)}
+            label="Active locales"
+            badge={!settings.enabled ? "setup" : undefined}
+          />
+          <Metric
+            value={`${coverage}%`}
+            label="Avg. coverage"
+            badge={!settings.enabled ? "setup" : undefined}
+          />
+          <Metric
+            value={`${surfacesOn}/7`}
+            label="Surfaces"
+            badge={
+              !settings.enabled
+                ? "setup"
+                : surfacesOn < 7
+                  ? "incomplete"
+                  : undefined
+            }
+          />
         </div>
         <div
           className={`mt-3 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13px] ${
@@ -1064,19 +1089,27 @@ function Metric({
   label,
   tone = "text-ink",
   hint,
+  badge,
 }: {
   value: string;
   label: string;
   tone?: string;
   hint?: string;
+  badge?: SetupBadgeKind;
 }) {
   return (
     <div className="rounded-xl border border-[#e8edf5] px-3.5 py-3">
-      <p className={`text-[20px] font-bold tracking-tight ${tone}`}>
-        {value}
-        {hint ? (
-          <span className="ml-1 text-[12px] font-medium text-faint">{hint}</span>
-        ) : null}
+      <p className={`text-[20px] font-bold tracking-tight ${badge ? "text-bad" : tone}`}>
+        {badge ? (
+          <SetupBadge kind={badge} size="lg" />
+        ) : (
+          <>
+            {value}
+            {hint ? (
+              <span className="ml-1 text-[12px] font-medium text-faint">{hint}</span>
+            ) : null}
+          </>
+        )}
       </p>
       <p className="mt-0.5 text-[12px] text-muted">{label}</p>
     </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { actionRefreshHealth } from "@/lib/health/actions";
 import {
   checkColor,
@@ -147,6 +148,18 @@ function CheckPill({ check }: { check: HealthCheck }) {
   );
 }
 
+function summaryValueBadge(card: HealthSummaryCard): SetupBadgeKind | undefined {
+  if (card.id === "domain-card" && card.value === "—") return "demo";
+  if (card.id === "backup-card" && card.value === "Never") return "setup";
+  if (card.id === "uptime-card" && card.value === "—") {
+    return card.detail === "Monitoring off" ? "setup" : "demo";
+  }
+  if (card.id === "ssl-card" && (card.value === "Watch" || card.value === "—")) {
+    return "setup";
+  }
+  return undefined;
+}
+
 function SummaryCard({ card }: { card: HealthSummaryCard }) {
   const tone =
     card.tone === "ok"
@@ -156,11 +169,14 @@ function SummaryCard({ card }: { card: HealthSummaryCard }) {
         : card.tone === "brand"
           ? "text-brand"
           : "text-muted";
+  const badge = summaryValueBadge(card);
 
   return (
     <section className="rounded-[10px] border border-line bg-white p-4">
       <p className={`text-[12px] font-semibold ${tone}`}>{card.title}</p>
-      <p className="mt-1.5 text-[17px] font-bold text-ink">{card.value}</p>
+      <p className={`mt-1.5 text-[17px] font-bold ${badge ? "text-bad" : "text-ink"}`}>
+        {badge ? <SetupBadge kind={badge} size="lg" /> : card.value}
+      </p>
       <p className="mt-2 text-[12px] text-muted">{card.detail}</p>
       {card.href && card.hrefLabel ? (
         <Link

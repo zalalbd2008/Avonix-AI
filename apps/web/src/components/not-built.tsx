@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge } from "@/components/ui/setup-badge";
 
 /**
  * A screen that exists in the menu but not yet in the product.
@@ -31,7 +32,7 @@ export function NotBuilt({
 
       <div className="rounded-xl border border-line bg-white p-5">
         <div className="mb-2 flex items-center gap-2">
-          <span className="size-2 rounded-full bg-[#c9d2de]" />
+          <SetupBadge kind="demo" />
           <p className="text-[13.5px] font-semibold">{lead}</p>
         </div>
         <p className="text-[13px] leading-[1.6] text-muted">{body}</p>

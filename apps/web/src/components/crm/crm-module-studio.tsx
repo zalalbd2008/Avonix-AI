@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
+import { SetupBadge } from "@/components/ui/setup-badge";
 import {
   actionAdvanceDocument,
   actionCreateAssignRule,
@@ -312,17 +313,20 @@ function Card({
   title,
   children,
   accent = "border-l-sky-400",
+  badge,
 }: {
   title: string;
   children: ReactNode;
   accent?: string;
+  badge?: "connect" | "demo" | "setup" | "incomplete";
 }) {
   return (
     <section
       className={`mb-4 overflow-hidden rounded-2xl border border-line bg-white border-l-4 ${accent}`}
     >
-      <h2 className="border-b border-[#edf0f5] px-5 py-3.5 text-sm font-semibold">
+      <h2 className="flex flex-wrap items-center gap-2 border-b border-[#edf0f5] px-5 py-3.5 text-sm font-semibold">
         {title}
+        {badge ? <SetupBadge kind={badge} /> : null}
       </h2>
       <div className="space-y-3 px-5 py-4">{children}</div>
     </section>
@@ -978,7 +982,7 @@ function JourneyPanel({
 }) {
   const first = contacts[0];
   return (
-    <Card title="Customer journey map" accent="border-l-rose-400">
+    <Card title="Customer journey map" accent="border-l-rose-400" badge="demo">
       <ol className="space-y-3">
         {[
           "Visited website",
@@ -1277,7 +1281,14 @@ function Row({
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <p className="py-6 text-center text-[13px] text-muted">{children}</p>;
+  return (
+    <p className="py-6 text-center text-[13px] text-muted">
+      <span className="mr-1.5 inline-block align-middle">
+        <SetupBadge kind="setup" />
+      </span>
+      {children}
+    </p>
+  );
 }
 
 function fmtDate(v: Date | string) {

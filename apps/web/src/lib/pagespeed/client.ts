@@ -3,6 +3,9 @@
  *
  * Set `PAGESPEED_API_KEY` in apps/web/.env (Google Cloud → API key with
  * PageSpeed Insights API enabled).
+ *
+ * Dashboard must never block on PSI (can take 30–90s+). Use cache for render
+ * and refresh in the background via `after()`.
  */
 
 export type PageSpeedCache = {
@@ -13,6 +16,7 @@ export type PageSpeedCache = {
 };
 
 const CACHE_MS = 24 * 60 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 45_000;
 
 export function pagespeedApiKey(): string | null {
   const key = process.env.PAGESPEED_API_KEY?.trim();
@@ -22,7 +26,6 @@ export function pagespeedApiKey(): string | null {
 export function isPageSpeedCacheFresh(cache?: PageSpeedCache | null): boolean {
   if (!cache?.fetchedAt) return false;
   if (cache.score == null && cache.error) {
-    // Retry failed lookups quickly (PSI is flaky per-strategy).
     return Date.now() - new Date(cache.fetchedAt).getTime() < 5 * 60 * 1000;
   }
   return Date.now() - new Date(cache.fetchedAt).getTime() < CACHE_MS;
@@ -30,7 +33,7 @@ export function isPageSpeedCacheFresh(cache?: PageSpeedCache | null): boolean {
 
 export async function fetchPageSpeedScore(
   siteUrl: string,
-  strategy: "mobile" | "desktop" = "mobile",
+  strategy: "mobile" | "desktop" = "desktop",
 ): Promise<PageSpeedCache> {
   const key = pagespeedApiKey();
   const fetchedAt = new Date().toISOString();
@@ -55,6 +58,7 @@ export async function fetchPageSpeedScore(
     const res = await fetch(url.toString(), {
       method: "GET",
       next: { revalidate: 0 },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     const body = (await res.json()) as {
       error?: { message?: string };
@@ -89,25 +93,31 @@ export async function fetchPageSpeedScore(
   }
 }
 
-/** Return cached score or refresh from Google and persist via `save`. */
-export async function resolvePageSpeedForSite(opts: {
+/**
+ * Sync path for RSC: return cache only — never await Google here.
+ * Returns null when key missing; returns stale/empty cache object when no score yet.
+ */
+export function peekPageSpeedCache(opts: {
+  cache?: PageSpeedCache | null;
+}): PageSpeedCache | null {
+  if (!pagespeedApiKey()) return null;
+  return opts.cache ?? null;
+}
+
+/** Background refresh: desktop first (more reliable), then mobile. */
+export async function refreshPageSpeedForSite(opts: {
   siteUrl: string;
   cache?: PageSpeedCache | null;
   save?: (next: PageSpeedCache) => Promise<void>;
 }): Promise<PageSpeedCache | null> {
   if (!pagespeedApiKey()) return null;
-  // Only serve successful scores from cache; retry failures (PSI is flaky).
-  if (
-    opts.cache?.score != null &&
-    isPageSpeedCacheFresh(opts.cache)
-  ) {
+  if (opts.cache?.score != null && isPageSpeedCacheFresh(opts.cache)) {
     return opts.cache;
   }
 
-  let next = await fetchPageSpeedScore(opts.siteUrl, "mobile");
-  // Mobile PSI often 500s on heavy WP themes; desktop usually succeeds.
+  let next = await fetchPageSpeedScore(opts.siteUrl, "desktop");
   if (next.score == null) {
-    next = await fetchPageSpeedScore(opts.siteUrl, "desktop");
+    next = await fetchPageSpeedScore(opts.siteUrl, "mobile");
   }
   if (opts.save) {
     try {
@@ -117,4 +127,13 @@ export async function resolvePageSpeedForSite(opts: {
     }
   }
   return next;
+}
+
+/** @deprecated Use peekPageSpeedCache + refreshPageSpeedForSite */
+export async function resolvePageSpeedForSite(opts: {
+  siteUrl: string;
+  cache?: PageSpeedCache | null;
+  save?: (next: PageSpeedCache) => Promise<void>;
+}): Promise<PageSpeedCache | null> {
+  return refreshPageSpeedForSite(opts);
 }

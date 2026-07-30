@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { ShareReportButton } from "@/components/reports/share-report-button";
 import { PageHeader } from "@/components/shell/page-header";
@@ -23,8 +24,10 @@ import {
 } from "@/lib/db/schema";
 import { getShare } from "@/lib/reports/share";
 import {
+  isPageSpeedCacheFresh,
   pagespeedApiKey,
-  resolvePageSpeedForSite,
+  peekPageSpeedCache,
+  refreshPageSpeedForSite,
 } from "@/lib/pagespeed/client";
 import {
   mergeWebsiteEmailSettings,
@@ -113,26 +116,37 @@ export default async function WebsiteOverviewPage({
     );
   }
 
-  const pagespeed = await resolvePageSpeedForSite({
-    siteUrl: site.url,
+  // Never await PSI here — it can hang 30–90s+ and block navigation.
+  const pagespeed = peekPageSpeedCache({
     cache: site.settings?.pagespeed ?? null,
-    save: async (next) => {
-      await withAgency(ctx.agencyId, async (tx) => {
-        const [row] = await tx
-          .select({ settings: websites.settings })
-          .from(websites)
-          .where(eq(websites.id, websiteId))
-          .limit(1);
-        await tx
-          .update(websites)
-          .set({
-            settings: { ...(row?.settings ?? {}), pagespeed: next },
-            updatedAt: new Date(),
-          })
-          .where(eq(websites.id, websiteId));
-      });
-    },
   });
+  if (
+    pagespeedApiKey() &&
+    !(pagespeed?.score != null && isPageSpeedCacheFresh(pagespeed))
+  ) {
+    after(() =>
+      refreshPageSpeedForSite({
+        siteUrl: site.url,
+        cache: site.settings?.pagespeed ?? null,
+        save: async (next) => {
+          await withAgency(ctx.agencyId, async (tx) => {
+            const [row] = await tx
+              .select({ settings: websites.settings })
+              .from(websites)
+              .where(eq(websites.id, websiteId))
+              .limit(1);
+            await tx
+              .update(websites)
+              .set({
+                settings: { ...(row?.settings ?? {}), pagespeed: next },
+                updatedAt: new Date(),
+              })
+              .where(eq(websites.id, websiteId));
+          });
+        },
+      }),
+    );
+  }
 
   const connected = site.status === "connected";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

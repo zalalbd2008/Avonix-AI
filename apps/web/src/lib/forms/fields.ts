@@ -544,7 +544,7 @@ ${hidden}
   <!-- Hidden from people, filled in by bots. Do not remove. -->
   ${
     securityPub.honeypot
-      ? `<input type="text" name="hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:0;top:0;width:1px;height:1px;margin:0;padding:0;opacity:0;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);border:0;pointer-events:none">`
+      ? `<input type="text" name="hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">`
       : ""
   }
   ${

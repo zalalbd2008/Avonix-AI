@@ -223,16 +223,37 @@ class Avonix_Popup
   padding-left: 2px;
   padding-right: 2px;
 }
-/* Inset focus ring — outer box-shadow was clipped by scroll containers */
-.avonix-popup-form .avonix-form input:focus,
+/* Inset focus ring — text fields only (not radio/checkbox) */
+.avonix-popup-form .avonix-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"]):not([type="button"]):not([type="submit"]):focus,
 .avonix-popup-form .avonix-form select:focus,
 .avonix-popup-form .avonix-form textarea:focus,
-.avonix-popup-form .avx-form input:focus,
+.avonix-popup-form .avx-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"]):not([type="button"]):not([type="submit"]):focus,
 .avonix-popup-form .avx-form select:focus,
 .avonix-popup-form .avx-form textarea:focus {
   outline: 2px solid var(--avx-input-focus-border, #ff6600) !important;
   outline-offset: -2px !important;
   box-shadow: none !important;
+}
+.avonix-popup-form .avonix-form input[type="radio"],
+.avonix-popup-form .avonix-form input[type="checkbox"],
+.avonix-popup-form .avx-form input[type="radio"],
+.avonix-popup-form .avx-form input[type="checkbox"] {
+  width: var(--avx-radio-size, 18px) !important;
+  height: var(--avx-radio-size, 18px) !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  accent-color: var(--avx-radio-on, #ff6600);
+}
+.avonix-popup-form .avonix-form input[type="checkbox"] {
+  width: var(--avx-check-size, 18px) !important;
+  height: var(--avx-check-size, 18px) !important;
+  accent-color: var(--avx-check-on, #ff6600);
 }
 @keyframes avonix-pop-in {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }
@@ -1575,9 +1596,13 @@ CSS;
         ".avonix-popup-form-wrap,.avonix-popup-form,.avonix-popup-form .avonix-form," +
         ".avonix-popup-form .avx-form,.avonix-popup-form .avx-step,.avonix-popup-form .avx-col{" +
         "overflow:visible!important}" +
-        ".avonix-popup-form .avonix-form input:focus,.avonix-popup-form .avonix-form select:focus," +
+        ".avonix-popup-form .avonix-form input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):focus," +
+        ".avonix-popup-form .avonix-form select:focus," +
         ".avonix-popup-form .avonix-form textarea:focus{outline:2px solid var(--avx-input-focus-border,#ff6600)!important;" +
         "outline-offset:-2px!important;box-shadow:none!important}" +
+        ".avonix-popup-form .avonix-form input[type=radio],.avonix-popup-form .avonix-form input[type=checkbox]{" +
+        "min-height:0!important;min-width:0!important;padding:0!important;border:0!important;" +
+        "outline:none!important;box-shadow:none!important;background:transparent!important}" +
         ".avonix-popup-card:has(.avx-success),.avonix-popup-card--success{" +
         "background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important}" +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-header," +

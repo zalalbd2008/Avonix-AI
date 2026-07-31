@@ -890,12 +890,10 @@ CSS;
   function conflictOk(conflicts) {
     conflicts = conflicts || {};
     if (conflicts.suppressIfChatOpen) {
-      if (conflicts.suppressIfChatOpen) {
       var cepPanel = document.querySelector(".avonix-cep-panel");
       if (cepPanel && cepPanel.style.display === "flex") return false;
       var chat = document.querySelector(".avonix-chat-open, .avonix-chat-panel.is-open, [data-avonix-chat-open='1']");
       if (chat) return false;
-    }
     }
     if (conflicts.suppressIfFormOpen) {
       var focus = document.activeElement;

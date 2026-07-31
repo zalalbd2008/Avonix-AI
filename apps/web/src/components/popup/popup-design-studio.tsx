@@ -26,18 +26,17 @@ import {
   POPUP_CLOSE_ANIMATIONS,
   POPUP_CLOSE_HOVER_ANIMATIONS,
   POPUP_CLOSE_ICONS,
-  PopupCloseIcon,
   POPUP_EDITOR_TABS,
   POPUP_LAYOUTS,
   POPUP_PRIORITIES,
   POPUP_TYPES,
   applyCampaignHeaderLook,
   defaultPopupPayload,
-  PopupCloseIcon,
   slugifyPopupName,
   summarizePageTarget,
   type PopupEditorTab,
 } from "@/lib/popup/defaults";
+import { PopupCloseIcon } from "@/components/popup/popup-close-icon";
 import { PageHeader } from "@/components/shell/page-header";
 import { SetupBadge } from "@/components/ui/setup-badge";
 import { GoogleFontPicker } from "@/components/fonts/google-font-picker";

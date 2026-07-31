@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import type { PopupComponent, PopupPayload } from "@/lib/db/schema";
 import { googleFontStack } from "@/lib/fonts/google";
 import { isSafeEmbedUrl } from "@/lib/popup/resolve-form-link";
-import { PopupCloseIcon } from "@/lib/popup/defaults";
+import { PopupCloseIcon } from "@/components/popup/popup-close-icon";
 import { PopupFormPreviewBlock } from "@/components/popup/popup-form-preview-block";
 
 type FormOpt = { id: string; name: string };

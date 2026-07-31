@@ -20,6 +20,34 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: appRoot,
   },
+  /**
+   * After deploys, long-lived HTML cache makes the browser request deleted
+   * `/_next/static/chunks/*` files → "Failed to load chunk". Keep documents
+   * fresh; hashed static assets can stay immutable.
+   */
+  async headers() {
+    return [
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value:
+              "private, no-cache, no-store, max-age=0, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

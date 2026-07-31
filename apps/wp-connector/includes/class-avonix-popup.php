@@ -181,7 +181,8 @@ class Avonix_Popup
   border-radius: 18px;
   background: #fff;
   color: #0f1c2e;
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 0 !important;
+  outline: 0 !important;
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 24px 64px rgba(15, 23, 42, 0.28);
@@ -216,9 +217,22 @@ class Avonix_Popup
   overflow-y: auto !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
-  /* room for focus ring + floating labels */
-  padding-top: 6px;
-  padding-bottom: 4px;
+  /* room for float labels; focus uses inset ring so it won't clip */
+  padding-top: 10px;
+  padding-bottom: 6px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+/* Inset focus ring — outer box-shadow was clipped by scroll containers */
+.avonix-popup-form .avonix-form input:focus,
+.avonix-popup-form .avonix-form select:focus,
+.avonix-popup-form .avonix-form textarea:focus,
+.avonix-popup-form .avx-form input:focus,
+.avonix-popup-form .avx-form select:focus,
+.avonix-popup-form .avx-form textarea:focus {
+  outline: 2px solid var(--avx-input-focus-border, #ff6600) !important;
+  outline-offset: -2px !important;
+  box-shadow: none !important;
 }
 @keyframes avonix-pop-in {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }
@@ -940,6 +954,8 @@ CSS;
       card.style.minHeight = "0";
     }
     if (design.radius != null) card.style.borderRadius = design.radius + "px";
+    card.style.setProperty("border", "0", "important");
+    card.style.setProperty("outline", "0", "important");
     if (gridMode !== "media_split" && gridMode !== "header_band" && design.padding != null) {
       card.style.padding = design.padding + "px";
     }
@@ -1506,10 +1522,13 @@ CSS;
         ".avonix-popup-body{overflow-x:hidden!important;overflow-y:auto!important;" +
         "scrollbar-width:none!important;-ms-overflow-style:none!important;min-height:0!important;" +
         "padding-top:6px!important}" +
-        ".avonix-popup-card{width:550px!important;max-width:min(550px,calc(100vw - 32px))!important;overflow:visible!important}" +
+        ".avonix-popup-card{width:550px!important;max-width:min(550px,calc(100vw - 32px))!important;overflow:visible!important;border:0!important;outline:0!important}" +
         ".avonix-popup-form-wrap,.avonix-popup-form,.avonix-popup-form .avonix-form," +
         ".avonix-popup-form .avx-form,.avonix-popup-form .avx-step,.avonix-popup-form .avx-col{" +
         "overflow:visible!important}" +
+        ".avonix-popup-form .avonix-form input:focus,.avonix-popup-form .avonix-form select:focus," +
+        ".avonix-popup-form .avonix-form textarea:focus{outline:2px solid var(--avx-input-focus-border,#ff6600)!important;" +
+        "outline-offset:-2px!important;box-shadow:none!important}" +
         ".avonix-popup-root *::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}";
       document.head.appendChild(killCss);
     }

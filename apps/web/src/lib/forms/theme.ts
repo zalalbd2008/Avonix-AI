@@ -1194,7 +1194,7 @@ export function themeStyle(theme: FormTheme): Record<string, string> {
     ["--avx-input-hover-border"]: t.input.states.hover?.borderColor ?? t.input.borderColor,
     ["--avx-input-focus-border"]: t.input.states.focus?.borderColor ?? t.tokens.primary,
     ["--avx-input-focus-shadow"]:
-      t.input.states.focus?.shadow ?? "0 0 0 3px rgba(255,102,0,.15)",
+      t.input.states.focus?.shadow ?? "inset 0 0 0 2px rgba(255,102,0,.35)",
     ["--avx-input-error-border"]: t.input.states.error?.borderColor ?? t.tokens.danger,
 
     ["--avx-btn-bg"]: t.buttons.submit.background,
@@ -1456,7 +1456,7 @@ export function themeEmbedCss(theme: FormTheme): string {
 .avonix-form input,.avonix-form select,.avonix-form textarea{width:100%;min-height:var(--avx-input-h,42px);box-sizing:border-box;padding:var(--avx-pad-y,10px) var(--avx-pad-x,12px);border:var(--avx-input-bw,1px) solid var(--avx-input-border,#dbe1ea);border-radius:var(--avx-radius,8px);background:var(--avx-input-bg,#fff);color:var(--avx-input-text,#13233c);font-family:var(--avx-font,system-ui,sans-serif);font-size:var(--avx-font-size,14px);font-weight:inherit;box-shadow:var(--avx-input-shadow,none);transition:border-color var(--avx-input-transition,150ms),box-shadow var(--avx-input-transition,150ms),background var(--avx-input-transition,150ms)}
 .avonix-form input::placeholder,.avonix-form textarea::placeholder{color:var(--avx-ph-color,#8b98ab);opacity:var(--avx-ph-opacity,1);font-size:var(--avx-ph-size,14px);font-style:var(--avx-ph-style,normal)}
 .avonix-form input:hover,.avonix-form select:hover,.avonix-form textarea:hover{border-color:var(--avx-input-hover-border,#c3ccd9)}
-.avonix-form input:focus,.avonix-form select:focus,.avonix-form textarea:focus{outline:0;border-color:var(--avx-input-focus-border,#ff6600);box-shadow:var(--avx-input-focus-shadow,0 0 0 3px rgba(255,102,0,.15))}
+.avonix-form input:focus,.avonix-form select:focus,.avonix-form textarea:focus{outline:2px solid var(--avx-input-focus-border,#ff6600);outline-offset:-2px;border-color:var(--avx-input-focus-border,#ff6600);box-shadow:var(--avx-input-focus-shadow,inset 0 0 0 2px rgba(255,102,0,.35))}
 .avonix-form .avx-nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;justify-content:flex-start}
 .avonix-form .avx-nav button{padding:var(--avx-btn-py,10px) var(--avx-btn-px,16px);border-radius:var(--avx-btn-radius,8px);border:0;font-weight:var(--avx-btn-weight,600);cursor:pointer;font-family:inherit;font-size:var(--avx-btn-size,14px);width:auto;box-shadow:var(--avx-btn-shadow,none);transition:filter .15s ease}
 .avonix-form .avx-next{background:var(--avx-next-bg,#ff6600);color:var(--avx-next-text,#fff)}

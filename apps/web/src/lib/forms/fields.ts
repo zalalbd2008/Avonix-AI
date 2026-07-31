@@ -1063,9 +1063,15 @@ ${themeEmbedCss(theme)}
       });
       host.replaceWith(screen);
       try{
+        var popupRoot=screen.closest&&screen.closest('.avonix-popup-root');
         var popupCard=screen.closest&&screen.closest('.avonix-popup-card');
+        if(popupRoot){
+          popupRoot.classList.add('avonix-popup-root--success');
+        }
         if(popupCard){
           popupCard.classList.add('avonix-popup-card--success');
+        }
+        if(popupRoot||popupCard){
           document.dispatchEvent(new CustomEvent('avonix:form-success',{detail:{formId:formId}}));
         }
       }catch(e){}

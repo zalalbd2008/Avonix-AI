@@ -659,14 +659,36 @@ class Avonix_Popup
 .avonix-popup-form-wrap.avonix-popup-form-wrap--no-nav .avx-nav {
   display: none !important;
 }
-/* After submit: only the success card — hide popup chrome (header, CTA, copy) */
+/* After submit: full-screen white overlay with thanks message */
+.avonix-popup-root:has(.avx-success),
+.avonix-popup-root--success {
+  background: #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.avonix-popup-root:has(.avx-success) .avonix-popup-shell,
+.avonix-popup-root--success .avonix-popup-shell {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
 .avonix-popup-card:has(.avx-success),
 .avonix-popup-card--success {
+  width: min(520px, calc(100vw - 48px)) !important;
+  max-width: min(520px, calc(100vw - 48px)) !important;
   background: transparent !important;
   box-shadow: none !important;
   border: 0 !important;
-  padding: 0 !important;
+  padding: 24px !important;
   overflow: visible !important;
+  animation: avonix-pop-in 0.32s ease;
 }
 .avonix-popup-card:has(.avx-success) .avonix-popup-header,
 .avonix-popup-card--success .avonix-popup-header,
@@ -695,18 +717,41 @@ class Avonix_Popup
   background: transparent !important;
   gap: 0 !important;
   max-height: none !important;
+  width: 100%;
+  align-items: center !important;
 }
 .avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap,
 .avonix-popup-card--success .avonix-popup-form-wrap {
   margin: 0 !important;
   padding: 0 !important;
   overflow: visible !important;
+  width: 100%;
 }
 .avonix-popup-card:has(.avx-success) .avx-success,
 .avonix-popup-card--success .avx-success {
   width: 100%;
   box-sizing: border-box;
   margin: 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border: 0;
+  box-shadow: none;
+  padding: 12px 8px;
+}
+.avonix-popup-card:has(.avx-success) .avx-success-badge,
+.avonix-popup-card--success .avx-success-badge {
+  margin-left: auto;
+  margin-right: auto;
+}
+.avonix-popup-root:has(.avx-success) .avonix-popup-close,
+.avonix-popup-root--success .avonix-popup-close {
+  position: fixed !important;
+  top: 16px !important;
+  right: 16px !important;
+  z-index: 1000001 !important;
 }
 .avonix-popup-form--override {
   --avx-radius: inherit;
@@ -1601,10 +1646,22 @@ CSS;
     document.body.appendChild(root);
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    // Promote to full-screen white thanks overlay when form success mounts.
+    function promoteSuccessOverlay() {
+      if (!root || !root.querySelector(".avx-success")) return;
+      root.classList.add("avonix-popup-root--success");
+      var sc = root.querySelector(".avonix-popup-card");
+      if (sc) sc.classList.add("avonix-popup-card--success");
+    }
+    document.addEventListener("avonix:form-success", promoteSuccessOverlay);
+    try {
+      var successWatch = new MutationObserver(promoteSuccessOverlay);
+      successWatch.observe(root, { childList: true, subtree: true });
+    } catch (eWatch) {}
     // Runtime CSS kill-switch (beats stale caches / form embed overflow:auto).
-    if (!document.getElementById("avonix-popup-kill-v3")) {
+    if (!document.getElementById("avonix-popup-kill-v4")) {
       var killCss = document.createElement("style");
-      killCss.id = "avonix-popup-kill-v3";
+      killCss.id = "avonix-popup-kill-v4";
       killCss.textContent =
         ".avonix-popup-card,.avonix-popup-form-wrap,.avonix-popup-form," +
         ".avonix-popup-form .avonix-form,.avonix-popup-form .avx-form,.avonix-popup-form .avx-step{" +
@@ -1632,8 +1689,15 @@ CSS;
         ".avonix-popup-root .avx-a11y-focus input[type=radio]:focus-visible," +
         ".avonix-popup-root .avx-a11y-focus input[type=checkbox]:focus-visible{" +
         "outline:none!important;outline-offset:0!important;box-shadow:none!important;border:0!important}" +
+        ".avonix-popup-root:has(.avx-success),.avonix-popup-root--success{" +
+        "background:#fff!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;" +
+        "padding:0!important;align-items:center!important;justify-content:center!important}" +
+        ".avonix-popup-root:has(.avx-success) .avonix-popup-shell,.avonix-popup-root--success .avonix-popup-shell{" +
+        "width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;" +
+        "display:flex!important;align-items:center!important;justify-content:center!important}" +
         ".avonix-popup-card:has(.avx-success),.avonix-popup-card--success{" +
-        "background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important}" +
+        "width:min(520px,calc(100vw - 48px))!important;max-width:min(520px,calc(100vw - 48px))!important;" +
+        "background:transparent!important;box-shadow:none!important;border:0!important;padding:24px!important}" +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-header," +
         ".avonix-popup-card--success .avonix-popup-header," +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-cta," +
@@ -1649,7 +1713,11 @@ CSS;
         ".avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap>:not(.avx-success):not(style):not(link)," +
         ".avonix-popup-card--success .avonix-popup-form-wrap>:not(.avx-success):not(style):not(link){display:none!important}" +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-body," +
-        ".avonix-popup-card--success .avonix-popup-body{padding:0!important;background:transparent!important;overflow:visible!important}" +
+        ".avonix-popup-card--success .avonix-popup-body{padding:0!important;background:transparent!important;overflow:visible!important;align-items:center!important}" +
+        ".avonix-popup-card:has(.avx-success) .avx-success,.avonix-popup-card--success .avx-success{" +
+        "width:100%;text-align:center;background:#fff;border:0;box-shadow:none;display:flex;flex-direction:column;align-items:center}" +
+        ".avonix-popup-root:has(.avx-success) .avonix-popup-close,.avonix-popup-root--success .avonix-popup-close{" +
+        "position:fixed!important;top:16px!important;right:16px!important;z-index:1000001!important}" +
         ".avonix-popup-root *::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}";
       document.head.appendChild(killCss);
     }

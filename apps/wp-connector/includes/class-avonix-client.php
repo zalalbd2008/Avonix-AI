@@ -57,6 +57,7 @@ class Avonix_Client
 
         if ($code === 200) {
             update_option(AVONIX_OPT_STATUS, 'connected');
+            update_option('avonix_reported_version', AVONIX_VERSION, false);
             do_action('avonix_after_register', $data);
             return [true, 'Connected.'];
         }
@@ -244,6 +245,91 @@ class Avonix_Client
         $code = (int) wp_remote_retrieve_response_code($response);
         $data = json_decode(wp_remote_retrieve_body($response), true);
         return [$code >= 200 && $code < 300, is_array($data) ? $data : null, $code];
+    }
+
+    /**
+     * Authenticated GET of a binary path → temp file.
+     * Returns [ok, absolute_path|null, error_message].
+     */
+    public function download_to_file($path, $timeout = 120)
+    {
+        if (!$this->is_configured()) {
+            return [false, null, 'Connector is not configured.'];
+        }
+
+        $url = $this->endpoint . $path;
+        $headers = [
+            'Authorization' => 'Bearer ' . $this->key,
+            'Accept'        => 'application/zip, application/octet-stream, */*',
+        ];
+
+        $tmp = wp_tempnam('avonix-plugin-');
+        if (!$tmp) {
+            return [false, null, 'Could not create a temporary file.'];
+        }
+
+        if ($this->is_local_endpoint() && function_exists('curl_init')) {
+            $header_lines = [];
+            foreach ($headers as $k => $v) {
+                $header_lines[] = $k . ': ' . $v;
+            }
+            $fp = fopen($tmp, 'wb');
+            if (!$fp) {
+                @unlink($tmp);
+                return [false, null, 'Could not open temporary file for writing.'];
+            }
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_FILE           => $fp,
+                CURLOPT_TIMEOUT        => $timeout,
+                CURLOPT_CONNECTTIMEOUT => min(10, $timeout),
+                CURLOPT_HTTPHEADER     => $header_lines,
+                CURLOPT_FOLLOWLOCATION => true,
+            ]);
+            $ok = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+            fclose($fp);
+            if (!$ok || $code !== 200) {
+                @unlink($tmp);
+                return [false, null, $err !== '' ? $err : ('HTTP ' . $code)];
+            }
+            return [true, $tmp, null];
+        }
+
+        $restore = $this->allow_local_endpoint();
+        $response = wp_remote_get($url, [
+            'timeout'            => $timeout,
+            'headers'            => $headers,
+            'reject_unsafe_urls' => false,
+        ]);
+        $restore();
+
+        if (is_wp_error($response)) {
+            @unlink($tmp);
+            return [false, null, $response->get_error_message()];
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            @unlink($tmp);
+            return [false, null, 'HTTP ' . $code];
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        if ($body === '' || $body === null) {
+            @unlink($tmp);
+            return [false, null, 'Empty download body.'];
+        }
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+        if (file_put_contents($tmp, $body) === false) {
+            @unlink($tmp);
+            return [false, null, 'Could not write zip to disk.'];
+        }
+
+        return [true, $tmp, null];
     }
 
     /**

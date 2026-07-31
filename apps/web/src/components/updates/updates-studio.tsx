@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { SetupBadge, type SetupBadgeKind } from "@/components/ui/setup-badge";
 import { timeAgo } from "@/components/ui/status-pill";
 import { CONNECTOR_VERSION, compareVersions } from "@/lib/connector/version";
-import { actionSaveUpdates } from "@/lib/updates/actions";
+import { actionPushConnectorUpdate, actionQueueSoftwareUpdate, actionSaveUpdates } from "@/lib/updates/actions";
 import {
   availableItemActions,
   connectorUpdateState,
@@ -132,31 +132,73 @@ export function UpdatesStudio({
       "targetType" | "slug" | "name"
     >,
   ) {
-    const action = makePendingAction({
-      kind,
-      targetType: item.targetType,
-      slug: item.slug,
-      label: item.name,
-    });
-    const next = mergeUpdatesSettings({
-      ...settings,
-      pendingActions: [action, ...settings.pendingActions].slice(0, 50),
-    });
-    setSettings(next);
     setSaved(false);
     setError(null);
     startTransition(async () => {
-      const res = await actionSaveUpdates({
+      const res = await actionQueueSoftwareUpdate({
         websiteId,
         clientId,
-        settings: next,
+        kind,
+        item,
       });
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1600);
+      setSettings((s) =>
+        mergeUpdatesSettings({
+          ...s,
+          pendingActions: [
+            makePendingAction({
+              kind,
+              targetType: item.targetType,
+              slug: item.slug,
+              label:
+                item.targetType === "connector" && kind === "update"
+                  ? `Avonix connector → v${CONNECTOR_VERSION}`
+                  : item.name,
+            }),
+            ...s.pendingActions,
+          ].slice(0, 50),
+        }),
+      );
+      if (res.warning) {
+        setError(res.warning);
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 1600);
+      }
+    });
+  }
+
+  function pushConnectorUpdate() {
+    setError(null);
+    startTransition(async () => {
+      const res = await actionPushConnectorUpdate({ websiteId, clientId });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (res.warning) {
+        setError(res.warning);
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 1600);
+      }
+      setSettings((s) =>
+        mergeUpdatesSettings({
+          ...s,
+          pendingActions: [
+            makePendingAction({
+              kind: "update",
+              targetType: "connector",
+              slug: "avonix-connector",
+              label: `Avonix connector → v${CONNECTOR_VERSION}`,
+            }),
+            ...s.pendingActions,
+          ].slice(0, 50),
+        }),
+      );
     });
   }
 
@@ -285,10 +327,20 @@ export function UpdatesStudio({
               >
                 SMTP Setup · alerts & campaigns
               </Link>
-              . Updates are applied in WordPress admin — Avonix reports versions,
-              it does not push code to the server.
+              . Queued actions are pushed to the site when connected (connector
+              v1.3.15+); otherwise they run on the next poll.
             </span>
           </p>
+          {connector.id === "update_available" && connected ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={pushConnectorUpdate}
+              className="mt-2 rounded-lg bg-brand px-3 py-1.5 text-[12.5px] font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+            >
+              {pending ? "Updating…" : `Update connector to v${CONNECTOR_VERSION}`}
+            </button>
+          ) : null}
         </div>
       </div>
 

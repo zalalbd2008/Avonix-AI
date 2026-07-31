@@ -7,11 +7,13 @@ import {
   mergeBackupsSettings,
   type BackupHistoryEntry,
 } from "@/lib/backups/types";
+import { mergeUpdatesSettings } from "@/lib/updates/types";
 
 /**
  * POST /api/v1/connector/commands/report
  *
- * Connector reports job completion (success / failed / running).
+ * Connector reports job completion (success / failed / running) for backups
+ * or software update actions.
  */
 export async function POST(request: Request) {
   const identity = await authenticateConnector(request);
@@ -66,42 +68,71 @@ export async function POST(request: Request) {
       .limit(1);
     if (!site) return false;
 
-    const backups = mergeBackupsSettings(site.settings?.backups);
+    const ws = site.settings ?? {};
+    const backups = mergeBackupsSettings(ws.backups);
     const idx = backups.history.findIndex((h) => h.id === body.job_id);
-    if (idx === -1) return false;
 
-    const prev = backups.history[idx]!;
-    const entry: BackupHistoryEntry = {
-      ...prev,
-      status: body.status!,
-      sizeLabel: body.size_label ?? prev.sizeLabel,
-      detail: body.detail ?? body.error ?? prev.detail,
-      progress:
-        progress ??
-        (body.status === "success"
-          ? 100
-          : body.status === "running"
-            ? Math.max(prev.progress ?? 5, 5)
-            : prev.progress),
-      archiveFileName:
-        typeof body.archive_file_name === "string" && body.archive_file_name.trim()
-          ? body.archive_file_name.trim().slice(0, 180)
-          : prev.archiveFileName,
-      remoteFileId:
-        typeof body.remote_file_id === "string" && body.remote_file_id.trim()
-          ? body.remote_file_id.trim().slice(0, 128)
-          : prev.remoteFileId,
-      finishedAt:
-        body.status === "success" || body.status === "failed"
-          ? new Date().toISOString()
-          : prev.finishedAt,
-    };
-    backups.history[idx] = entry;
+    if (idx !== -1) {
+      const prev = backups.history[idx]!;
+      const entry: BackupHistoryEntry = {
+        ...prev,
+        status: body.status!,
+        sizeLabel: body.size_label ?? prev.sizeLabel,
+        detail: body.detail ?? body.error ?? prev.detail,
+        progress:
+          progress ??
+          (body.status === "success"
+            ? 100
+            : body.status === "running"
+              ? Math.max(prev.progress ?? 5, 5)
+              : prev.progress),
+        archiveFileName:
+          typeof body.archive_file_name === "string" &&
+          body.archive_file_name.trim()
+            ? body.archive_file_name.trim().slice(0, 180)
+            : prev.archiveFileName,
+        remoteFileId:
+          typeof body.remote_file_id === "string" && body.remote_file_id.trim()
+            ? body.remote_file_id.trim().slice(0, 128)
+            : prev.remoteFileId,
+        finishedAt:
+          body.status === "success" || body.status === "failed"
+            ? new Date().toISOString()
+            : prev.finishedAt,
+      };
+      backups.history[idx] = entry;
+
+      await tx
+        .update(websites)
+        .set({
+          settings: { ...ws, backups },
+          updatedAt: new Date(),
+        })
+        .where(eq(websites.id, identity.websiteId));
+
+      return true;
+    }
+
+    const updates = mergeUpdatesSettings(ws.updates);
+    const actionIdx = updates.pendingActions.findIndex(
+      (a) => a.id === body.job_id,
+    );
+    if (actionIdx === -1) return false;
+
+    if (body.status === "success" || body.status === "failed") {
+      updates.pendingActions = updates.pendingActions.filter(
+        (a) => a.id !== body.job_id,
+      );
+    } else {
+      updates.pendingActions = updates.pendingActions.map((a) =>
+        a.id === body.job_id ? { ...a, status: "running" as const } : a,
+      );
+    }
 
     await tx
       .update(websites)
       .set({
-        settings: { ...(site.settings ?? {}), backups },
+        settings: { ...ws, updates },
         updatedAt: new Date(),
       })
       .where(eq(websites.id, identity.websiteId));

@@ -986,14 +986,14 @@ export function ButtonDesignStudio({
                   </div>
                   {visibleOnDevice ? (
                     <div
-                      className={`sticky bottom-0 border-t p-2.5 ${
+                      className={`sticky bottom-0 border-t p-px ${
                         previewDark
                           ? "border-white/10 bg-[#0b1e3a]/90"
                           : "border-line bg-white/95"
                       } backdrop-blur`}
                     >
                       <div
-                        className="flex flex-wrap gap-1"
+                        className="flex flex-wrap gap-px"
                         style={{
                           justifyContent:
                             design.layout.alignX === "left"

@@ -14,7 +14,7 @@ export type UpdatesSettings = {
   watchConnector: boolean;
   /** Notify via website Email when updates are detected. */
   notifyOnAvailable: boolean;
-  /** Prefer minor/security only when auto-apply is supported later. */
+  /** Prefer minor/security only for WP.org packages when auto-apply runs. */
   securityOnly: boolean;
   /** Plugin slugs to ignore (one per line). */
   excludePlugins: string;
@@ -41,6 +41,8 @@ export type UpdatePendingAction = {
   slug: string;
   label: string;
   createdAt: string;
+  /** Claimed by connector while applying; omitted / pending = queued. */
+  status?: "pending" | "running";
 };
 
 export type UpdateInventoryItem = {
@@ -97,6 +99,13 @@ function normalizePendingActions(raw: unknown): UpdatePendingAction[] {
         typeof row.createdAt === "string"
       );
     })
+    .map((row) => ({
+      ...row,
+      status:
+        row.status === "running" || row.status === "pending"
+          ? row.status
+          : "pending",
+    }))
     .slice(0, 50);
 }
 
@@ -202,7 +211,7 @@ export function connectorUpdateState(
 export function updateActionLabel(kind: UpdateActionKind): string {
   switch (kind) {
     case "update":
-      return "Manual update";
+      return "Remote update";
     case "activate":
       return "Activate";
     case "deactivate":
@@ -210,6 +219,15 @@ export function updateActionLabel(kind: UpdateActionKind): string {
     case "delete":
       return "Delete";
   }
+}
+
+/** Actions still waiting for the connector (not yet claimed). */
+export function pendingUpdateActions(
+  settings: UpdatesSettings,
+): UpdatePendingAction[] {
+  return settings.pendingActions.filter(
+    (a) => !a.status || a.status === "pending",
+  );
 }
 
 /** Allowed menu actions for a target type / active state. */
@@ -236,5 +254,6 @@ export function makePendingAction(input: {
     slug: input.slug,
     label: input.label,
     createdAt: new Date().toISOString(),
+    status: "pending",
   };
 }

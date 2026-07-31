@@ -7,6 +7,7 @@ import {
   readConnectorKey,
 } from "@/lib/connector/keys";
 import { mergeBackupsSettings } from "@/lib/backups/types";
+import { mergeUpdatesSettings, pendingUpdateActions } from "@/lib/updates/types";
 import { withAgency } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import {
@@ -80,11 +81,14 @@ export async function POST(request: Request) {
   const backups = mergeBackupsSettings(site?.settings?.backups);
   const pendingBackups = backups.history.filter((h) => h.status === "pending")
     .length;
+  const updates = mergeUpdatesSettings(site?.settings?.updates);
+  const pendingUpdates = pendingUpdateActions(updates).length;
 
   return Response.json({
     status: "connected",
     website_id: identity.websiteId,
     registered_url: site?.url ?? null,
     pending_backups: pendingBackups,
+    pending_updates: pendingUpdates,
   });
 }

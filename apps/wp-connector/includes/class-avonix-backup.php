@@ -115,7 +115,8 @@ class Avonix_Backup
             return;
         }
         $pending = (int) ($data['pending_backups'] ?? 0);
-        if ($pending > 0) {
+        $pending_updates = (int) ($data['pending_updates'] ?? 0);
+        if ($pending > 0 || $pending_updates > 0) {
             $this->check_commands();
         }
     }
@@ -169,6 +170,8 @@ class Avonix_Backup
                 $this->run_backup($client, $command);
             } elseif ($type === 'restore') {
                 $this->run_restore($client, $command);
+            } elseif ($type === 'software_update' && class_exists('Avonix_Updates')) {
+                Avonix_Updates::run_command($client, $command);
             }
         }
     }

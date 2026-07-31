@@ -10,13 +10,8 @@ import { CONNECTOR_VERSION, compareVersions } from "@/lib/connector/version";
 /**
  * Route: /updates
  *
- * The prototype's Update Center listed WordPress core, plugins and themes. We
- * do not read a site's plugin list — the connector reports its own version and
- * nothing else — so this is the part of that screen we can answer truthfully:
- * which sites are running an old Avonix connector.
- *
- * There is no "Update all" button. Updating happens in WordPress, and a button
- * here that cannot actually push an update would be the worst kind of lie.
+ * Agency-wide view of connector versions. Per-site remote update lives on
+ * Website → Updates (queues + wakes the connector when connected).
  */
 export default async function UpdatesPage() {
   const ctx = await requireAgency();

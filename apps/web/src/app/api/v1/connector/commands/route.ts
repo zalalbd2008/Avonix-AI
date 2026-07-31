@@ -18,6 +18,11 @@ import {
   type BackupsCloudOAuth,
 } from "@/lib/backups/cloud-oauth";
 import { mergeIntegrationsSettings, connectionFor } from "@/lib/integrations/types";
+import { CONNECTOR_VERSION, compareVersions } from "@/lib/connector/version";
+import {
+  mergeUpdatesSettings,
+  type UpdatePendingAction,
+} from "@/lib/updates/types";
 
 async function maybeRefreshCloud(
   auth: BackupsCloudOAuth,
@@ -42,7 +47,8 @@ async function maybeRefreshCloud(
 /**
  * GET /api/v1/connector/commands
  *
- * Polled by the WP connector on heartbeat. Returns pending backup jobs.
+ * Polled by the WP connector on heartbeat. Returns pending backup jobs and
+ * queued software update actions (connector / plugins / themes / core).
  */
 export async function GET(request: Request) {
   const identity = await authenticateConnector(request);
@@ -59,7 +65,10 @@ export async function GET(request: Request) {
 
   const commands = await withAgency(identity.agencyId, async (tx) => {
     const [site] = await tx
-      .select({ settings: websites.settings })
+      .select({
+        settings: websites.settings,
+        connectorVersion: websites.connectorVersion,
+      })
       .from(websites)
       .where(eq(websites.id, identity.websiteId))
       .limit(1);
@@ -68,8 +77,23 @@ export async function GET(request: Request) {
     const ws = site.settings ?? {};
     const backups = mergeBackupsSettings(ws.backups);
     const integrations = mergeIntegrationsSettings(ws.integrations);
+    const updates = mergeUpdatesSettings(ws.updates);
+    // Remote software updates need connector v1.3.15+ (Plugin_Upgrader path).
+    const supportsRemoteUpdates =
+      !!site.connectorVersion &&
+      compareVersions(site.connectorVersion, "1.3.15") >= 0;
 
     const pendingJobs = backups.history.filter((h) => h.status === "pending");
+    const now = Date.now();
+    const STUCK_MS = 20 * 60 * 1000;
+    const queuedUpdates = supportsRemoteUpdates
+      ? updates.pendingActions.filter((a) => {
+          if (!a.status || a.status === "pending") return true;
+          if (a.status !== "running") return false;
+          const t = Date.parse(a.createdAt);
+          return Number.isFinite(t) && now - t > STUCK_MS;
+        })
+      : [];
 
     let driveAuth = mergeBackupsDriveOAuth(ws.backupsDriveOAuth);
     if (driveAuth.refreshToken && driveAuth.tokenExpiresAt) {
@@ -97,17 +121,27 @@ export async function GET(request: Request) {
       refreshOneDriveAccessToken,
     );
 
+    const claimedIds = new Set(queuedUpdates.map((a) => a.id));
+    const nextPending: UpdatePendingAction[] = updates.pendingActions.map(
+      (a) => (claimedIds.has(a.id) ? { ...a, status: "running" as const } : a),
+    );
+
     const tokenChanged =
       driveAuth.accessToken !== (ws.backupsDriveOAuth?.accessToken ?? "") ||
       dropboxAuth.accessToken !== (ws.backupsDropboxOAuth?.accessToken ?? "") ||
       oneDriveAuth.accessToken !== (ws.backupsOneDriveOAuth?.accessToken ?? "");
 
-    if (tokenChanged) {
+    const updatesClaimed = claimedIds.size > 0;
+
+    if (tokenChanged || updatesClaimed) {
       const next: WebsiteSettings = {
         ...ws,
         backupsDriveOAuth: driveAuth,
         backupsDropboxOAuth: dropboxAuth,
         backupsOneDriveOAuth: oneDriveAuth,
+        ...(updatesClaimed
+          ? { updates: { ...updates, pendingActions: nextPending } }
+          : {}),
       };
       await tx
         .update(websites)
@@ -115,7 +149,7 @@ export async function GET(request: Request) {
         .where(eq(websites.id, identity.websiteId));
     }
 
-    return pendingJobs.map((job) => {
+    const backupCommands = pendingJobs.map((job) => {
       const dest = job.destination;
       let credentials: Record<string, string> = {};
 
@@ -186,6 +220,24 @@ export async function GET(request: Request) {
         report_url: "/api/v1/connector/commands/report",
       };
     });
+
+    const updateCommands = queuedUpdates.map((action) => ({
+      id: action.id,
+      type: "software_update" as const,
+      kind: action.kind,
+      target_type: action.targetType,
+      slug: action.slug,
+      label: action.label,
+      latest_version:
+        action.targetType === "connector" ? CONNECTOR_VERSION : undefined,
+      package_url:
+        action.targetType === "connector" && action.kind === "update"
+          ? "/api/v1/connector/plugin-zip"
+          : undefined,
+      report_url: "/api/v1/connector/commands/report",
+    }));
+
+    return [...backupCommands, ...updateCommands];
   });
 
   return Response.json({ status: "ok", commands });

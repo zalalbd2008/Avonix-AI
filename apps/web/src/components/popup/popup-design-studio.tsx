@@ -2155,6 +2155,8 @@ export function PopupDesignStudio({
                     style={{
                       width: payload.design.theme?.closeSize ?? 30,
                       height: payload.design.theme?.closeSize ?? 30,
+                      borderRadius: "50%",
+                      aspectRatio: "1 / 1",
                       background:
                         payload.design.theme?.closeBackground ?? "#ef4444",
                       color: payload.design.theme?.closeColor ?? "#ffffff",

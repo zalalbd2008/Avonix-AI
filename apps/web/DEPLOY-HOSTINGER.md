@@ -186,7 +186,8 @@ On Vercel, `apps/web/vercel.json` already schedules `*/5 * * * *` — set the sa
 
 ## Updates later (copy-paste every deploy)
 
-Production app: **PM2 `avonix-web` on port `3002`** · code: `/root/Avonix-AI` · proxy: Apache → `127.0.0.1:3002`.
+Production app: **one** PM2 process on port **`3002`** (Apache → `127.0.0.1:3002`).  
+Code: `/root/Avonix-AI`. Never run a second Next app on the same port (`avonix-ai-web` + `avonix-web` caused unstyled pages).
 
 ```bash
 # 1) App (avonixai.com)
@@ -195,8 +196,11 @@ git pull
 cd apps/web
 SKIP_TYPECHECK=1 npm run build
 pm2 delete avonix-web
-pm2 start npm --name avonix-web --cwd /root/Avonix-AI/apps/web -- start -- -p 3002
+pm2 start npm --name avonix-web --cwd /root/Avonix-AI/apps/web -- start -- -p 3002 -H 127.0.0.1
 pm2 save
+# Confirm HTML CSS names exist on disk:
+curl -s http://127.0.0.1:3002/ | grep -oE 'chunks/[a-zA-Z0-9_.-]+\.css'
+ls .next/static/chunks/*.css
 curl -sI http://127.0.0.1:3002 | head -3
 ```
 
@@ -208,4 +212,4 @@ zip -r /tmp/avonix-connector.zip apps/wp-connector -x '*.DS_Store'
 # Or: Avonix → connector download (after app deploy)
 ```
 
-Check: `pm2 list` · `ss -tlnp | grep 3002` · `https://avonixai.com`
+Check: `pm2 list` (only one Avonix web) · `ss -tlnp | grep 3002` · `https://avonixai.com`

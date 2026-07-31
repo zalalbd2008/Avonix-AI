@@ -470,6 +470,9 @@ export function PopupLivePreview({
         style={{
           width: size,
           height: size,
+          borderRadius: "50%",
+          aspectRatio: "1 / 1",
+          padding: 0,
           background: theme.closeBackground ?? "#ef4444",
           color: theme.closeColor ?? "#fff",
           fontSize: Math.round(size * 0.55),

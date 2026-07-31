@@ -352,7 +352,7 @@ class Avonix_Popup
   right: 12px;
   width: 30px;
   height: 30px;
-  border-radius: 999px;
+  border-radius: 50% !important;
   background: #ef4444;
   color: #fff;
   font-size: 17px;
@@ -387,8 +387,14 @@ class Avonix_Popup
   right: 12px;
   width: 28px;
   height: 28px;
+  padding: 0;
+  margin: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
   background: rgba(15, 23, 42, 0.05);
   color: #64748b;
   font-size: 18px;
@@ -397,6 +403,7 @@ class Avonix_Popup
   z-index: 2;
   display: grid;
   place-items: center;
+  box-sizing: border-box;
   transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 .avonix-popup-close:hover {
@@ -1037,6 +1044,10 @@ CSS;
         x.style.height = closeSize + "px";
         x.style.fontSize = Math.round(closeSize * 0.55) + "px";
       }
+      // Theme styles often set button { border-radius } — force a circle.
+      x.style.borderRadius = "50%";
+      x.style.padding = "0";
+      x.style.aspectRatio = "1 / 1";
       if (theme.closeBackground) x.style.background = theme.closeBackground;
       if (theme.closeColor) x.style.color = theme.closeColor;
       var idleAnim = theme.closeAnimation || "none";

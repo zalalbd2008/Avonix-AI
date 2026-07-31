@@ -91,6 +91,11 @@ export function CreatePlatformOrganizationForm() {
         return;
       }
 
+      if (result.emailWarning) {
+        setError(
+          `Organization created, but email failed: ${result.emailWarning}`,
+        );
+      }
       if (result.mode === "invite" && result.inviteUrl) {
         setInviteUrl(result.inviteUrl);
       }

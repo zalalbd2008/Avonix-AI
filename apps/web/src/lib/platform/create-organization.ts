@@ -1,7 +1,7 @@
 "use server";
 
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { hashPassword } from "better-auth/crypto";
 import { requirePlatformOwner } from "@/lib/auth/session";
@@ -57,6 +57,8 @@ function hashInviteToken(raw: string) {
   return createHash("sha256").update(raw, "utf8").digest("hex");
 }
 
+type AdminTx = Parameters<Parameters<typeof adminDb.transaction>[0]>[0];
+
 export type CreatePlatformOrganizationInput = {
   name: string;
   plan: "starter" | "professional" | "agency" | "enterprise";
@@ -78,12 +80,14 @@ export type CreatePlatformOrganizationResult =
       agencyId: string;
       mode: "invite" | "access";
       inviteUrl?: string;
+      emailSent?: boolean;
+      emailWarning?: string;
     }
   | { ok: false; error: string };
 
-async function seedTemplateRoles(agencyId: string) {
+async function seedTemplateRoles(tx: AdminTx, agencyId: string) {
   for (const tpl of ROLE_TEMPLATES) {
-    const existing = await adminDb
+    const existing = await tx
       .select({ id: orgRoles.id })
       .from(orgRoles)
       .where(and(eq(orgRoles.agencyId, agencyId), eq(orgRoles.name, tpl.name)))
@@ -91,7 +95,7 @@ async function seedTemplateRoles(agencyId: string) {
 
     let roleId = existing[0]?.id;
     if (!roleId) {
-      const [created] = await adminDb
+      const [created] = await tx
         .insert(orgRoles)
         .values({
           agencyId,
@@ -105,7 +109,7 @@ async function seedTemplateRoles(agencyId: string) {
     if (!roleId || !tpl.permissions.length) continue;
 
     for (const permission of tpl.permissions) {
-      await adminDb
+      await tx
         .insert(orgRolePermissions)
         .values({ agencyId, roleId, permission })
         .onConflictDoNothing();
@@ -116,6 +120,10 @@ async function seedTemplateRoles(agencyId: string) {
 /**
  * Platform Owner provisions a customer organization with seat + limits,
  * then either invites the admin by email or creates a passworded account.
+ *
+ * When ADMIN_DATABASE_URL falls back to avonix_app, agencies/org_roles are RLS
+ * gated — we set `app.agency_id` to the new id inside the transaction so
+ * WITH CHECK (id = current_agency_id()) succeeds.
  */
 export async function createPlatformOrganization(
   input: CreatePlatformOrganizationInput,
@@ -181,7 +189,6 @@ export async function createPlatformOrganization(
     }
 
     if (input.accessMode === "access") {
-      // Leftover login from a previously deleted org — reuse instead of blocking.
       orphanUserId = existingUser.id;
     }
   }
@@ -210,67 +217,99 @@ export async function createPlatformOrganization(
   const agencyId = crypto.randomUUID();
   const slug = `${slugify(name)}-${agencyId.slice(0, 6)}`;
   const now = new Date();
+  const roleLabel = seat.customRoleName ?? seat.label;
+
+  let inviteUrl: string | undefined;
+  let accessPassword: string | undefined;
 
   try {
-    await adminDb.insert(agencies).values({
-      id: agencyId,
-      name,
-      slug,
-      plan,
-      status: "active",
-      billingOverrides: overrides,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await adminDb.transaction(async (tx) => {
+      // Required when adminDb uses avonix_app (RLS on agencies / org_*).
+      await tx.execute(
+        sql`SELECT set_config('app.agency_id', ${agencyId}, true)`,
+      );
 
-    await seedTemplateRoles(agencyId);
+      await tx.insert(agencies).values({
+        id: agencyId,
+        name,
+        slug,
+        plan,
+        status: "active",
+        billingOverrides: overrides,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-    let customRoleId: string | null = null;
-    if (seat.customRoleName) {
-      const [role] = await adminDb
-        .select({ id: orgRoles.id })
-        .from(orgRoles)
-        .where(
-          and(
-            eq(orgRoles.agencyId, agencyId),
-            eq(orgRoles.name, seat.customRoleName),
-          ),
-        )
-        .limit(1);
-      customRoleId = role?.id ?? null;
-    }
+      await seedTemplateRoles(tx, agencyId);
 
-    const roleLabel = seat.customRoleName ?? seat.label;
-
-    if (input.accessMode === "access") {
-      const passwordHash = await hashPassword(password);
-      let userId = orphanUserId;
-
-      if (userId) {
-        await adminDb
-          .update(user)
-          .set({
-            name: name.slice(0, 80),
-            emailVerified: true,
-            updatedAt: now,
-          })
-          .where(eq(user.id, userId));
-
-        const [cred] = await adminDb
-          .select({ id: account.id })
-          .from(account)
+      let customRoleId: string | null = null;
+      if (seat.customRoleName) {
+        const [role] = await tx
+          .select({ id: orgRoles.id })
+          .from(orgRoles)
           .where(
-            and(eq(account.userId, userId), eq(account.providerId, "credential")),
+            and(
+              eq(orgRoles.agencyId, agencyId),
+              eq(orgRoles.name, seat.customRoleName),
+            ),
           )
           .limit(1);
+        customRoleId = role?.id ?? null;
+      }
 
-        if (cred) {
-          await adminDb
-            .update(account)
-            .set({ password: passwordHash, updatedAt: now })
-            .where(eq(account.id, cred.id));
+      if (input.accessMode === "access") {
+        const passwordHash = await hashPassword(password);
+        let userId = orphanUserId;
+
+        if (userId) {
+          await tx
+            .update(user)
+            .set({
+              name: name.slice(0, 80),
+              emailVerified: true,
+              updatedAt: now,
+            })
+            .where(eq(user.id, userId));
+
+          const [cred] = await tx
+            .select({ id: account.id })
+            .from(account)
+            .where(
+              and(
+                eq(account.userId, userId),
+                eq(account.providerId, "credential"),
+              ),
+            )
+            .limit(1);
+
+          if (cred) {
+            await tx
+              .update(account)
+              .set({ password: passwordHash, updatedAt: now })
+              .where(eq(account.id, cred.id));
+          } else {
+            await tx.insert(account).values({
+              id: newId(),
+              accountId: userId,
+              providerId: "credential",
+              userId,
+              password: passwordHash,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
         } else {
-          await adminDb.insert(account).values({
+          userId = newId();
+          await tx.insert(user).values({
+            id: userId,
+            name: name.slice(0, 80),
+            email: adminEmail,
+            emailVerified: true,
+            createdAt: now,
+            updatedAt: now,
+          });
+
+          await tx.insert(account).values({
             id: newId(),
             accountId: userId,
             providerId: "credential",
@@ -280,103 +319,100 @@ export async function createPlatformOrganization(
             updatedAt: now,
           });
         }
-      } else {
-        userId = newId();
-        await adminDb.insert(user).values({
-          id: userId,
-          name: name.slice(0, 80),
-          email: adminEmail,
-          emailVerified: true,
-          createdAt: now,
-          updatedAt: now,
+
+        await tx.insert(memberships).values({
+          agencyId,
+          userId,
+          role: seat.memberRole,
+          customRoleId: seat.memberRole === "member" ? customRoleId : null,
+          acceptedAt: now,
         });
 
-        await adminDb.insert(account).values({
-          id: newId(),
-          accountId: userId,
-          providerId: "credential",
-          userId,
-          password: passwordHash,
-          createdAt: now,
-          updatedAt: now,
-        });
+        accessPassword = password;
+        return;
       }
 
-      await adminDb.insert(memberships).values({
+      const rawToken = randomBytes(32).toString("base64url");
+      const tokenHash = hashInviteToken(rawToken);
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+      await tx.insert(organizationInvitations).values({
         agencyId,
-        userId,
-        role: seat.memberRole,
+        email: adminEmail,
+        memberRole: seat.memberRole,
         customRoleId: seat.memberRole === "member" ? customRoleId : null,
-        acceptedAt: now,
+        tokenHash,
+        status: "pending",
+        invitedByUserId: owner.userId,
+        expiresAt,
       });
 
+      inviteUrl = `${appUrl()}/invite/${rawToken}`;
+    });
+  } catch (e) {
+    console.error("createPlatformOrganization", e);
+    const detail = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      error: detail.includes("duplicate")
+        ? "That organization or email conflicts with an existing record. Try a different name or email."
+        : `Could not create the organization. ${detail.slice(0, 160)}`,
+    };
+  }
+
+  let emailSent = true;
+  let emailWarning: string | undefined;
+  try {
+    if (input.accessMode === "access" && accessPassword) {
       await sendEmail(
         orgAccessEmail({
           to: adminEmail,
           organizationName: name,
           roleLabel,
           email: adminEmail,
-          password,
+          password: accessPassword,
           signInUrl: `${appUrl()}/sign-in`,
         }),
       );
-
-      await recordPlatformEvent({
-        userId: owner.userId,
-        event: "platform.organization.created",
-        detail: `${name} · access · ${adminEmail} · ${seat.id}`,
-      });
-
-      revalidatePath("/platform/workspaces");
-      revalidatePath("/platform");
-      return { ok: true, agencyId, mode: "access" };
+    } else if (inviteUrl) {
+      await sendEmail(
+        inviteEmail({
+          to: adminEmail,
+          organizationName: name,
+          roleLabel,
+          url: inviteUrl,
+          expiresDays: 14,
+        }),
+      );
     }
+  } catch (mailErr) {
+    emailSent = false;
+    emailWarning =
+      mailErr instanceof Error
+        ? mailErr.message.slice(0, 200)
+        : "Invite/access email could not be sent.";
+    console.error("createPlatformOrganization email", mailErr);
+  }
 
-    const rawToken = randomBytes(32).toString("base64url");
-    const tokenHash = hashInviteToken(rawToken);
-    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-
-    await adminDb.insert(organizationInvitations).values({
-      agencyId,
-      email: adminEmail,
-      memberRole: seat.memberRole,
-      customRoleId: seat.memberRole === "member" ? customRoleId : null,
-      tokenHash,
-      status: "pending",
-      invitedByUserId: owner.userId,
-      expiresAt,
-    });
-
-    const inviteUrl = `${appUrl()}/invite/${rawToken}`;
-    await sendEmail(
-      inviteEmail({
-        to: adminEmail,
-        organizationName: name,
-        roleLabel,
-        url: inviteUrl,
-        expiresDays: 14,
-      }),
-    );
-
+  try {
     await recordPlatformEvent({
       userId: owner.userId,
       event: "platform.organization.created",
-      detail: `${name} · invite · ${adminEmail} · ${seat.id}`,
+      detail: `${name} · ${input.accessMode} · ${adminEmail} · ${seat.id}`,
     });
-
-    revalidatePath("/platform/workspaces");
-    revalidatePath("/platform");
-    return { ok: true, agencyId, mode: "invite", inviteUrl };
-  } catch (e) {
-    console.error("createPlatformOrganization", e);
-    try {
-      await adminDb.delete(agencies).where(eq(agencies.id, agencyId));
-    } catch {
-      /* ignore */
-    }
-    return {
-      ok: false,
-      error: "Could not create the organization. Try again.",
-    };
+  } catch (evErr) {
+    console.error("createPlatformOrganization event", evErr);
   }
+
+  revalidatePath("/platform/workspaces");
+  revalidatePath("/platform");
+
+  return {
+    ok: true,
+    agencyId,
+    mode: input.accessMode,
+    inviteUrl,
+    emailSent,
+    emailWarning,
+  };
 }

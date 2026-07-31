@@ -659,36 +659,24 @@ class Avonix_Popup
 .avonix-popup-form-wrap.avonix-popup-form-wrap--no-nav .avx-nav {
   display: none !important;
 }
-/* After submit: full-screen white overlay with thanks message */
+/* After submit: same-size white popup card, black thanks text (keep dimmed backdrop) */
 .avonix-popup-root:has(.avx-success),
 .avonix-popup-root--success {
-  background: #fff !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  padding: 0 !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-.avonix-popup-root:has(.avx-success) .avonix-popup-shell,
-.avonix-popup-root--success .avonix-popup-shell {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 .avonix-popup-card:has(.avx-success),
 .avonix-popup-card--success {
-  width: min(520px, calc(100vw - 48px)) !important;
-  max-width: min(520px, calc(100vw - 48px)) !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  width: 550px !important;
+  max-width: min(550px, calc(100vw - 32px)) !important;
+  background: #fff !important;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 24px 64px rgba(15, 23, 42, 0.28) !important;
   border: 0 !important;
-  padding: 24px !important;
+  padding: 28px 24px !important;
   overflow: visible !important;
-  animation: avonix-pop-in 0.32s ease;
+  color: #0f172a !important;
 }
 .avonix-popup-card:has(.avx-success) .avonix-popup-header,
 .avonix-popup-card--success .avonix-popup-header,
@@ -705,9 +693,7 @@ class Avonix_Popup
 .avonix-popup-card:has(.avx-success) .avonix-popup-body > h2,
 .avonix-popup-card--success .avonix-popup-body > h2,
 .avonix-popup-card:has(.avx-success) .avonix-popup-body > p,
-.avonix-popup-card--success .avonix-popup-body > p,
-.avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap > :not(.avx-success):not(style):not(link),
-.avonix-popup-card--success .avonix-popup-form-wrap > :not(.avx-success):not(style):not(link) {
+.avonix-popup-card--success .avonix-popup-body > p {
   display: none !important;
 }
 .avonix-popup-card:has(.avx-success) .avonix-popup-body,
@@ -718,40 +704,59 @@ class Avonix_Popup
   gap: 0 !important;
   max-height: none !important;
   width: 100%;
-  align-items: center !important;
+  align-items: stretch !important;
 }
 .avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap,
-.avonix-popup-card--success .avonix-popup-form-wrap {
+.avonix-popup-card--success .avonix-popup-form-wrap,
+.avonix-popup-card:has(.avx-success) .avonix-popup-form,
+.avonix-popup-card--success .avonix-popup-form {
+  display: block !important;
   margin: 0 !important;
   padding: 0 !important;
   overflow: visible !important;
-  width: 100%;
+  width: 100% !important;
+  background: transparent !important;
 }
 .avonix-popup-card:has(.avx-success) .avx-success,
 .avonix-popup-card--success .avx-success {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #fff;
-  border: 0;
-  box-shadow: none;
-  padding: 12px 8px;
+  padding: 8px 4px 4px;
+  text-align: left;
+  background: #fff !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
 }
-.avonix-popup-card:has(.avx-success) .avx-success-badge,
-.avonix-popup-card--success .avx-success-badge {
-  margin-left: auto;
-  margin-right: auto;
+.avonix-popup-card:has(.avx-success) .avx-success-title,
+.avonix-popup-card--success .avx-success-title {
+  color: #0f172a !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
 }
-.avonix-popup-root:has(.avx-success) .avonix-popup-close,
-.avonix-popup-root--success .avonix-popup-close {
-  position: fixed !important;
-  top: 16px !important;
-  right: 16px !important;
-  z-index: 1000001 !important;
+.avonix-popup-card:has(.avx-success) .avx-success-sub,
+.avonix-popup-card--success .avx-success-sub,
+.avonix-popup-card:has(.avx-success) .avx-success-brand,
+.avonix-popup-card--success .avx-success-brand,
+.avonix-popup-card:has(.avx-success) .avx-success-redirect,
+.avonix-popup-card--success .avx-success-redirect,
+.avonix-popup-card:has(.avx-success) .avx-success-next-title,
+.avonix-popup-card--success .avx-success-next-title,
+.avonix-popup-card:has(.avx-success) .avx-success-timeline strong,
+.avonix-popup-card--success .avx-success-timeline strong,
+.avonix-popup-card:has(.avx-success) .avx-success-timeline span,
+.avonix-popup-card--success .avx-success-timeline span {
+  color: #334155 !important;
+}
+.avonix-popup-card:has(.avx-success) .avonix-popup-close,
+.avonix-popup-card--success .avonix-popup-close {
+  position: absolute !important;
+  top: 10px !important;
+  right: 12px !important;
 }
 .avonix-popup-form--override {
   --avx-radius: inherit;
@@ -1646,7 +1651,7 @@ CSS;
     document.body.appendChild(root);
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    // Promote to full-screen white thanks overlay when form success mounts.
+    // Mark success state so the white card + black thanks text CSS applies.
     function promoteSuccessOverlay() {
       if (!root || !root.querySelector(".avx-success")) return;
       root.classList.add("avonix-popup-root--success");
@@ -1659,9 +1664,9 @@ CSS;
       successWatch.observe(root, { childList: true, subtree: true });
     } catch (eWatch) {}
     // Runtime CSS kill-switch (beats stale caches / form embed overflow:auto).
-    if (!document.getElementById("avonix-popup-kill-v4")) {
+    if (!document.getElementById("avonix-popup-kill-v5")) {
       var killCss = document.createElement("style");
-      killCss.id = "avonix-popup-kill-v4";
+      killCss.id = "avonix-popup-kill-v5";
       killCss.textContent =
         ".avonix-popup-card,.avonix-popup-form-wrap,.avonix-popup-form," +
         ".avonix-popup-form .avonix-form,.avonix-popup-form .avx-form,.avonix-popup-form .avx-step{" +
@@ -1689,15 +1694,10 @@ CSS;
         ".avonix-popup-root .avx-a11y-focus input[type=radio]:focus-visible," +
         ".avonix-popup-root .avx-a11y-focus input[type=checkbox]:focus-visible{" +
         "outline:none!important;outline-offset:0!important;box-shadow:none!important;border:0!important}" +
-        ".avonix-popup-root:has(.avx-success),.avonix-popup-root--success{" +
-        "background:#fff!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;" +
-        "padding:0!important;align-items:center!important;justify-content:center!important}" +
-        ".avonix-popup-root:has(.avx-success) .avonix-popup-shell,.avonix-popup-root--success .avonix-popup-shell{" +
-        "width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;" +
-        "display:flex!important;align-items:center!important;justify-content:center!important}" +
         ".avonix-popup-card:has(.avx-success),.avonix-popup-card--success{" +
-        "width:min(520px,calc(100vw - 48px))!important;max-width:min(520px,calc(100vw - 48px))!important;" +
-        "background:transparent!important;box-shadow:none!important;border:0!important;padding:24px!important}" +
+        "width:550px!important;max-width:min(550px,calc(100vw - 32px))!important;" +
+        "background:#fff!important;color:#0f172a!important;padding:28px 24px!important;" +
+        "box-shadow:0 1px 2px rgba(15,23,42,.04),0 24px 64px rgba(15,23,42,.28)!important}" +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-header," +
         ".avonix-popup-card--success .avonix-popup-header," +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-cta," +
@@ -1709,15 +1709,22 @@ CSS;
         ".avonix-popup-card:has(.avx-success) .avonix-popup-body>h2," +
         ".avonix-popup-card--success .avonix-popup-body>h2," +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-body>p," +
-        ".avonix-popup-card--success .avonix-popup-body>p," +
-        ".avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap>:not(.avx-success):not(style):not(link)," +
-        ".avonix-popup-card--success .avonix-popup-form-wrap>:not(.avx-success):not(style):not(link){display:none!important}" +
-        ".avonix-popup-card:has(.avx-success) .avonix-popup-body," +
-        ".avonix-popup-card--success .avonix-popup-body{padding:0!important;background:transparent!important;overflow:visible!important;align-items:center!important}" +
-        ".avonix-popup-card:has(.avx-success) .avx-success,.avonix-popup-card--success .avx-success{" +
-        "width:100%;text-align:center;background:#fff;border:0;box-shadow:none;display:flex;flex-direction:column;align-items:center}" +
-        ".avonix-popup-root:has(.avx-success) .avonix-popup-close,.avonix-popup-root--success .avonix-popup-close{" +
-        "position:fixed!important;top:16px!important;right:16px!important;z-index:1000001!important}" +
+        ".avonix-popup-card--success .avonix-popup-body>p{display:none!important}" +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap," +
+        ".avonix-popup-card--success .avonix-popup-form-wrap," +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-form," +
+        ".avonix-popup-card--success .avonix-popup-form," +
+        ".avonix-popup-card:has(.avx-success) .avx-success," +
+        ".avonix-popup-card--success .avx-success{display:block!important;visibility:visible!important;opacity:1!important}" +
+        ".avonix-popup-card:has(.avx-success) .avx-success," +
+        ".avonix-popup-card--success .avx-success{" +
+        "background:#fff!important;border:0!important;box-shadow:none!important;color:#0f172a!important;padding:8px 4px!important}" +
+        ".avonix-popup-card:has(.avx-success) .avx-success-title," +
+        ".avonix-popup-card--success .avx-success-title{color:#0f172a!important}" +
+        ".avonix-popup-card:has(.avx-success) .avx-success-sub," +
+        ".avonix-popup-card--success .avx-success-sub," +
+        ".avonix-popup-card:has(.avx-success) .avx-success-brand," +
+        ".avonix-popup-card--success .avx-success-brand{color:#334155!important}" +
         ".avonix-popup-root *::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}";
       document.head.appendChild(killCss);
     }

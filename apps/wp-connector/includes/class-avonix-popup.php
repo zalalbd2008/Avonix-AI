@@ -618,6 +618,55 @@ class Avonix_Popup
 .avonix-popup-form-wrap.avonix-popup-form-wrap--no-nav .avx-nav {
   display: none !important;
 }
+/* After submit: only the success card — hide popup chrome (header, CTA, copy) */
+.avonix-popup-card:has(.avx-success),
+.avonix-popup-card--success {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+.avonix-popup-card:has(.avx-success) .avonix-popup-header,
+.avonix-popup-card--success .avonix-popup-header,
+.avonix-popup-card:has(.avx-success) .avonix-popup-cta,
+.avonix-popup-card--success .avonix-popup-cta,
+.avonix-popup-card:has(.avx-success) .avonix-popup-cta-secondary,
+.avonix-popup-card--success .avonix-popup-cta-secondary,
+.avonix-popup-card:has(.avx-success) .avonix-popup-media,
+.avonix-popup-card--success .avonix-popup-media,
+.avonix-popup-card:has(.avx-success) .avonix-popup-logo,
+.avonix-popup-card--success .avonix-popup-logo,
+.avonix-popup-card:has(.avx-success) .avonix-popup-components,
+.avonix-popup-card--success .avonix-popup-components,
+.avonix-popup-card:has(.avx-success) .avonix-popup-body > h2,
+.avonix-popup-card--success .avonix-popup-body > h2,
+.avonix-popup-card:has(.avx-success) .avonix-popup-body > p,
+.avonix-popup-card--success .avonix-popup-body > p,
+.avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap > :not(.avx-success):not(style):not(link),
+.avonix-popup-card--success .avonix-popup-form-wrap > :not(.avx-success):not(style):not(link) {
+  display: none !important;
+}
+.avonix-popup-card:has(.avx-success) .avonix-popup-body,
+.avonix-popup-card--success .avonix-popup-body {
+  padding: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  gap: 0 !important;
+  max-height: none !important;
+}
+.avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap,
+.avonix-popup-card--success .avonix-popup-form-wrap {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+.avonix-popup-card:has(.avx-success) .avx-success,
+.avonix-popup-card--success .avx-success {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+}
 .avonix-popup-form--override {
   --avx-radius: inherit;
 }
@@ -1529,6 +1578,24 @@ CSS;
         ".avonix-popup-form .avonix-form input:focus,.avonix-popup-form .avonix-form select:focus," +
         ".avonix-popup-form .avonix-form textarea:focus{outline:2px solid var(--avx-input-focus-border,#ff6600)!important;" +
         "outline-offset:-2px!important;box-shadow:none!important}" +
+        ".avonix-popup-card:has(.avx-success),.avonix-popup-card--success{" +
+        "background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important}" +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-header," +
+        ".avonix-popup-card--success .avonix-popup-header," +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-cta," +
+        ".avonix-popup-card--success .avonix-popup-cta," +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-cta-secondary," +
+        ".avonix-popup-card--success .avonix-popup-cta-secondary," +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-media," +
+        ".avonix-popup-card--success .avonix-popup-media," +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-body>h2," +
+        ".avonix-popup-card--success .avonix-popup-body>h2," +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-body>p," +
+        ".avonix-popup-card--success .avonix-popup-body>p," +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-form-wrap>:not(.avx-success):not(style):not(link)," +
+        ".avonix-popup-card--success .avonix-popup-form-wrap>:not(.avx-success):not(style):not(link){display:none!important}" +
+        ".avonix-popup-card:has(.avx-success) .avonix-popup-body," +
+        ".avonix-popup-card--success .avonix-popup-body{padding:0!important;background:transparent!important;overflow:visible!important}" +
         ".avonix-popup-root *::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}";
       document.head.appendChild(killCss);
     }

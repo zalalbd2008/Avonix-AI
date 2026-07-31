@@ -1062,6 +1062,13 @@ ${themeEmbedCss(theme)}
         hideAvonix: !!(enterpriseCfg&&enterpriseCfg.whiteLabel&&enterpriseCfg.whiteLabel.hideAvonix)
       });
       host.replaceWith(screen);
+      try{
+        var popupCard=screen.closest&&screen.closest('.avonix-popup-card');
+        if(popupCard){
+          popupCard.classList.add('avonix-popup-card--success');
+          document.dispatchEvent(new CustomEvent('avonix:form-success',{detail:{formId:formId}}));
+        }
+      }catch(e){}
       if(ux.confetti) fireConfetti(screen);
       if(r.action==='redirect'&&r.url){
         setTimeout(goRedirect, Math.max(0, delay));

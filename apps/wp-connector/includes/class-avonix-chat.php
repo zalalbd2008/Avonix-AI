@@ -25,6 +25,21 @@ class Avonix_Chat
         add_action('wp_ajax_nopriv_avonix_chat_poll', [$this, 'proxy_poll']);
         add_action('wp_ajax_avonix_chat_stream', [$this, 'proxy_stream']);
         add_action('wp_ajax_nopriv_avonix_chat_stream', [$this, 'proxy_stream']);
+        add_filter('script_loader_tag', [$this, 'script_tag'], 10, 3);
+    }
+
+    /**
+     * Mark the chat widget script so page optimizers leave it alone.
+     */
+    public function script_tag($tag, $handle, $src)
+    {
+        if ($handle !== 'avonix-widget') {
+            return $tag;
+        }
+        if (strpos($tag, 'data-no-optimize') === false) {
+            $tag = str_replace('<script ', '<script data-no-optimize="1" data-cfasync="false" ', $tag);
+        }
+        return $tag;
     }
 
     private function build_payload($surface = 'bubble')
@@ -115,17 +130,29 @@ class Avonix_Chat
 
     public function enqueue()
     {
-        if (get_option(AVONIX_OPT_CHAT_ENABLED, '0') !== '1') {
-            return;
-        }
-
         $client = new Avonix_Client();
         if (!$client->is_configured()) {
             return;
         }
 
-        $endpoint = untrailingslashit((string) get_option(AVONIX_OPT_ENDPOINT, ''));
+        $localOn = get_option(AVONIX_OPT_CHAT_ENABLED, '0') === '1';
         $payload = $this->build_payload('bubble');
+
+        // Cloud "Enabled on site" + published bubble must show even when the WP
+        // checkbox was never ticked (default is off).
+        $cloudOn = !empty($payload['widget_id']);
+        if ($cloudOn && !$localOn) {
+            update_option(AVONIX_OPT_CHAT_ENABLED, '1', false);
+            $localOn = true;
+        }
+        if (!$localOn && !$cloudOn) {
+            return;
+        }
+
+        $endpoint = untrailingslashit((string) get_option(AVONIX_OPT_ENDPOINT, ''));
+        if ($endpoint === '') {
+            return;
+        }
 
         wp_enqueue_script(
             'avonix-widget',
@@ -134,6 +161,10 @@ class Avonix_Chat
             AVONIX_VERSION,
             true
         );
+
+        // Keep LiteSpeed / optimizers from combining or deferring the external widget.
+        wp_script_add_data('avonix-widget', 'data-no-optimize', '1');
+        wp_script_add_data('avonix-widget', 'strategy', 'defer');
 
         wp_add_inline_script(
             'avonix-widget',
@@ -147,10 +178,6 @@ class Avonix_Chat
      */
     public function shortcode($atts)
     {
-        if (get_option(AVONIX_OPT_CHAT_ENABLED, '0') !== '1') {
-            return '';
-        }
-
         $client = new Avonix_Client();
         if (!$client->is_configured()) {
             return '';
@@ -166,6 +193,16 @@ class Avonix_Chat
 
         $endpoint = untrailingslashit((string) get_option(AVONIX_OPT_ENDPOINT, ''));
         $payload = $this->build_payload('wizard');
+        $cloudOn = !empty($payload['widget_id']);
+        $localOn = get_option(AVONIX_OPT_CHAT_ENABLED, '0') === '1';
+        if ($cloudOn && !$localOn) {
+            update_option(AVONIX_OPT_CHAT_ENABLED, '1', false);
+            $localOn = true;
+        }
+        if (!$localOn && !$cloudOn) {
+            return '';
+        }
+
         $payload['surface'] = 'wizard';
         $payload['mount'] = '#avonix-chat-wizard';
 

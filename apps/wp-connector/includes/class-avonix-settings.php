@@ -165,6 +165,10 @@ class Avonix_Settings
                                        value="1" <?php checked(get_option(AVONIX_OPT_CHAT_ENABLED, '0'), '1'); ?>>
                                 Answer visitor questions from this site's own content
                             </label>
+                            <p class="description">
+                                Also turns on automatically when Live Chat is <strong>Enabled</strong> and
+                                <strong>Published</strong> in the Avonix dashboard.
+                            </p>
                         </td>
                     </tr>
                     <tr>

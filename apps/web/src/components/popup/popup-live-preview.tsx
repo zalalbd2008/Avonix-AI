@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import type { PopupComponent, PopupPayload } from "@/lib/db/schema";
 import { googleFontStack } from "@/lib/fonts/google";
 import { isSafeEmbedUrl } from "@/lib/popup/resolve-form-link";
-import { popupCloseGlyph } from "@/lib/popup/defaults";
+import { PopupCloseIcon } from "@/lib/popup/defaults";
 import { PopupFormPreviewBlock } from "@/components/popup/popup-form-preview-block";
 
 type FormOpt = { id: string; name: string };
@@ -466,16 +466,21 @@ export function PopupLivePreview({
       <button
         type="button"
         aria-label="Close"
-        className={`absolute right-3 top-3 z-10 grid place-items-center rounded-full font-semibold leading-none transition ${idleClass} ${hoverClass}`}
+        className={`absolute right-3 top-3 z-10 inline-flex items-center justify-center overflow-hidden rounded-full font-semibold leading-none transition ${idleClass} ${hoverClass}`}
         style={{
           width: size,
           height: size,
+          minWidth: size,
+          minHeight: size,
+          maxWidth: size,
+          maxHeight: size,
           borderRadius: "50%",
           aspectRatio: "1 / 1",
           padding: 0,
+          fontSize: size,
+          lineHeight: 0,
           background: theme.closeBackground ?? "#ef4444",
           color: theme.closeColor ?? "#fff",
-          fontSize: Math.round(size * 0.55),
           border: 0,
           cursor: "pointer",
           ["--avx-close-hover-bg" as string]:
@@ -501,7 +506,7 @@ export function PopupLivePreview({
           onClose?.();
         }}
       >
-        {popupCloseGlyph(theme.closeIcon)}
+        <PopupCloseIcon icon={theme.closeIcon} />
       </button>
     );
   }

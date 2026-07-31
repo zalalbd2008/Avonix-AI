@@ -350,13 +350,9 @@ class Avonix_Popup
 .avonix-popup-card--header-band .avonix-popup-close {
   top: 12px;
   right: 12px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50% !important;
+  --avx-close-size: 30px;
   background: #ef4444;
   color: #fff;
-  font-size: 17px;
-  font-weight: 600;
 }
 .avonix-popup-card--header-band .avonix-popup-close:hover {
   background: #dc2626;
@@ -382,29 +378,60 @@ class Avonix_Popup
   flex-shrink: 0;
 }
 .avonix-popup-close {
+  --avx-close-size: 28px;
   position: absolute;
   top: 10px;
   right: 12px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  margin: 0;
-  border: 0;
+  width: var(--avx-close-size) !important;
+  height: var(--avx-close-size) !important;
+  min-width: var(--avx-close-size) !important;
+  min-height: var(--avx-close-size) !important;
+  max-width: var(--avx-close-size) !important;
+  max-height: var(--avx-close-size) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
   border-radius: 50% !important;
-  aspect-ratio: 1 / 1;
-  flex-shrink: 0;
-  appearance: none;
-  -webkit-appearance: none;
+  aspect-ratio: 1 / 1 !important;
+  flex-shrink: 0 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
   background: rgba(15, 23, 42, 0.05);
   color: #64748b;
-  font-size: 18px;
-  line-height: 1;
+  font-size: 0 !important;
+  line-height: 0 !important;
   cursor: pointer;
   z-index: 2;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  overflow: hidden;
+  text-align: center !important;
   transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.avonix-popup-close__icon {
+  display: block !important;
+  width: 52% !important;
+  height: 52% !important;
+  max-width: 52% !important;
+  max-height: 52% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.avonix-popup-close__glyph {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
+  line-height: 1 !important;
+  pointer-events: none;
 }
 .avonix-popup-close:hover {
   background: rgba(15, 23, 42, 0.1);
@@ -1036,20 +1063,57 @@ CSS;
       x.className = "avonix-popup-close";
       x.setAttribute("aria-label", "Close");
       var closeIcon = theme.closeIcon || "x";
-      var glyphs = { x: "×", x_bold: "✕", plus: "+", circle_x: "⊗" };
-      x.textContent = glyphs[closeIcon] || "×";
-      var closeSize = Number(theme.closeSize) || 0;
-      if (closeSize >= 20 && closeSize <= 56) {
-        x.style.width = closeSize + "px";
-        x.style.height = closeSize + "px";
-        x.style.fontSize = Math.round(closeSize * 0.55) + "px";
-      }
-      // Theme styles often set button { border-radius } — force a circle.
-      x.style.borderRadius = "50%";
-      x.style.padding = "0";
-      x.style.aspectRatio = "1 / 1";
+      var closeSize = Number(theme.closeSize) || 28;
+      if (!(closeSize >= 20 && closeSize <= 56)) closeSize = 28;
+      // Perfect circle — lock box metrics (WP themes often pad/stretch buttons).
+      x.style.cssText = [
+        "position:absolute",
+        "top:10px",
+        "right:12px",
+        "padding:0",
+        "margin:0",
+        "border:0",
+        "border-radius:50%",
+        "display:inline-flex",
+        "align-items:center",
+        "justify-content:center",
+        "line-height:0",
+        "font-size:0",
+        "box-sizing:border-box",
+        "overflow:hidden",
+        "cursor:pointer",
+        "z-index:2",
+        "flex-shrink:0",
+        "appearance:none",
+        "-webkit-appearance:none"
+      ].join(";");
+      x.style.setProperty("--avx-close-size", closeSize + "px");
       if (theme.closeBackground) x.style.background = theme.closeBackground;
       if (theme.closeColor) x.style.color = theme.closeColor;
+
+      // SVG X sits optically centered; text glyphs use a flex wrapper.
+      if (closeIcon === "plus") {
+        var gPlus = document.createElement("span");
+        gPlus.className = "avonix-popup-close__glyph";
+        gPlus.style.fontSize = Math.round(closeSize * 0.55) + "px";
+        gPlus.textContent = "+";
+        x.appendChild(gPlus);
+      } else if (closeIcon === "circle_x") {
+        var gCx = document.createElement("span");
+        gCx.className = "avonix-popup-close__glyph";
+        gCx.style.fontSize = Math.round(closeSize * 0.5) + "px";
+        gCx.textContent = "⊗";
+        x.appendChild(gCx);
+      } else {
+        var stroke = closeIcon === "x_bold" ? "2.6" : "2.2";
+        x.innerHTML =
+          '<svg class="avonix-popup-close__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+          '<path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="' +
+          stroke +
+          '" stroke-linecap="round"/>' +
+          "</svg>";
+      }
+
       var idleAnim = theme.closeAnimation || "none";
       if (idleAnim && idleAnim !== "none") {
         x.className += " avonix-popup-close--anim-" + idleAnim;

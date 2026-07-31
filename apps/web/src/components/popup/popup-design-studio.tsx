@@ -26,13 +26,14 @@ import {
   POPUP_CLOSE_ANIMATIONS,
   POPUP_CLOSE_HOVER_ANIMATIONS,
   POPUP_CLOSE_ICONS,
+  PopupCloseIcon,
   POPUP_EDITOR_TABS,
   POPUP_LAYOUTS,
   POPUP_PRIORITIES,
   POPUP_TYPES,
   applyCampaignHeaderLook,
   defaultPopupPayload,
-  popupCloseGlyph,
+  PopupCloseIcon,
   slugifyPopupName,
   summarizePageTarget,
   type PopupEditorTab,
@@ -2143,7 +2144,7 @@ export function PopupDesignStudio({
                 <div className="flex items-center gap-3 rounded-lg border border-[#eef2f7] bg-[#f8fafc] px-3 py-2.5">
                   <span className="text-[12px] text-muted">Preview</span>
                   <span
-                    className={`grid place-items-center rounded-full font-semibold leading-none ${
+                    className={`inline-flex items-center justify-center overflow-hidden rounded-full font-semibold leading-none ${
                       payload.design.theme?.closeAnimation === "spin"
                         ? "animate-spin"
                         : payload.design.theme?.closeAnimation === "pulse"
@@ -2155,17 +2156,21 @@ export function PopupDesignStudio({
                     style={{
                       width: payload.design.theme?.closeSize ?? 30,
                       height: payload.design.theme?.closeSize ?? 30,
+                      minWidth: payload.design.theme?.closeSize ?? 30,
+                      minHeight: payload.design.theme?.closeSize ?? 30,
                       borderRadius: "50%",
                       aspectRatio: "1 / 1",
+                      padding: 0,
+                      fontSize: payload.design.theme?.closeSize ?? 30,
+                      lineHeight: 0,
                       background:
                         payload.design.theme?.closeBackground ?? "#ef4444",
                       color: payload.design.theme?.closeColor ?? "#ffffff",
-                      fontSize: Math.round(
-                        (payload.design.theme?.closeSize ?? 30) * 0.55,
-                      ),
                     }}
                   >
-                    {popupCloseGlyph(payload.design.theme?.closeIcon)}
+                    <PopupCloseIcon
+                      icon={payload.design.theme?.closeIcon}
+                    />
                   </span>
                 </div>
               </div>

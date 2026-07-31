@@ -237,23 +237,43 @@ class Avonix_Popup
 .avonix-popup-form .avonix-form input[type="radio"],
 .avonix-popup-form .avonix-form input[type="checkbox"],
 .avonix-popup-form .avx-form input[type="radio"],
-.avonix-popup-form .avx-form input[type="checkbox"] {
-  width: var(--avx-radio-size, 18px) !important;
-  height: var(--avx-radio-size, 18px) !important;
+.avonix-popup-form .avx-form input[type="checkbox"],
+.avonix-popup-root input[type="radio"],
+.avonix-popup-root input[type="checkbox"] {
+  -webkit-appearance: auto !important;
+  appearance: auto !important;
+  width: 16px !important;
+  height: 16px !important;
   min-height: 0 !important;
   min-width: 0 !important;
+  max-width: 18px !important;
+  max-height: 18px !important;
   padding: 0 !important;
-  margin: 0 !important;
+  margin: 2px 6px 0 0 !important;
   border: 0 !important;
+  border-radius: 50% !important;
   outline: none !important;
+  outline-offset: 0 !important;
   box-shadow: none !important;
   background: transparent !important;
+  flex-shrink: 0 !important;
   accent-color: var(--avx-radio-on, #ff6600);
 }
-.avonix-popup-form .avonix-form input[type="checkbox"] {
-  width: var(--avx-check-size, 18px) !important;
-  height: var(--avx-check-size, 18px) !important;
+.avonix-popup-root input[type="checkbox"] {
+  border-radius: 3px !important;
   accent-color: var(--avx-check-on, #ff6600);
+}
+.avonix-popup-root input[type="radio"]:focus,
+.avonix-popup-root input[type="radio"]:focus-visible,
+.avonix-popup-root input[type="radio"]:checked,
+.avonix-popup-root input[type="checkbox"]:focus,
+.avonix-popup-root input[type="checkbox"]:focus-visible,
+.avonix-popup-root .avonix-form.avx-a11y-focus input[type="radio"]:focus-visible,
+.avonix-popup-root .avonix-form.avx-a11y-focus input[type="checkbox"]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border: 0 !important;
 }
 @keyframes avonix-pop-in {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }
@@ -1582,9 +1602,9 @@ CSS;
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     // Runtime CSS kill-switch (beats stale caches / form embed overflow:auto).
-    if (!document.getElementById("avonix-popup-nosroll")) {
+    if (!document.getElementById("avonix-popup-kill-v3")) {
       var killCss = document.createElement("style");
-      killCss.id = "avonix-popup-nosroll";
+      killCss.id = "avonix-popup-kill-v3";
       killCss.textContent =
         ".avonix-popup-card,.avonix-popup-form-wrap,.avonix-popup-form," +
         ".avonix-popup-form .avonix-form,.avonix-popup-form .avx-form,.avonix-popup-form .avx-step{" +
@@ -1600,9 +1620,18 @@ CSS;
         ".avonix-popup-form .avonix-form select:focus," +
         ".avonix-popup-form .avonix-form textarea:focus{outline:2px solid var(--avx-input-focus-border,#ff6600)!important;" +
         "outline-offset:-2px!important;box-shadow:none!important}" +
-        ".avonix-popup-form .avonix-form input[type=radio],.avonix-popup-form .avonix-form input[type=checkbox]{" +
-        "min-height:0!important;min-width:0!important;padding:0!important;border:0!important;" +
-        "outline:none!important;box-shadow:none!important;background:transparent!important}" +
+        ".avonix-popup-root input[type=radio],.avonix-popup-root input[type=checkbox]{" +
+        "appearance:auto!important;-webkit-appearance:auto!important;" +
+        "width:16px!important;height:16px!important;min-height:0!important;min-width:0!important;" +
+        "max-width:18px!important;max-height:18px!important;padding:0!important;margin:2px 6px 0 0!important;" +
+        "border:0!important;outline:none!important;outline-offset:0!important;box-shadow:none!important;" +
+        "background:transparent!important;flex-shrink:0!important}" +
+        ".avonix-popup-root input[type=radio]:focus,.avonix-popup-root input[type=radio]:focus-visible," +
+        ".avonix-popup-root input[type=radio]:checked,.avonix-popup-root input[type=checkbox]:focus," +
+        ".avonix-popup-root input[type=checkbox]:focus-visible," +
+        ".avonix-popup-root .avx-a11y-focus input[type=radio]:focus-visible," +
+        ".avonix-popup-root .avx-a11y-focus input[type=checkbox]:focus-visible{" +
+        "outline:none!important;outline-offset:0!important;box-shadow:none!important;border:0!important}" +
         ".avonix-popup-card:has(.avx-success),.avonix-popup-card--success{" +
         "background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important}" +
         ".avonix-popup-card:has(.avx-success) .avonix-popup-header," +

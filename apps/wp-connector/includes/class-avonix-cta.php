@@ -350,8 +350,9 @@ CSS;
     }
     if (action.type === "ai_chat" || action.type === "live_chat") {
       ev.preventDefault();
-      var launcher = document.querySelector(".avonix-chat-launcher, #avonix-chat-open, [data-avonix-chat]");
+      var launcher = document.querySelector(".avonix-cep-launcher, .avonix-chat-launcher, #avonix-chat-open, [data-avonix='cep-chat'] .avonix-cep-launcher, [data-avonix-chat]");
       if (launcher) launcher.click();
+      else if (window.AvonixCep && typeof window.AvonixCep.open === "function") window.AvonixCep.open();
       return;
     }
     if (action.type === "scroll_top") {

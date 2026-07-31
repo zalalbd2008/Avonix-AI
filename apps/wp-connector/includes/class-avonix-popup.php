@@ -890,8 +890,12 @@ CSS;
   function conflictOk(conflicts) {
     conflicts = conflicts || {};
     if (conflicts.suppressIfChatOpen) {
+      if (conflicts.suppressIfChatOpen) {
+      var cepPanel = document.querySelector(".avonix-cep-panel");
+      if (cepPanel && cepPanel.style.display === "flex") return false;
       var chat = document.querySelector(".avonix-chat-open, .avonix-chat-panel.is-open, [data-avonix-chat-open='1']");
       if (chat) return false;
+    }
     }
     if (conflicts.suppressIfFormOpen) {
       var focus = document.activeElement;
@@ -1214,8 +1218,9 @@ CSS;
         }
         if (act === "live_chat" || act === "chat_now") {
           ev.preventDefault();
-          var launcher = document.querySelector(".avonix-chat-launcher, #avonix-chat-open, [data-avonix-chat]");
+          var launcher = document.querySelector(".avonix-cep-launcher, .avonix-chat-launcher, #avonix-chat-open, [data-avonix='cep-chat'] .avonix-cep-launcher, [data-avonix-chat]");
           if (launcher) launcher.click();
+          else if (window.AvonixCep && typeof window.AvonixCep.open === "function") window.AvonixCep.open();
           dismiss("chat");
         }
         if (act === "copy_coupon" && content.couponCode) {

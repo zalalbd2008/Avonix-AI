@@ -46,13 +46,11 @@
   var pollTimer = null;
   var seenIds = {};
 
-  var rootPosCss = useFree
-    ? "left:" +
-      freeX +
-      "%;top:" +
-      freeY +
-      "%;right:auto;bottom:auto;"
-    : edgeY + ":" + oy + "px;" + edgeX + ":" + ox + "px;";
+  // Safe corner CSS first. Free % is applied in placeRoot() after measuring the
+  // launcher — studio percents mean share of (viewport − launcher), not raw CSS %.
+  var alignEnd = useFree ? freeX >= 50 : edgeX === "right";
+  var stackUp = useFree ? freeY >= 45 : edgeY === "bottom";
+  var rootPosCss = edgeY + ":" + oy + "px;" + edgeX + ":" + ox + "px;";
 
   var style = document.createElement("style");
   style.textContent =
@@ -60,16 +58,12 @@
     z +
     ";" +
     rootPosCss +
-    "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;align-items:" +
-    (useFree
-      ? freeX >= 50
-        ? "flex-end"
-        : "flex-start"
-      : edgeX === "left"
-        ? "flex-start"
-        : "flex-end") +
-    ";gap:12px;}" +
-    ".avonix-cep-root--wizard{position:relative;inset:auto;z-index:1;width:100%;max-width:100%;align-items:stretch;bottom:auto;top:auto;left:auto;right:auto;}" +
+    "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:" +
+    (stackUp ? "column-reverse" : "column") +
+    ";align-items:" +
+    (alignEnd ? "flex-end" : "flex-start") +
+    ";gap:12px;max-width:calc(100vw - 16px);}" +
+    ".avonix-cep-root--wizard{position:relative;inset:auto;z-index:1;width:100%;max-width:100%;align-items:stretch;bottom:auto;top:auto;left:auto;right:auto;flex-direction:column;}" +
     ".avonix-cep-launcher{cursor:pointer;border:0;border-radius:999px;padding:14px 20px;font-size:15px;font-weight:600;color:#fff;background:" +
     primary +
     ";box-shadow:0 8px 24px rgba(0,0,0,.18);position:relative;}" +
@@ -532,9 +526,72 @@
       });
   }
 
+  function ctaBottomClearance() {
+    var pad = 16;
+    try {
+      if (
+        document.body.classList.contains("avonix-cta-padded") ||
+        document.querySelector(".avonix-bottom-nav, .avonix-cta-bar")
+      ) {
+        pad = 88;
+      }
+    } catch (e) {}
+    return pad;
+  }
+
+  /**
+   * Place the launcher using studio semantics: percent of remaining space
+   * (viewport − launcher), so 100% stays fully on-screen. Matches Languages.
+   */
+  function placeRoot() {
+    if (surface === "wizard") return;
+    var vw = window.innerWidth || document.documentElement.clientWidth || 360;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    var bottomClear = ctaBottomClearance();
+    var bw = Math.max(button.offsetWidth || 0, 56);
+    var bh = Math.max(button.offsetHeight || 0, 48);
+    var margin = 8;
+
+    root.style.left = "auto";
+    root.style.right = "auto";
+    root.style.top = "auto";
+    root.style.bottom = "auto";
+
+    if (useFree) {
+      var maxX = Math.max(0, vw - bw - margin * 2);
+      var maxY = Math.max(0, vh - bh - bottomClear - margin);
+      var x = Math.round((freeX / 100) * maxX) + margin;
+      var y = Math.round((freeY / 100) * maxY) + margin;
+      x = Math.min(vw - bw - margin, Math.max(margin, x));
+      y = Math.min(vh - bh - bottomClear, Math.max(margin, y));
+
+      var openUp = freeY >= 45;
+      var openLeft = freeX >= 50;
+      root.style.flexDirection = openUp ? "column-reverse" : "column";
+      root.style.alignItems = openLeft ? "flex-end" : "flex-start";
+
+      if (openUp) {
+        // Pin launcher bottom edge so the panel grows upward when opened.
+        root.style.left = x + "px";
+        root.style.bottom = Math.max(bottomClear, vh - (y + bh)) + "px";
+      } else {
+        root.style.left = x + "px";
+        root.style.top = y + "px";
+      }
+      return;
+    }
+
+    var edgeOy = edgeY === "bottom" ? Math.max(oy, bottomClear) : oy;
+    root.style.flexDirection = edgeY === "bottom" ? "column-reverse" : "column";
+    root.style.alignItems = edgeX === "left" ? "flex-start" : "flex-end";
+    root.style[edgeY] = edgeOy + "px";
+    root.style[edgeX] = ox + "px";
+  }
+
   button.addEventListener("click", function () {
     open = !open;
     panel.style.display = open ? "flex" : "none";
+    placeRoot();
     if (open) {
       showGreeting();
       input.focus();
@@ -560,6 +617,10 @@
       return;
     }
     document.body.appendChild(root);
+    placeRoot();
+    requestAnimationFrame(placeRoot);
+    setTimeout(placeRoot, 120);
+    window.addEventListener("resize", placeRoot);
     var delay = (config.triggers && config.triggers.delayMs) || 0;
     if (delay > 0) {
       setTimeout(function () {
@@ -595,5 +656,11 @@
     window.AVONIX_CHAT = cfg;
     // Reload script path is already executed; clone by re-bootstrapping is hard.
     // Shortcode injects its own config before this script when surface=wizard.
+  };
+  window.AvonixCep.open = function () {
+    if (!open) button.click();
+  };
+  window.AvonixCep.close = function () {
+    if (open) button.click();
   };
 })();

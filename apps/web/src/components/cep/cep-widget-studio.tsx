@@ -397,6 +397,90 @@ export function CepWidgetStudio({
                     />
                   </div>
                 </label>
+                <label className="block">
+                  <span className="text-[12px] font-medium">
+                    Gradient end color
+                  </span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="color"
+                      className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-white p-1"
+                      value={theme.primaryColorEnd || primary}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          theme: {
+                            ...p.theme,
+                            primaryColorEnd: e.target.value,
+                          },
+                        }))
+                      }
+                    />
+                    <input
+                      className={input}
+                      value={theme.primaryColorEnd || ""}
+                      placeholder="Auto from primary"
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          theme: {
+                            ...p.theme,
+                            primaryColorEnd: e.target.value || undefined,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[12px] font-medium">
+                    Launcher icon style
+                  </span>
+                  <select
+                    className={`${input} mt-1`}
+                    value={theme.launcherIcon || "dots"}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: {
+                          ...p.theme,
+                          launcherIcon: e.target.value as "dots" | "compose",
+                        },
+                      }))
+                    }
+                  >
+                    <option value="dots">Chat bubble · dots</option>
+                    <option value="compose">Chat bubble · compose</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-[12px] font-medium">Agent / header name</span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.agentName ?? ""}
+                    placeholder={payload.title || "Chat with us"}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: { ...p.theme, agentName: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[12px] font-medium">Status text</span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.statusText ?? ""}
+                    placeholder="Online · typically replies in a few minutes"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: { ...p.theme, statusText: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
                 <div className="sm:col-span-2">
                   <span className="mb-2 block text-[12px] font-medium">
                     Button size
@@ -464,14 +548,17 @@ export function CepWidgetStudio({
                       }
                       launcher={
                         <FloatingLauncherButton
-                          label={theme.launcherLabel || "Chat"}
+                          label={theme.launcherLabel || "Live chat"}
                           color={primary}
+                          colorEnd={theme.primaryColorEnd}
                           metrics={chatMetrics}
                           align={placementHorizontalAlign(chatPlacement)}
-                          avatarUrl={chatAvatar}
-                          online
+                          online={theme.onlineIndicator !== false}
+                          shape="circle"
                         >
-                          <ChatGlyph className="size-[1em]" />
+                          <span style={{ color: primary }} className="grid size-full place-items-center">
+                            <ChatGlyph className="size-[54%]" />
+                          </span>
                         </FloatingLauncherButton>
                       }
                     />
@@ -506,6 +593,55 @@ export function CepWidgetStudio({
                       }))
                     }
                   />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[12px] font-medium">
+                    Start-screen hero image URL
+                  </span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.startHeroImageUrl ?? ""}
+                    placeholder="https://… (optional — default line art if empty)"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: {
+                          ...p.theme,
+                          startHeroImageUrl: e.target.value || undefined,
+                        },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[12px] font-medium">Privacy policy URL</span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.privacyUrl ?? ""}
+                    placeholder="https://yoursite.com/privacy"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: {
+                          ...p.theme,
+                          privacyUrl: e.target.value || undefined,
+                        },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={theme.preChatEnabled !== false}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: { ...p.theme, preChatEnabled: e.target.checked },
+                      }))
+                    }
+                  />
+                  Show “Start chat” email / consent screen first
                 </label>
                 <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
                   <input
@@ -1009,20 +1145,14 @@ function SetupRow({
 /** Dual speech-bubble chat mark. */
 function ChatGlyph({ className = "size-5" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M14 15v2a2 2 0 0 0 2 2h1l3 3V9a2 2 0 0 0-2-2h-1" />
-      <path d="M3 13V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8l-3 3z" />
-      <path d="M7 7h5" />
-      <path d="M7 10h3" />
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <path
+        fill="#fff"
+        d="M10 12c0-2.2 1.8-4 4-4h20c2.2 0 4 1.8 4 4v16c0 2.2-1.8 4-4 4H22l-8 8v-8h0c-2.2 0-4-1.8-4-4V12z"
+      />
+      <circle cx="18" cy="20" r="2.4" fill="currentColor" />
+      <circle cx="24" cy="20" r="2.4" fill="currentColor" />
+      <circle cx="30" cy="20" r="2.4" fill="currentColor" />
     </svg>
   );
 }

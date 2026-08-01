@@ -48,9 +48,12 @@ export type CepBubbleShape = "circle" | "rounded_square" | "image" | "gif" | "lo
 
 export type CepWidgetTheme = {
   primaryColor?: string;
+  /** Gradient end for launcher / accents. Defaults to a lighter mix of primary. */
+  primaryColorEnd?: string;
   backgroundColor?: string;
   textColor?: string;
   headerColor?: string;
+  linkColor?: string;
   radius?: number;
   fontFamily?: string;
   bubbleShape?: CepBubbleShape;
@@ -67,6 +70,8 @@ export type CepWidgetTheme = {
   mobileHeight?: string;
   zIndex?: number;
   launcherLabel?: string;
+  /** Circular launcher glyph: typing dots or compose pencil. */
+  launcherIcon?: "dots" | "compose";
   /** Icon glyph size in px. */
   launcherIconSize?: number;
   /** Inner padding around the icon in px. */
@@ -75,6 +80,17 @@ export type CepWidgetTheme = {
   launcherSize?: "sm" | "md" | "lg" | "xl" | { iconSize?: number; buttonPadding?: number };
   onlineIndicator?: boolean;
   pulse?: boolean;
+  /** Display name in the chat header. */
+  agentName?: string;
+  /** Status line under the name. */
+  statusText?: string;
+  /** Show email / consent gate before chat. Default true. */
+  preChatEnabled?: boolean;
+  startTitle?: string;
+  startButtonLabel?: string;
+  startHeroImageUrl?: string;
+  privacyUrl?: string;
+  placeholder?: string;
 };
 
 export type CepWidgetTriggers = {
@@ -180,10 +196,11 @@ export function defaultCepWidgetPayload(
     placeholder: "Type a message…",
     theme: {
       primaryColor: "#ff6600",
+      primaryColorEnd: "#ff944d",
       backgroundColor: "#ffffff",
-      textColor: "#13233c",
+      textColor: "#0f172a",
       headerColor: "#ff6600",
-      radius: 16,
+      radius: 22,
       bubbleShape: "circle",
       position: "bottom_right",
       leftPercent: 88,
@@ -191,15 +208,21 @@ export function defaultCepWidgetPayload(
       offsetX: 20,
       offsetY: 20,
       desktopWidth: "min(380px, calc(100vw - 32px))",
-      desktopHeight: "min(560px, calc(100vh - 120px))",
+      desktopHeight: "min(580px, calc(100vh - 110px))",
       mobileWidth: "calc(100vw - 24px)",
-      mobileHeight: "min(70vh, calc(100dvh - 96px))",
+      mobileHeight: "min(72vh, calc(100dvh - 96px))",
       zIndex: 2147483000,
-      launcherLabel: "Chat",
-      launcherIconSize: 22,
-      launcherPadding: 11,
+      launcherLabel: "Live chat",
+      launcherIcon: "dots",
+      launcherIconSize: 24,
+      launcherPadding: 16,
       onlineIndicator: true,
       pulse: true,
+      agentName: "Chat with us",
+      statusText: "Online · typically replies in a few minutes",
+      preChatEnabled: true,
+      startTitle: "Start chat",
+      startButtonLabel: "Continue to chat",
     },
     triggers: {
       delayMs: 0,

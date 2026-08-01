@@ -222,6 +222,7 @@ export function LauncherSizeControl({
 export function FloatingLauncherButton({
   label,
   color = LAUNCHER_ORANGE,
+  colorEnd,
   children,
   onClick,
   align = "end",
@@ -229,9 +230,12 @@ export function FloatingLauncherButton({
   avatarUrl,
   online = true,
   metrics,
+  shape = "tile",
 }: {
   label: string;
   color?: string;
+  /** Gradient end for circular chat launcher. */
+  colorEnd?: string;
   children?: ReactNode;
   onClick?: () => void;
   align?: "start" | "end";
@@ -239,16 +243,19 @@ export function FloatingLauncherButton({
   avatarUrl?: string | null;
   online?: boolean;
   metrics?: Partial<LauncherMetrics> | string | null;
+  /** `circle` = Live Chat FAB; `tile` = edge-dock for Languages / Accessibility. */
+  shape?: "circle" | "tile";
 }) {
   const labelOnStart = align === "end";
   const isAvatar = Boolean(avatarUrl);
   const m = normalizeLauncherMetrics(metrics ?? DEFAULT_LAUNCHER_METRICS);
   const px = Math.max(1, launcherOuterPx(m));
   const corner = launcherCornerRadiusPx(m);
-  const radius = launcherTileRadius(align, corner);
+  const radius = shape === "circle" ? "50%" : launcherTileRadius(align, corner);
   const flushLeft = align === "start";
   const borderW = Math.max(2, Math.round(px * (3 / 44)));
   const dot = Math.max(7, Math.round(px * (9 / 44)));
+  const end = colorEnd || color;
 
   const tileStyle: CSSProperties = isAvatar
     ? {
@@ -274,11 +281,18 @@ export function FloatingLauncherButton({
         borderRadius: radius,
         border: "none",
         padding: m.buttonPadding,
+        background:
+          shape === "circle"
+            ? `linear-gradient(145deg, ${end} 0%, ${color} 100%)`
+            : color,
         backgroundColor: color,
         boxSizing: "border-box",
-        boxShadow: flushLeft
-          ? "2px 2px 10px rgba(15,23,42,0.16)"
-          : "-2px 2px 10px rgba(15,23,42,0.16)",
+        boxShadow:
+          shape === "circle"
+            ? `0 10px 28px color-mix(in srgb, ${color} 38%, transparent), 0 2px 6px rgba(15,23,42,.12)`
+            : flushLeft
+              ? "2px 2px 10px rgba(15,23,42,0.16)"
+              : "-2px 2px 10px rgba(15,23,42,0.16)",
       };
 
   return (
@@ -302,13 +316,17 @@ export function FloatingLauncherButton({
         ) : (
           children
         )}
-        {isAvatar && online ? (
+        {online && (isAvatar || shape === "circle") ? (
           <span
             aria-hidden
             style={{
               position: "absolute",
-              top: borderW,
-              ...(flushLeft ? { right: borderW } : { left: borderW }),
+              top: shape === "circle" ? 4 : borderW,
+              ...(shape === "circle"
+                ? { right: 4 }
+                : flushLeft
+                  ? { right: borderW }
+                  : { left: borderW }),
               width: dot,
               height: dot,
               borderRadius: 999,

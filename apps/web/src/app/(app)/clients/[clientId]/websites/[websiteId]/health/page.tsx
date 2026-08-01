@@ -47,7 +47,7 @@ export default async function HealthPage({
             eq(knowledgeChunks.agencyId, ctx.agencyId),
           ),
         ),
-      Promise.resolve(configuredAiProviders()),
+      configuredAiProviders(),
     ]);
 
     const updates = mergeUpdatesSettings(site.settings?.updates);

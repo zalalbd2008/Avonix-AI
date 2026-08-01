@@ -41,6 +41,7 @@ export async function getPlatformSettings() {
     row ?? {
       id: "default" as const,
       maxPlatformOwners: DEFAULT_MAX_PLATFORM_OWNERS,
+      aiKeys: {},
       createdAt: new Date(),
       updatedAt: new Date(),
     }

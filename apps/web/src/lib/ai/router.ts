@@ -1,9 +1,14 @@
 /**
  * AI provider router (ADR-011 §6).
  * Default: OpenRouter. Fallback: Anthropic direct.
+ * Keys: platform DB (encrypted) first, then process.env.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import type { CepAiConfig, CepAiProvider } from "@/lib/db/schema";
+import {
+  hasAiProviderKey,
+  resolveAiApiKey,
+} from "@/lib/platform/ai-keys";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -35,35 +40,8 @@ function resolveConfig(ai?: CepAiConfig | null): Required<
   };
 }
 
-function hasKey(provider: CepAiProvider): boolean {
-  switch (provider) {
-    case "openrouter":
-      return Boolean(process.env.OPENROUTER_API_KEY);
-    case "anthropic":
-      return Boolean(process.env.ANTHROPIC_API_KEY);
-    case "openai":
-      return Boolean(process.env.OPENAI_API_KEY);
-    case "google":
-      return Boolean(process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY);
-    case "groq":
-      return Boolean(process.env.GROQ_API_KEY);
-    case "mistral":
-      return Boolean(process.env.MISTRAL_API_KEY);
-    case "azure_openai":
-      return Boolean(
-        process.env.AZURE_OPENAI_API_KEY && process.env.AZURE_OPENAI_ENDPOINT,
-      );
-    case "custom_openai":
-      return Boolean(
-        process.env.CUSTOM_LLM_API_KEY && process.env.CUSTOM_LLM_BASE_URL,
-      );
-    default:
-      return false;
-  }
-}
-
-/** Which providers are configured in this environment (for studio UI). */
-export function configuredAiProviders(): CepAiProvider[] {
+/** Which providers have a key (platform DB or env). */
+export async function configuredAiProviders(): Promise<CepAiProvider[]> {
   const all: CepAiProvider[] = [
     "openrouter",
     "anthropic",
@@ -74,7 +52,11 @@ export function configuredAiProviders(): CepAiProvider[] {
     "azure_openai",
     "custom_openai",
   ];
-  return all.filter(hasKey);
+  const out: CepAiProvider[] = [];
+  for (const p of all) {
+    if (await hasAiProviderKey(p)) out.push(p);
+  }
+  return out;
 }
 
 export async function completeChat(opts: {
@@ -92,11 +74,16 @@ export async function completeChat(opts: {
       model: cfg.fallbackModel || cfg.model,
     });
   }
-  // Last resort if neither configured as expected
-  if (!chain.some((c) => c.provider === "anthropic") && hasKey("anthropic")) {
+  if (
+    !chain.some((c) => c.provider === "anthropic") &&
+    (await hasAiProviderKey("anthropic"))
+  ) {
     chain.push({ provider: "anthropic", model: "claude-sonnet-5" });
   }
-  if (!chain.some((c) => c.provider === "openrouter") && hasKey("openrouter")) {
+  if (
+    !chain.some((c) => c.provider === "openrouter") &&
+    (await hasAiProviderKey("openrouter"))
+  ) {
     chain.unshift({
       provider: "openrouter",
       model: "anthropic/claude-sonnet-4",
@@ -105,7 +92,7 @@ export async function completeChat(opts: {
 
   let lastError = "No AI provider is configured.";
   for (const step of chain) {
-    if (!hasKey(step.provider)) continue;
+    if (!(await hasAiProviderKey(step.provider))) continue;
     try {
       if (step.provider === "anthropic") {
         return await callAnthropic({
@@ -115,7 +102,6 @@ export async function completeChat(opts: {
           maxTokens: cfg.maxTokens,
         });
       }
-      // OpenRouter + OpenAI-compatible family
       return await callOpenAiCompatible({
         provider: step.provider,
         system: opts.system,
@@ -130,7 +116,7 @@ export async function completeChat(opts: {
     }
   }
 
-  const anyConfigured = configuredAiProviders().length > 0;
+  const anyConfigured = (await configuredAiProviders()).length > 0;
   return {
     ok: false,
     error: anyConfigured ? lastError : "AI chat is not configured.",
@@ -144,7 +130,10 @@ async function callAnthropic(opts: {
   model: string;
   maxTokens: number;
 }): Promise<RouterResult> {
-  const key = process.env.ANTHROPIC_API_KEY!;
+  const key = await resolveAiApiKey("anthropic");
+  if (!key) {
+    return { ok: false, error: "Anthropic API key is missing.", status: 503 };
+  }
   const claude = new Anthropic({ apiKey: key });
   const response = await claude.messages.create({
     model: opts.model,
@@ -184,7 +173,7 @@ async function callOpenAiCompatible(opts: {
   temperature: number;
   maxTokens: number;
 }): Promise<RouterResult> {
-  const { url, key, headers } = endpointFor(opts.provider);
+  const { url, key, headers } = await endpointFor(opts.provider);
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -226,16 +215,19 @@ async function callOpenAiCompatible(opts: {
   };
 }
 
-function endpointFor(provider: CepAiProvider): {
+async function endpointFor(provider: CepAiProvider): Promise<{
   url: string;
   key: string;
   headers: Record<string, string>;
-} {
+}> {
+  const key = await resolveAiApiKey(provider);
+  if (!key) throw new Error(`Missing API key for ${provider}`);
+
   switch (provider) {
     case "openrouter":
       return {
         url: OPENROUTER_URL,
-        key: process.env.OPENROUTER_API_KEY!,
+        key,
         headers: {
           "HTTP-Referer":
             process.env.NEXT_PUBLIC_APP_URL || "https://avonix.ai",
@@ -245,44 +237,42 @@ function endpointFor(provider: CepAiProvider): {
     case "openai":
       return {
         url: "https://api.openai.com/v1/chat/completions",
-        key: process.env.OPENAI_API_KEY!,
+        key,
         headers: {},
       };
     case "groq":
       return {
         url: "https://api.groq.com/openai/v1/chat/completions",
-        key: process.env.GROQ_API_KEY!,
+        key,
         headers: {},
       };
     case "mistral":
       return {
         url: "https://api.mistral.ai/v1/chat/completions",
-        key: process.env.MISTRAL_API_KEY!,
+        key,
         headers: {},
       };
-    case "google": {
-      // OpenAI-compatible Gemini endpoint when using AI Studio key via proxy
-      const key = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY!;
+    case "google":
       return {
         url: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
         key,
         headers: {},
       };
-    }
     case "azure_openai": {
       const endpoint = process.env.AZURE_OPENAI_ENDPOINT!.replace(/\/$/, "");
       const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o";
-      const version = process.env.AZURE_OPENAI_API_VERSION || "2024-08-01-preview";
+      const version =
+        process.env.AZURE_OPENAI_API_VERSION || "2024-08-01-preview";
       return {
         url: `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`,
-        key: process.env.AZURE_OPENAI_API_KEY!,
-        headers: { "api-key": process.env.AZURE_OPENAI_API_KEY! },
+        key,
+        headers: { "api-key": key },
       };
     }
     case "custom_openai":
       return {
         url: `${process.env.CUSTOM_LLM_BASE_URL!.replace(/\/$/, "")}/chat/completions`,
-        key: process.env.CUSTOM_LLM_API_KEY!,
+        key,
         headers: {},
       };
     default:

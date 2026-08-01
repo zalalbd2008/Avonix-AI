@@ -97,6 +97,7 @@ export const platformNav: NavSection[] = [
   },
   {
     items: [
+      { label: "AI Center", href: "/platform/ai" as Route, status: "v1", icon: "spark" },
       { label: "Settings", href: "/platform/settings" as Route, status: "v2", icon: "gear" },
     ],
   },

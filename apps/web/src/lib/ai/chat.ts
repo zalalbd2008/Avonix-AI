@@ -40,7 +40,7 @@ export async function answerVisitor(opts: {
   ai?: CepAiConfig | null;
   systemPromptOverride?: string | null;
 }): Promise<AnswerResult> {
-  if (configuredAiProviders().length === 0) {
+  if ((await configuredAiProviders()).length === 0) {
     return { ok: false, error: "AI chat is not configured.", status: 503 };
   }
 

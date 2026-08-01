@@ -111,7 +111,7 @@ export default async function ChatAiPage({
   });
 
   const limits = limitsFor(data.plan);
-  const providers = configuredAiProviders();
+  const providers = await configuredAiProviders();
   const modelReady = providers.length > 0;
   const embeddingsReady = Boolean(process.env.VOYAGE_API_KEY);
   const indexed = data.chunks > 0;

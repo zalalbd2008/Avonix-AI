@@ -225,6 +225,13 @@
       "when": 1784649000000,
       "tag": "0031_marketplace_purchases",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1784650000000,
+      "tag": "0032_platform_ai_keys",
+      "breakpoints": true
     }
   ]
 }

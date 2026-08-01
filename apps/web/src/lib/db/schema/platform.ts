@@ -8,6 +8,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -16,6 +17,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { primaryId, timestamps } from "./_shared";
 import { user } from "./auth";
+
+/** Encrypted AI provider API keys (AES-GCM blobs keyed by provider id). */
+export type PlatformAiKeysCipher = Partial<Record<string, string>>;
 
 export const platformAccountStatusEnum = pgEnum("platform_account_status", [
   "active",
@@ -72,6 +76,8 @@ export const platformAccounts = pgTable(
 export const platformSettings = pgTable("platform_settings", {
   id: text("id").primaryKey().default("default"),
   maxPlatformOwners: integer("max_platform_owners").notNull().default(4),
+  /** Ciphertext map: { openrouter: "v1:…", anthropic: "v1:…", … } */
+  aiKeys: jsonb("ai_keys").$type<PlatformAiKeysCipher>().notNull().default({}),
   ...timestamps,
 });
 

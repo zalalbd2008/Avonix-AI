@@ -11,7 +11,6 @@
 
   var theme = config.theme || {};
   var modules = config.modules || {};
-  var primary = theme.primaryColor || config.color || "#2563eb";
 
   function parseHex(h) {
     h = String(h || "").replace("#", "").trim();
@@ -35,16 +34,37 @@
     }
     return "#" + hx(ch(a.r, b.r)) + hx(ch(a.g, b.g)) + hx(ch(a.b, b.b));
   }
+  /** Keep theme colors from breaking the injected stylesheet. */
+  function sanitizeCssColor(raw, fallback) {
+    var s = String(raw == null ? "" : raw).trim();
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) return s;
+    if (/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(\s*,\s*[\d.]+\s*)?\)$/i.test(s))
+      return s;
+    return fallback;
+  }
+  /** Reject CSS injection in size tokens (width/height). */
+  function sanitizeCssSize(raw, fallback) {
+    var s = String(raw == null ? "" : raw).trim();
+    if (!s || /[{};<>]/.test(s)) return fallback;
+    return s;
+  }
 
-  var onPrimary = theme.onPrimaryColor || "#ffffff";
-  var primaryEnd = theme.primaryColorEnd || primary;
-  var headBg = theme.headerColor || mixHex(primary, "#0b1220", 0.8);
-  var botBubble = theme.botBubbleColor || mixHex(primary, "#f8fafc", 0.94);
+  var primary = sanitizeCssColor(theme.primaryColor || config.color, "#2563eb");
+  var onPrimary = sanitizeCssColor(theme.onPrimaryColor, "#ffffff");
+  var primaryEnd = sanitizeCssColor(theme.primaryColorEnd, primary);
+  var headBg = sanitizeCssColor(
+    theme.headerColor,
+    mixHex(primary, "#0b1220", 0.8)
+  );
+  var botBubble = sanitizeCssColor(
+    theme.botBubbleColor,
+    mixHex(primary, "#f8fafc", 0.94)
+  );
   var botBorder = mixHex(primary, "#ffffff", 0.87);
   var primaryTint = mixHex(primary, "#ffffff", 0.9);
   var primaryRing = "color-mix(in srgb," + primary + ",transparent 82%)";
-  var onlineDot = theme.onlineDotColor || "#00ff6a";
-  var surfaceBg = theme.backgroundColor || "#ffffff";
+  var onlineDot = sanitizeCssColor(theme.onlineDotColor, "#00ff6a");
+  var surfaceBg = sanitizeCssColor(theme.backgroundColor, "#ffffff");
   var canvasBg = "#f6f8fc";
   // Editable launcher: outer = iconSize + 2×padding (defaults 22 / 11).
   var launcherIconSz = Number(theme.launcherIconSize);
@@ -88,12 +108,22 @@
       ? Math.min(100, Math.max(0, Number(theme.topPercent)))
       : null;
   var useFree = freeX != null && freeY != null;
-  var z = theme.zIndex || 2147483000;
+  // Above Accessibility (2147482900) / Languages so the chat FAB is never buried.
+  var z = Math.max(2147483200, Number(theme.zIndex) || 0);
   var radius = theme.radius != null ? theme.radius : 16;
-  var deskW = theme.desktopWidth || "320px";
-  var deskH = theme.desktopHeight || "min(510px, calc(100vh - 130px))";
-  var mobW = theme.mobileWidth || "min(320px, calc(100vw - 24px))";
-  var mobH = theme.mobileHeight || "min(510px, calc(100svh - 164px))";
+  var deskW = sanitizeCssSize(theme.desktopWidth, "320px");
+  var deskH = sanitizeCssSize(
+    theme.desktopHeight,
+    "min(510px, calc(100vh - 130px))"
+  );
+  var mobW = sanitizeCssSize(
+    theme.mobileWidth,
+    "min(320px, calc(100vw - 24px))"
+  );
+  var mobH = sanitizeCssSize(
+    theme.mobileHeight,
+    "min(510px, calc(100svh - 164px))"
+  );
   var surface = config.surface || "bubble";
   var soundsOn = modules.sounds !== false;
   var streamingOn = modules.streaming !== false;
@@ -176,8 +206,8 @@
     radius +
     "px;overflow:hidden;box-shadow:0 16px 48px rgba(15,23,42,.18);}" +
     ".avonix-cep-panel.is-open{display:flex;animation:avonix-cep-pop .22s ease;}" +
-    /* Hide FAB while panel is open so it never covers the chat box */
-    ".avonix-cep-root.is-open > .avonix-cep-launcher{display:none!important;}" +
+    /* Keep FAB visible while open — panel opens away from the bubble (column-reverse). */
+    ".avonix-cep-root.is-open > .avonix-cep-launcher{display:flex!important;}" +
     "@keyframes avonix-cep-pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}" +
     ".avonix-cep-root--wizard .avonix-cep-panel{display:flex;width:100%;height:min(640px,70vh);max-width:100%;box-shadow:none;}" +
     ".avonix-cep-root--wizard .avonix-cep-launcher{display:none;}" +
@@ -367,6 +397,23 @@
   button.className = "avonix-cep-launcher";
   button.setAttribute("aria-label", theme.launcherLabel || config.label || "Open chat");
   button.setAttribute("aria-expanded", "false");
+  // Inline fallback so the FAB still shows if injected CSS is filtered/broken.
+  button.style.cssText =
+    "width:" +
+    launcherPx +
+    "px;height:" +
+    launcherPx +
+    "px;min-width:" +
+    launcherPx +
+    "px;min-height:" +
+    launcherPx +
+    "px;border:0;border-radius:50%;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;background:linear-gradient(145deg," +
+    primaryEnd +
+    " 0%," +
+    primary +
+    " 100%);color:" +
+    onPrimary +
+    ";box-shadow:0 6px 24px rgba(0,0,0,.2);overflow:visible;";
   if (avatarUrl) {
     button.innerHTML =
       '<img class="avonix-cep-launcher__img" src="' +
@@ -1194,6 +1241,11 @@
         mountInto(host);
         return;
       }
+      // No wizard mount on this page — show the floating bubble instead of a
+      // hidden launcher (wizard CSS forces display:none on the FAB).
+      surface = "bubble";
+      root.className = "avonix-cep-root";
+      root.setAttribute("data-surface", "bubble");
     }
     mountInto(document.body);
   }

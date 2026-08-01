@@ -557,25 +557,8 @@ export function CepWidgetStudio({
                   >
                     <FloatingLauncherGroup
                       placement={chatPlacement}
-                      open
-                      panel={
-                        <>
-                          <FloatingPanelHeader title={payload.title || "Chat"} />
-                          <div className="space-y-2 p-2.5">
-                            <div className="rounded-lg bg-[#f7f8fa] px-2.5 py-2 text-[11px] text-muted">
-                              {payload.greeting || "Hi! How can we help?"}
-                            </div>
-                            <div className="flex justify-end">
-                              <span
-                                className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-white"
-                                style={{ backgroundColor: primary }}
-                              >
-                                Hello
-                              </span>
-                            </div>
-                          </div>
-                        </>
-                      }
+                      open={false}
+                      panel={null}
                       launcher={
                         <FloatingLauncherButton
                           label={theme.launcherLabel || "Live chat"}

@@ -1045,9 +1045,9 @@
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
     var vh = window.innerHeight || document.documentElement.clientHeight || 640;
     var bottomClear = ctaBottomClearance();
-    var bw = Math.max(button.offsetWidth || 0, 56);
-    var bh = Math.max(button.offsetHeight || 0, 48);
-    var margin = 8;
+    // Prefer theme launcher size — offsetWidth is 0 when FAB is hidden (panel open).
+    var bw = Math.max(button.offsetWidth || 0, launcherPx, 48);
+    var bh = Math.max(button.offsetHeight || 0, launcherPx, 48);
 
     root.style.left = "auto";
     root.style.right = "auto";
@@ -1055,21 +1055,25 @@
     root.style.bottom = "auto";
 
     if (useFree) {
-      var maxX = Math.max(0, vw - bw - margin * 2);
-      var maxY = Math.max(0, vh - bh - bottomClear - margin);
-      var x = Math.round((freeX / 100) * maxX) + margin;
-      var y = Math.round((freeY / 100) * maxY) + margin;
-      x = Math.min(vw - bw - margin, Math.max(margin, x));
-      y = Math.min(vh - bh - bottomClear, Math.max(margin, y));
+      // Same math as studio screen-placement pointFromPlacement / a11y / languages:
+      // % of remaining space (viewport − launcher).
+      var maxX = Math.max(0, vw - bw);
+      var maxY = Math.max(0, vh - bh);
+      var x = Math.round((freeX / 100) * maxX);
+      var y = Math.round((freeY / 100) * maxY);
+      x = Math.min(vw - bw, Math.max(0, x));
+      y = Math.min(vh - bh, Math.max(0, y));
       var openUp = freeY >= 45;
       var openLeft = freeX >= 50;
       root.style.flexDirection = openUp ? "column-reverse" : "column";
       root.style.alignItems = openLeft ? "flex-end" : "flex-start";
+      root.style.left = x + "px";
       if (openUp) {
-        root.style.left = x + "px";
-        root.style.bottom = Math.max(bottomClear, vh - (y + bh)) + "px";
+        // Pin launcher bottom so the chat panel opens upward from the FAB.
+        root.style.top = "auto";
+        root.style.bottom = Math.max(0, vh - (y + bh)) + "px";
       } else {
-        root.style.left = x + "px";
+        root.style.bottom = "auto";
         root.style.top = y + "px";
       }
       return;

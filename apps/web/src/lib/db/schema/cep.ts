@@ -97,6 +97,8 @@ export type CepWidgetTheme = {
   agreementBrandName?: string;
   /** Optional logo above the brand name. */
   agreementLogoUrl?: string;
+  /** Agreement logo display height in px (width follows natural aspect). Default 56. */
+  agreementLogoSize?: number;
   /** First line under the brand (e.g. “Hi! I am your … Virtual Agent.”). */
   agreementIntro?: string;
   /** Body copy; “Terms of Use” / “Privacy Policy” become links when URLs are set. */
@@ -276,6 +278,7 @@ export function defaultCepWidgetPayload(
       preChatEnabled: false,
       agreementRequired: true,
       agreementBrandName: "Customer Support",
+      agreementLogoSize: 56,
       agreementIntro: "Hi! I am your virtual agent.",
       agreementBody:
         "I'm happy to help find what you need. To continue, you will need to agree to our Terms Of Use and Privacy Policy.",

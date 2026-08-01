@@ -707,6 +707,7 @@ export function CepWidgetStudio({
                       label="Agreement logo"
                       value={theme.agreementLogoUrl ?? ""}
                       placeholder="https://… (optional)"
+                      hint="Shown as-is (not cropped). Leave empty to use the letter mark."
                       onChange={(next) =>
                         setPayload((p) => ({
                           ...p,
@@ -717,6 +718,43 @@ export function CepWidgetStudio({
                         }))
                       }
                     />
+                    {theme.agreementLogoUrl ? (
+                      <label className="block sm:col-span-2">
+                        <span className="mb-1 flex items-center justify-between text-[12px] font-medium">
+                          <span>Agreement logo size</span>
+                          <span className="font-mono text-[11px] text-muted">
+                            {Math.max(
+                              24,
+                              Math.min(160, Number(theme.agreementLogoSize) || 56),
+                            )}
+                            px
+                          </span>
+                        </span>
+                        <input
+                          type="range"
+                          min={24}
+                          max={160}
+                          step={1}
+                          className="mt-1 w-full accent-[var(--brand,#2563eb)]"
+                          value={Math.max(
+                            24,
+                            Math.min(160, Number(theme.agreementLogoSize) || 56),
+                          )}
+                          onChange={(e) =>
+                            setPayload((p) => ({
+                              ...p,
+                              theme: {
+                                ...p.theme,
+                                agreementLogoSize: Number(e.target.value),
+                              },
+                            }))
+                          }
+                        />
+                        <p className="mt-1 text-[11px] text-muted">
+                          Height only — width follows the logo’s natural shape.
+                        </p>
+                      </label>
+                    ) : null}
                     <label className="block sm:col-span-2">
                       <span className="text-[12px] font-medium">
                         Agreement intro

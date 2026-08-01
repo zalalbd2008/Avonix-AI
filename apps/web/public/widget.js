@@ -134,6 +134,9 @@
   var agreementBrand =
     theme.agreementBrandName || theme.agentName || config.title || "Support";
   var agreementLogo = theme.agreementLogoUrl || "";
+  var agreementLogoSize = Number(theme.agreementLogoSize);
+  if (!isFinite(agreementLogoSize)) agreementLogoSize = 56;
+  agreementLogoSize = Math.max(24, Math.min(160, Math.round(agreementLogoSize)));
   var agreementIntro =
     theme.agreementIntro ||
     "Hi! I am your " + agreementBrand + " Virtual Agent.";
@@ -302,7 +305,7 @@
     ".avonix-cep-agree__close:hover{color:#475569;background:#f1f5f9;}" +
     ".avonix-cep-agree__body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 20px;text-align:center;box-sizing:border-box;}" +
     ".avonix-cep-agree__mark{width:56px;height:56px;margin:0 0 16px;border-radius:14px;background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:700;letter-spacing:-0.02em;flex-shrink:0;overflow:hidden;box-shadow:0 4px 14px color-mix(in srgb,var(--avx-primary) 28%,transparent);}" +
-    ".avonix-cep-agree__mark img{width:100%;height:100%;object-fit:cover;display:block;}" +
+    ".avonix-cep-agree__logo{display:block;margin:0 0 16px;height:var(--avx-agree-logo,56px);width:auto;max-width:min(220px,80%);object-fit:contain;object-position:center;border-radius:0;background:transparent;box-shadow:none;}" +
     ".avonix-cep-agree__brand{margin:0 0 18px;font-size:23px;font-weight:700;letter-spacing:-0.025em;color:#0f172a;font-family:Georgia,'Times New Roman',Times,serif;line-height:1.2;}" +
     ".avonix-cep-agree__intro{margin:0 0 12px;font-size:14.5px;line-height:1.45;color:#0f172a;font-weight:600;max-width:280px;}" +
     ".avonix-cep-agree__copy{margin:0;font-size:13.5px;line-height:1.55;color:#64748b;max-width:280px;font-weight:400;}" +
@@ -759,20 +762,26 @@
   var agreeBody = document.createElement("div");
   agreeBody.className = "avonix-cep-agree__body";
 
-  // Rounded “C” mark — custom logo fills the tile; otherwise brand initial.
-  var mark = document.createElement("div");
-  mark.className = "avonix-cep-agree__mark";
-  mark.setAttribute("aria-hidden", "true");
+  // Logo as-is (natural aspect) with editable height; letter mark only when no logo.
   if (agreementLogo) {
     var logoImg = document.createElement("img");
+    logoImg.className = "avonix-cep-agree__logo";
     logoImg.src = String(agreementLogo).replace(/"/g, "");
-    logoImg.alt = "";
-    mark.appendChild(logoImg);
+    logoImg.alt = agreementBrand;
+    logoImg.style.height = agreementLogoSize + "px";
+    logoImg.style.width = "auto";
+    logoImg.style.maxWidth = "min(220px, 80%)";
+    logoImg.style.objectFit = "contain";
+    logoImg.style.borderRadius = "0";
+    agreeBody.appendChild(logoImg);
   } else {
+    var mark = document.createElement("div");
+    mark.className = "avonix-cep-agree__mark";
+    mark.setAttribute("aria-hidden", "true");
     mark.textContent =
       String(agreementBrand).trim().charAt(0).toUpperCase() || "C";
+    agreeBody.appendChild(mark);
   }
-  agreeBody.appendChild(mark);
 
   var brandEl = document.createElement("p");
   brandEl.className = "avonix-cep-agree__brand";

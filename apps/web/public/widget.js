@@ -57,7 +57,7 @@
     config.greeting ||
     "Hi! Ask me anything about our site and I'll help right away.";
   var startConvLabel = theme.startButtonLabel || "Start Conversation";
-  var openOnLaunch = theme.openOnLaunch === true;
+  var openOnLaunch = theme.openOnLaunch !== false; // default: skip home, open AI directly
   var preChatOn = theme.preChatEnabled === true;
   var disclaimer = theme.disclaimer || "";
   var avatarUrl =
@@ -163,6 +163,8 @@
     radius +
     "px;overflow:hidden;box-shadow:0 16px 48px rgba(15,23,42,.18);}" +
     ".avonix-cep-panel.is-open{display:flex;animation:avonix-cep-pop .22s ease;}" +
+    /* Hide FAB while panel is open so it never covers the chat box */
+    ".avonix-cep-root.is-open > .avonix-cep-launcher{display:none!important;}" +
     "@keyframes avonix-cep-pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}" +
     ".avonix-cep-root--wizard .avonix-cep-panel{display:flex;width:100%;height:min(640px,70vh);max-width:100%;box-shadow:none;}" +
     ".avonix-cep-root--wizard .avonix-cep-launcher{display:none;}" +
@@ -1082,15 +1084,18 @@
 
   function setOpen(next) {
     open = !!next;
-    if (open) panel.classList.add("is-open");
-    else panel.classList.remove("is-open");
+    if (open) {
+      panel.classList.add("is-open");
+      root.classList.add("is-open");
+    } else {
+      panel.classList.remove("is-open");
+      root.classList.remove("is-open");
+    }
     button.setAttribute("aria-expanded", open ? "true" : "false");
     placeRoot();
     if (open) {
-      if (openOnLaunch || surface === "wizard") openAiFlow();
-      else showHome();
+      openAiFlow();
     } else {
-      showHome();
       stopSpeech();
     }
   }
@@ -1107,7 +1112,7 @@
   startBtn.addEventListener("click", openAiFlow);
   backBtn.addEventListener("click", function () {
     if (surface === "wizard") return;
-    showHome();
+    setOpen(false);
   });
   resetBtn.addEventListener("click", resetChat);
   if (gateSend) gateSend.addEventListener("click", enterFromGate);

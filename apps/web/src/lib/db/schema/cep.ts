@@ -232,7 +232,7 @@ export function defaultCepWidgetPayload(
       statusText: "Online",
       homeContent:
         "Hi! Ask me anything about our site and I'll help right away.",
-      openOnLaunch: false,
+      openOnLaunch: true,
       preChatEnabled: false,
       startTitle: "Leave your contact",
       startButtonLabel: "Start Conversation",

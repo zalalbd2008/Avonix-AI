@@ -676,7 +676,7 @@ export function CepWidgetStudio({
                 <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
                   <input
                     type="checkbox"
-                    checked={theme.openOnLaunch === true}
+                    checked={theme.openOnLaunch !== false}
                     onChange={(e) =>
                       setPayload((p) => ({
                         ...p,

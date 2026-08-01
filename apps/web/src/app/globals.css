@@ -22,3 +22,24 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+@keyframes avonix-launcher-blink {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.35),
+      0 0 18px rgba(124, 252, 40, 0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avonix-launcher-online-dot {
+    animation: none !important;
+  }
+}

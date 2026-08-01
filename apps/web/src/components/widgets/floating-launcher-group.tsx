@@ -230,7 +230,7 @@ export function FloatingLauncherButton({
   align = "end",
   showLabel = true,
   avatarUrl,
-  online = true,
+  online = false,
   metrics,
   shape = "tile",
 }: {
@@ -309,7 +309,9 @@ export function FloatingLauncherButton({
         aria-label={label}
         title={label}
         onClick={onClick}
-        className="relative grid shrink-0 place-items-center overflow-hidden text-white transition hover:brightness-105 [&_img]:size-[1em] [&_svg]:size-[1em]"
+        className={`relative grid shrink-0 place-items-center text-white transition hover:brightness-105 [&_img]:size-[1em] [&_svg]:size-[1em] ${
+          shape === "circle" ? "overflow-visible" : "overflow-hidden"
+        }`}
         style={{ ...tileStyle, fontSize: m.iconSize }}
       >
         {isAvatar ? (
@@ -321,20 +323,41 @@ export function FloatingLauncherButton({
         {online && (isAvatar || shape === "circle") ? (
           <span
             aria-hidden
-            style={{
-              position: "absolute",
-              top: shape === "circle" ? 4 : borderW,
-              ...(shape === "circle"
-                ? { right: 4 }
-                : flushLeft
-                  ? { right: borderW }
-                  : { left: borderW }),
-              width: dot,
-              height: dot,
-              borderRadius: 999,
-              backgroundColor: LAUNCHER_ONLINE,
-              border: "1.5px solid #fff",
-            }}
+            className={
+              shape === "circle" ? "avonix-launcher-online-dot" : undefined
+            }
+            style={
+              shape === "circle"
+                ? {
+                    position: "absolute",
+                    zIndex: 3,
+                    width: dot,
+                    height: dot,
+                    borderRadius: 999,
+                    backgroundColor: LAUNCHER_ONLINE,
+                    // Top-right on the bubble rim (Nexus / live widget.js parity).
+                    top: `calc(14.645% - ${dot / 2}px)`,
+                    right: `calc(14.645% - ${dot / 2}px)`,
+                    bottom: "auto",
+                    left: "auto",
+                    boxShadow:
+                      "0 0 0 2px rgba(255,255,255,.22), 0 0 16px color-mix(in srgb, #7CFC28, transparent 15%)",
+                    animation: "avonix-launcher-blink 1.05s ease-in-out infinite",
+                  }
+                : {
+                    position: "absolute",
+                    top: borderW,
+                    bottom: "auto",
+                    ...(flushLeft
+                      ? { right: borderW, left: "auto" }
+                      : { left: borderW, right: "auto" }),
+                    width: dot,
+                    height: dot,
+                    borderRadius: 999,
+                    backgroundColor: LAUNCHER_ONLINE,
+                    border: "1.5px solid #fff",
+                  }
+            }
           />
         ) : null}
       </button>

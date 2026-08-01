@@ -1111,6 +1111,7 @@ function WidgetPreview({
             label={settings.label}
             color={settings.primaryColor}
             shape="circle"
+            online={false}
             metrics={{
               iconSize: settings.iconSize,
               buttonPadding: settings.buttonPadding,

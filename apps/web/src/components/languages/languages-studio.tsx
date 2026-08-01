@@ -1427,6 +1427,7 @@ function SwitcherPreview({
             label="Language"
             color={settings.switcher.primaryColor || LAUNCHER_ORANGE}
             shape="circle"
+            online={false}
             metrics={{
               iconSize: settings.switcher.iconSize,
               buttonPadding: settings.switcher.buttonPadding,

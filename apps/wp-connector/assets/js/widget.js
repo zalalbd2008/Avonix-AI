@@ -302,7 +302,7 @@
     deskW +
     ";height:" +
     deskH +
-    ";max-width:min(100%,calc(100vw - 24px));max-height:min(510px,calc(100vh - 130px));background:var(--avx-surface);color:var(--avx-ink);border-radius:" +
+    ";max-width:min(100%,calc(100vw - 24px));max-height:min(510px,calc(100dvh - 120px),calc(100svh - 120px));background:var(--avx-surface);color:var(--avx-ink);border-radius:" +
     radius +
     "px;overflow:hidden;box-shadow:0 16px 48px rgba(15,23,42,.18);}" +
     ".avonix-cep-panel.is-open{display:flex;animation:avonix-cep-pop .22s ease;}" +
@@ -465,6 +465,23 @@
     ";height:" +
     mobH +
     ";border-radius:16px;}.avonix-cep-launcher{--avx-od:8px;}}" +
+    /* Phones: keep panel fully on-screen (studio desktop preview ≠ real mobile). */
+    "@media (max-width:639px){" +
+    rootScope +
+    ":not(.avonix-cep-root--wizard){max-width:calc(100vw - 12px)!important;}" +
+    rootScope +
+    ":not(.avonix-cep-root--wizard).is-narrow{left:8px!important;right:8px!important;width:auto!important;}" +
+    rootScope +
+    ":not(.avonix-cep-root--wizard) .avonix-cep-panel{width:100%!important;max-width:100%!important;height:min(560px,calc(100dvh - 100px))!important;max-height:calc(100dvh - 100px)!important;border-radius:16px!important;}" +
+    rootScope +
+    " .avonix-cep-cta-pill{display:none!important;}" +
+    rootScope +
+    " .avonix-cep-btns{gap:8px;}" +
+    rootScope +
+    " .avonix-cep-btn{min-height:48px;padding:10px 8px;font-size:12px;}" +
+    rootScope +
+    " .avonix-cep-log{padding:14px 12px;}" +
+    "}" +
     "";
   document.head.appendChild(style);
 
@@ -1730,12 +1747,17 @@
   function placeRoot() {
     if (surface === "wizard") return;
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
-    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    var vh =
+      window.visualViewport && window.visualViewport.height
+        ? Math.round(window.visualViewport.height)
+        : window.innerHeight || document.documentElement.clientHeight || 640;
     var bottomClear = ctaBottomClearance();
+    var narrow = vw < 640;
+    root.classList.toggle("is-narrow", narrow);
     // Use configured outer size only — never a higher floor, or same % drifts vs a11y/lang.
     var bw = launcherPx;
     var bh = launcherPx;
-    if (ctaPill && !root.classList.contains("is-open")) {
+    if (ctaPill && !root.classList.contains("is-open") && !narrow) {
       bw = launcherPx + 190;
     }
 
@@ -1743,6 +1765,27 @@
     root.style.right = "auto";
     root.style.top = "auto";
     root.style.bottom = "auto";
+    root.style.width = "";
+
+    // Mobile: snap to bottom edge so free-placement % from desktop studio
+    // cannot push the open panel off-screen.
+    if (narrow && surface !== "wizard") {
+      var openLeft = useFree ? freeX >= 50 : edgeX === "right";
+      root.style.flexDirection = "column";
+      root.style.alignItems = openLeft ? "flex-end" : "flex-start";
+      root.classList.toggle("is-align-end", openLeft);
+      root.classList.toggle("is-align-start", !openLeft);
+      fabRow.style.flexDirection = openLeft ? "row" : "row-reverse";
+      var narrowR = launcherTileRadius(!openLeft);
+      root.style.setProperty("--avx-launcher-radius", narrowR);
+      button.style.borderRadius = narrowR;
+      root.style.left = "8px";
+      root.style.right = "8px";
+      root.style.top = "auto";
+      root.style.bottom = Math.max(8, bottomClear) + "px";
+      root.style.width = "auto";
+      return;
+    }
 
     if (useFree) {
       // Full-viewport % (same as studio): equal % steps → equal pixel gaps
@@ -1752,15 +1795,15 @@
       x = Math.min(Math.max(0, vw - bw), Math.max(0, x));
       y = Math.min(Math.max(0, vh - bh), Math.max(0, y));
       var openUp = freeY >= 45;
-      var openLeft = freeX >= 50;
+      var openLeftFree = freeX >= 50;
       // panel is first in DOM, launcher second — column keeps FAB at bottom
       // when the panel opens upward; reverse puts FAB on top when opening down.
       root.style.flexDirection = openUp ? "column" : "column-reverse";
-      root.style.alignItems = openLeft ? "flex-end" : "flex-start";
-      root.classList.toggle("is-align-end", openLeft);
-      root.classList.toggle("is-align-start", !openLeft);
-      fabRow.style.flexDirection = openLeft ? "row" : "row-reverse";
-      var tileR = launcherTileRadius(!openLeft);
+      root.style.alignItems = openLeftFree ? "flex-end" : "flex-start";
+      root.classList.toggle("is-align-end", openLeftFree);
+      root.classList.toggle("is-align-start", !openLeftFree);
+      fabRow.style.flexDirection = openLeftFree ? "row" : "row-reverse";
+      var tileR = launcherTileRadius(!openLeftFree);
       root.style.setProperty("--avx-launcher-radius", tileR);
       button.style.borderRadius = tileR;
       root.style.left = x + "px";
@@ -1906,6 +1949,10 @@
     requestAnimationFrame(placeRoot);
     setTimeout(placeRoot, 120);
     window.addEventListener("resize", placeRoot);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", placeRoot);
+      window.visualViewport.addEventListener("scroll", placeRoot);
+    }
     var delay = (config.triggers && config.triggers.delayMs) || 0;
     if (delay > 0) {
       setTimeout(function () {

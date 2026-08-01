@@ -326,18 +326,18 @@ export function FloatingLauncherButton({
             className={
               shape === "circle" ? "avonix-launcher-online-dot" : undefined
             }
-            style={
+              style={
               shape === "circle"
                 ? {
                     position: "absolute",
-                    zIndex: 3,
+                    zIndex: 5,
                     width: dot,
                     height: dot,
                     borderRadius: 999,
                     backgroundColor: LAUNCHER_ONLINE,
-                    // Top-right on the bubble rim (Nexus / live widget.js parity).
-                    top: `calc(14.645% - ${dot / 2}px)`,
-                    right: `calc(14.645% - ${dot / 2}px)`,
+                    // Physical top-right of the bubble (never bottom / left).
+                    top: 2,
+                    right: 2,
                     bottom: "auto",
                     left: "auto",
                     boxShadow:

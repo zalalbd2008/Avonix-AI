@@ -192,10 +192,12 @@
     /* FAB — Nexus style */
     ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:50%;background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;}" +
     ".avonix-cep-launcher:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.22);}" +
-    ".avonix-cep-launcher__img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;position:relative;z-index:1;}" +
+    /* Avatar must be out of flow so the online dot cannot be pushed to bottom-left. */
+    ".avonix-cep-launcher__img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;z-index:1;}" +
     ".avonix-cep-launcher svg{width:var(--avx-launcher-icon,40%);height:var(--avx-launcher-icon,40%);position:relative;z-index:1;}" +
-    ".avonix-cep-online{position:absolute!important;z-index:3;width:var(--avx-od);height:var(--avx-od);border-radius:999px;background:var(--avx-online);top:calc(14.645% - (var(--avx-od)/2))!important;right:calc(14.645% - (var(--avx-od)/2))!important;bottom:auto!important;left:auto!important;margin:0!important;box-shadow:0 0 0 2px rgba(255,255,255,.22),0 0 16px color-mix(in srgb,var(--avx-online),transparent 15%);animation:avonix-cep-blink 1.05s ease-in-out infinite;pointer-events:none;}" +
-    "@keyframes avonix-cep-blink{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.12);opacity:1;box-shadow:0 0 0 2px rgba(255,255,255,.35),0 0 18px rgba(0,255,106,.95)}}" +
+    /* Physical top-right only — never bottom/left (WP themes often reset spans). */
+    ".avonix-cep-online{position:absolute!important;z-index:5!important;width:var(--avx-od)!important;height:var(--avx-od)!important;border-radius:999px!important;background:var(--avx-online)!important;top:2px!important;right:2px!important;bottom:auto!important;left:auto!important;inset:2px 2px auto auto!important;margin:0!important;transform:none!important;box-shadow:0 0 0 2px rgba(255,255,255,.22),0 0 16px color-mix(in srgb,var(--avx-online),transparent 15%)!important;animation:avonix-cep-blink 1.05s ease-in-out infinite;pointer-events:none!important;display:block!important;}" +
+    "@keyframes avonix-cep-blink{0%,100%{opacity:.75;box-shadow:0 0 0 2px rgba(255,255,255,.22),0 0 10px color-mix(in srgb,var(--avx-online),transparent 40%)}50%{opacity:1;box-shadow:0 0 0 2px rgba(255,255,255,.4),0 0 18px rgba(0,255,106,.95)}}" +
     "@media (prefers-reduced-motion:reduce){.avonix-cep-online{animation:none}}" +
     /* Panel */
     ".avonix-cep-panel{display:none;flex-direction:column;width:" +
@@ -426,6 +428,21 @@
     var od = document.createElement("span");
     od.className = "avonix-cep-online";
     od.setAttribute("aria-hidden", "true");
+    // Beat theme !important resets that shove the dot to bottom-left in flow.
+    od.style.setProperty("position", "absolute", "important");
+    od.style.setProperty("top", "2px", "important");
+    od.style.setProperty("right", "2px", "important");
+    od.style.setProperty("bottom", "auto", "important");
+    od.style.setProperty("left", "auto", "important");
+    od.style.setProperty("inset", "2px 2px auto auto", "important");
+    od.style.setProperty("width", "9px", "important");
+    od.style.setProperty("height", "9px", "important");
+    od.style.setProperty("border-radius", "999px", "important");
+    od.style.setProperty("z-index", "5", "important");
+    od.style.setProperty("display", "block", "important");
+    od.style.setProperty("margin", "0", "important");
+    od.style.setProperty("transform", "none", "important");
+    od.style.setProperty("background", onlineDot, "important");
     button.appendChild(od);
   }
 

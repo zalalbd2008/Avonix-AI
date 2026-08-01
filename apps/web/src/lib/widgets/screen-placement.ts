@@ -1,6 +1,10 @@
 /**
  * Independent floating-widget placement (Languages / Accessibility / Live Chat).
  * Free % position — drag in the live preview; no numeric entry required.
+ *
+ * Percents are of the full canvas/viewport (not viewport−widget). That way the
+ * same x%/y% line up across widgets of different sizes, and a 1% step is the
+ * same pixel delta for every launcher (even gaps when stacked).
  */
 
 import type { CSSProperties } from "react";
@@ -34,6 +38,22 @@ function clampPercent(n: number): number {
   return Math.min(100, Math.max(0, Math.round(n * 10) / 10));
 }
 
+function clampOnCanvas(
+  x: number,
+  y: number,
+  canvasW: number,
+  canvasH: number,
+  groupW: number,
+  groupH: number,
+): { x: number; y: number } {
+  const maxX = Math.max(0, canvasW - groupW);
+  const maxY = Math.max(0, canvasH - groupH);
+  return {
+    x: Math.min(maxX, Math.max(0, Math.round(x))),
+    y: Math.min(maxY, Math.max(0, Math.round(y))),
+  };
+}
+
 export function defaultScreenPlacement(
   anchor: ScreenAnchor = "bottom-right",
   offsetX = 16,
@@ -62,8 +82,8 @@ function legacyToFree(
     ? legacy.offsetY
     : canvasH - groupH - legacy.offsetY;
   return {
-    xPercent: clampPercent((x / Math.max(1, canvasW - groupW)) * 100),
-    yPercent: clampPercent((y / Math.max(1, canvasH - groupH)) * 100),
+    xPercent: clampPercent((x / Math.max(1, canvasW)) * 100),
+    yPercent: clampPercent((y / Math.max(1, canvasH)) * 100),
   };
 }
 
@@ -158,7 +178,7 @@ export function placementToStyle(
   };
 }
 
-/** Canvas-local top-left → free % placement (no corner snap). */
+/** Canvas-local top-left → free % of full canvas (size-independent). */
 export function placementFromPoint(
   x: number,
   y: number,
@@ -167,17 +187,17 @@ export function placementFromPoint(
   groupW: number,
   groupH: number,
 ): ScreenPlacement {
-  const maxX = Math.max(1, canvasW - groupW);
-  const maxY = Math.max(1, canvasH - groupH);
-  const clampedX = Math.min(maxX, Math.max(0, x));
-  const clampedY = Math.min(maxY, Math.max(0, y));
+  const clamped = clampOnCanvas(x, y, canvasW, canvasH, groupW, groupH);
   return {
-    xPercent: clampPercent((clampedX / maxX) * 100),
-    yPercent: clampPercent((clampedY / maxY) * 100),
+    xPercent: clampPercent((clamped.x / Math.max(1, canvasW)) * 100),
+    yPercent: clampPercent((clamped.y / Math.max(1, canvasH)) * 100),
   };
 }
 
-/** Top-left of the group inside a canvas of given size. */
+/**
+ * Top-left of the group inside a canvas of given size.
+ * Same % → same raw point for every widget; then clamp so it stays on-screen.
+ */
 export function pointFromPlacement(
   p: ScreenPlacement,
   canvasW: number,
@@ -186,12 +206,9 @@ export function pointFromPlacement(
   groupH: number,
 ): { x: number; y: number } {
   const n = normalizeScreenPlacement(p);
-  const maxX = Math.max(0, canvasW - groupW);
-  const maxY = Math.max(0, canvasH - groupH);
-  return {
-    x: Math.round((n.xPercent / 100) * maxX),
-    y: Math.round((n.yPercent / 100) * maxY),
-  };
+  const rawX = (n.xPercent / 100) * canvasW;
+  const rawY = (n.yPercent / 100) * canvasH;
+  return clampOnCanvas(rawX, rawY, canvasW, canvasH, groupW, groupH);
 }
 
 /** CEP theme uses underscores for a coarse corner hint + free %. */

@@ -287,8 +287,9 @@
     ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
     ".avonix-cep-root :where(button[class*=avonix-cep-],input[class*=avonix-cep-],a[class*=avonix-cep-]){margin:0;font-family:inherit;letter-spacing:normal;text-transform:none;-webkit-appearance:none;appearance:none;}" +
     /* FAB — edge-dock tile (flat on screen edge); no hover tip (keeps even gaps with other FABs) */
-    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:var(--avx-launcher-radius,12px 0 0 12px);background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:filter .15s ease,box-shadow .15s ease;z-index:1;}" +
-    ".avonix-cep-launcher:hover{filter:brightness(1.05);box-shadow:0 8px 26px rgba(0,0,0,.22);}" +
+    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:var(--avx-launcher-radius,12px 0 0 12px);background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:2px 2px 10px rgba(15,23,42,.16);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:filter .15s ease,box-shadow .15s ease;z-index:1;}" +
+    ".avonix-cep-launcher:hover{filter:brightness(1.05);}" +
+    ".avonix-cep-root.is-align-end .avonix-cep-launcher{box-shadow:-2px 2px 10px rgba(15,23,42,.16);}" +
     /* Avatar must be out of flow so the online dot cannot be pushed to bottom-left. */
     ".avonix-cep-launcher__img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;z-index:1;}" +
     ".avonix-cep-launcher svg{width:var(--avx-launcher-icon,40%);height:var(--avx-launcher-icon,40%);position:relative;z-index:1;}" +
@@ -1617,14 +1618,12 @@
     root.style.bottom = "auto";
 
     if (useFree) {
-      // Same math as studio screen-placement pointFromPlacement / a11y / languages:
-      // % of remaining space (viewport − launcher).
-      var maxX = Math.max(0, vw - bw);
-      var maxY = Math.max(0, vh - bh);
-      var x = Math.round((freeX / 100) * maxX);
-      var y = Math.round((freeY / 100) * maxY);
-      x = Math.min(vw - bw, Math.max(0, x));
-      y = Math.min(vh - bh, Math.max(0, y));
+      // Full-viewport % (same as studio): equal % steps → equal pixel gaps
+      // across Language / Accessibility / Chat even when outer sizes differ.
+      var x = Math.round((freeX / 100) * vw);
+      var y = Math.round((freeY / 100) * vh);
+      x = Math.min(Math.max(0, vw - bw), Math.max(0, x));
+      y = Math.min(Math.max(0, vh - bh), Math.max(0, y));
       var openUp = freeY >= 45;
       var openLeft = freeX >= 50;
       // panel is first in DOM, launcher second — column keeps FAB at bottom

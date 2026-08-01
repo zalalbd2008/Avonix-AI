@@ -486,14 +486,11 @@ CSS;
     var yPct = Math.max(0, Math.min(100, Number(pl.yPercent)));
     if (!isFinite(xPct)) xPct = String(CFG.position || "").indexOf("right") >= 0 ? 92 : 3;
     if (!isFinite(yPct)) yPct = String(CFG.position || "").indexOf("top") >= 0 ? 3 : 97;
-    // Same math as apps/web screen-placement pointFromPlacement():
-    // % of remaining space (viewport − launcher) so 0%/100% pin edges.
-    var maxX = Math.max(0, vw - outer);
-    var maxY = Math.max(0, vh - outer);
-    var x = Math.round((xPct / 100) * maxX);
-    var y = Math.round((yPct / 100) * maxY);
-    x = Math.min(vw - outer, Math.max(0, x));
-    y = Math.min(vh - outer, Math.max(0, y));
+    // Full-viewport % — same 1% step for every floating widget size.
+    var x = Math.round((xPct / 100) * vw);
+    var y = Math.round((yPct / 100) * vh);
+    x = Math.min(Math.max(0, vw - outer), Math.max(0, x));
+    y = Math.min(Math.max(0, vh - outer), Math.max(0, y));
     root.style.left = x + "px";
     root.style.top = y + "px";
     root.style.right = "auto";
@@ -504,7 +501,7 @@ CSS;
     stack.classList.toggle("is-start", !openLeft);
     stack.classList.toggle("is-below", nearTop);
     // Edge-dock tile: flat on the screen edge, rounded on the inner side.
-    var r = Math.max(6, Math.round(outer * 0.22));
+    var r = Math.max(6, Math.round(outer * (10 / 44)));
     root.style.setProperty(
       "--avonix-a11y-radius",
       openLeft ? r + "px 0 0 " + r + "px" : "0 " + r + "px " + r + "px 0"

@@ -394,13 +394,11 @@ CSS;
     var yPct = pct.yPct;
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
     var vh = window.innerHeight || document.documentElement.clientHeight || 640;
-    // Same math as studio / accessibility: % of (viewport − launcher).
-    var maxX = Math.max(0, vw - outer);
-    var maxY = Math.max(0, vh - outer);
-    var x = Math.round((xPct / 100) * maxX);
-    var y = Math.round((yPct / 100) * maxY);
-    x = Math.min(vw - outer, Math.max(0, x));
-    y = Math.min(vh - outer, Math.max(0, y));
+    // Full-viewport % — same 1% step for every floating widget size.
+    var x = Math.round((xPct / 100) * vw);
+    var y = Math.round((yPct / 100) * vh);
+    x = Math.min(Math.max(0, vw - outer), Math.max(0, x));
+    y = Math.min(Math.max(0, vh - outer), Math.max(0, y));
     root.style.left = x + "px";
     root.style.top = y + "px";
     root.style.right = "auto";

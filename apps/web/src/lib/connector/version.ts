@@ -5,7 +5,7 @@
  * Two copies is one too many, but the plugin is a separate artefact that gets
  * installed on someone else's server — it cannot import from here.
  */
-export const CONNECTOR_VERSION = "1.3.53";
+export const CONNECTOR_VERSION = "1.3.54";
 
 /**
  * Compare two dotted versions. Negative when `a` is older than `b`.

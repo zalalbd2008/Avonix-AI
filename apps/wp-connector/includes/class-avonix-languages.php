@@ -237,7 +237,6 @@ CSS;
 
   var KEY = "avonix_lang";
   var sw = CFG.switcher;
-  var placement = sw.placement || { xPercent: 92, yPercent: 8 };
   // Editable: outer = iconSize + 2×padding (same formula as Live Chat / Accessibility).
   var iconSize = Math.round(Number(sw.icon_size));
   if (!isFinite(iconSize)) iconSize = 22;
@@ -247,6 +246,26 @@ CSS;
   pad = Math.max(0, Math.min(100, pad));
   var outer = Math.max(1, iconSize + pad * 2);
   var primary = String(sw.primary_color || "#e15d1a").trim() || "#e15d1a";
+
+  /** Read free % placement — never treat 0 as missing (|| default was breaking left/top). */
+  function readPlacementPercents() {
+    var pl = sw.placement || {};
+    var x = Number(pl.xPercent != null ? pl.xPercent : pl.x_percent);
+    var y = Number(pl.yPercent != null ? pl.yPercent : pl.y_percent);
+    if (!isFinite(x) || !isFinite(y)) {
+      var pos = String(sw.position || "").toLowerCase().replace(/_/g, "-");
+      if (!isFinite(x)) {
+        x = pos.indexOf("left") >= 0 ? 3 : 97;
+      }
+      if (!isFinite(y)) {
+        y = pos.indexOf("bottom") >= 0 ? 97 : 3;
+      }
+    }
+    return {
+      xPct: Math.max(0, Math.min(100, x)),
+      yPct: Math.max(0, Math.min(100, y)),
+    };
+  }
 
   function googleCode(code) {
     var map = { zh: "zh-CN", tw: "zh-TW", pt: "pt", he: "iw", nb: "no" };
@@ -360,35 +379,37 @@ CSS;
   root.style.setProperty("--avonix-lang-size", outer + "px");
   root.style.setProperty("--avonix-lang-primary", primary);
 
-  var xPct = Math.max(0, Math.min(100, Number(placement.xPercent) || 90));
-  var yPct = Math.max(0, Math.min(100, Number(placement.yPercent) || 8));
+  var stack = document.createElement("div");
+  stack.className = "avonix-lang-stack";
 
   function placeLang() {
+    var pct = readPlacementPercents();
+    var xPct = pct.xPct;
+    var yPct = pct.yPct;
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
     var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    // Same math as studio / accessibility: % of (viewport − launcher).
     var maxX = Math.max(0, vw - outer);
     var maxY = Math.max(0, vh - outer);
     var x = Math.round((xPct / 100) * maxX);
     var y = Math.round((yPct / 100) * maxY);
-    root.style.left = Math.min(vw - outer, Math.max(0, x)) + "px";
-    root.style.top = Math.min(vh - outer, Math.max(0, y)) + "px";
+    x = Math.min(vw - outer, Math.max(0, x));
+    y = Math.min(vh - outer, Math.max(0, y));
+    root.style.left = x + "px";
+    root.style.top = y + "px";
     root.style.right = "auto";
     root.style.bottom = "auto";
+    var openLeft = xPct >= 50;
+    var nearTop = yPct < 28;
+    stack.classList.toggle("is-end", openLeft);
+    stack.classList.toggle("is-start", !openLeft);
+    stack.classList.toggle("is-below", nearTop);
+    var r = Math.max(6, Math.round(outer * (10 / 44)));
+    root.style.setProperty(
+      "--avonix-lang-radius",
+      openLeft ? r + "px 0 0 " + r + "px" : "0 " + r + "px " + r + "px 0"
+    );
   }
-  placeLang();
-  window.addEventListener("resize", placeLang);
-
-  var align = xPct < 50 ? "start" : "end";
-  var stack = document.createElement("div");
-  stack.className =
-    "avonix-lang-stack is-" + align + (yPct < 28 ? " is-below" : "");
-  var corner = Math.max(6, Math.round(outer * 0.22));
-  root.style.setProperty(
-    "--avonix-lang-radius",
-    align === "end"
-      ? corner + "px 0 0 " + corner + "px"
-      : "0 " + corner + "px " + corner + "px 0"
-  );
 
   var panel = document.createElement("div");
   panel.className = "avonix-lang-panel";
@@ -435,11 +456,20 @@ CSS;
   gtHost.id = "avonix-gt-host";
   root.appendChild(gtHost);
 
-  function mount() {
+  function ensureOnBody() {
     if (!document.body) return;
-    document.body.appendChild(root);
+    if (root.parentNode !== document.body) {
+      document.body.appendChild(root);
+    }
+    placeLang();
+  }
+
+  function mount() {
+    ensureOnBody();
     applyExcludeSelectors();
     applyNeverTranslate();
+    setTimeout(placeLang, 120);
+    setTimeout(placeLang, 600);
   }
 
   if (document.readyState === "loading") {
@@ -447,6 +477,8 @@ CSS;
   } else {
     mount();
   }
+  window.addEventListener("resize", placeLang);
+  window.addEventListener("orientationchange", placeLang);
 
   function setOpen(v) {
     open = !!v;
@@ -511,6 +543,9 @@ CSS;
           "avonix-gt-host"
         );
       } catch (e) {}
+      // Google Translate often re-parents body nodes — keep switcher on <body>.
+      ensureOnBody();
+      setTimeout(ensureOnBody, 200);
       translateReady = true;
       if (pendingCode) {
         var c = pendingCode;

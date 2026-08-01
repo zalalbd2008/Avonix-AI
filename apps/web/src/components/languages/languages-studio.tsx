@@ -1107,7 +1107,7 @@ export function LanguagesStudio({
               <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
                 Settings save to this website. With connector{" "}
                 <span className="font-semibold text-ink">v1.3.18+</span>{" "}
-                installed, the orange A文 switcher appears on the live site when
+                installed, the Google Translate icon switcher appears on the live site when
                 multilingual is on and at least one locale is visible. Visitors
                 can translate the page from the switcher.
               </p>

@@ -67,6 +67,7 @@ class Avonix_Languages
             'excludeSelectors'  => $config['exclude_selectors'] ?? [],
             'neverTranslate'    => $config['never_translate'] ?? [],
             'path'              => $path,
+            'iconUrl'           => plugins_url('assets/img/icon-lang.png', AVONIX_PLUGIN_FILE),
         ];
 
         wp_add_inline_script(
@@ -160,11 +161,21 @@ class Avonix_Languages
   box-shadow: 0 8px 22px color-mix(in srgb, var(--avonix-lang-primary, #e15d1a) 35%, transparent);
   transition: filter 0.15s ease;
   z-index: 1;
+  padding: 0;
+  overflow: hidden;
 }
 #avonix-lang-root .avonix-lang-btn:hover { filter: brightness(1.05); }
 #avonix-lang-root .avonix-lang-btn:focus-visible {
   outline: 2px solid #0b1e3a;
   outline-offset: 2px;
+}
+#avonix-lang-root .avonix-lang-glyph {
+  display: block;
+  width: var(--avonix-lang-icon, 22px);
+  height: var(--avonix-lang-icon, 22px);
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 #avonix-lang-root .avonix-lang-tip {
   position: absolute;
@@ -209,12 +220,6 @@ class Avonix_Languages
 }
 #avonix-lang-root .avonix-lang-btn[aria-expanded="true"] ~ .avonix-lang-tip {
   display: none !important;
-}
-#avonix-lang-root .avonix-lang-glyph {
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  user-select: none;
 }
 /* Hide Google's default banner / gadget chrome */
 .goog-te-banner-frame, .goog-te-balloon-frame, #goog-gt-tt, .goog-tooltip,
@@ -377,6 +382,7 @@ CSS;
   root.setAttribute("translate", "no");
   root.className = "notranslate";
   root.style.setProperty("--avonix-lang-size", outer + "px");
+  root.style.setProperty("--avonix-lang-icon", iconSize + "px");
   root.style.setProperty("--avonix-lang-primary", primary);
 
   var stack = document.createElement("div");
@@ -437,10 +443,26 @@ CSS;
   btn.className = "avonix-lang-btn";
   btn.setAttribute("aria-label", "Language");
   btn.setAttribute("aria-expanded", "false");
-  btn.innerHTML =
-    '<span class="avonix-lang-glyph" style="font-size:' +
-    iconSize +
-    'px">A文</span>';
+  var iconUrl = String(CFG.iconUrl || "").trim();
+  if (iconUrl) {
+    btn.innerHTML =
+      '<img class="avonix-lang-glyph" src="' +
+      iconUrl.replace(/"/g, "") +
+      '" alt="" width="' +
+      iconSize +
+      '" height="' +
+      iconSize +
+      '" decoding="async">';
+  } else {
+    btn.innerHTML =
+      '<span class="avonix-lang-glyph" style="width:' +
+      iconSize +
+      "px;height:" +
+      iconSize +
+      'px;display:grid;place-items:center;font-weight:800;font-size:' +
+      Math.max(10, Math.round(iconSize * 0.55)) +
+      'px;line-height:1">A文</span>';
+  }
 
   var tip = document.createElement("span");
   tip.className = "avonix-lang-tip";

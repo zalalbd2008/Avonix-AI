@@ -393,7 +393,7 @@ export function UniversalAccessGlyph({
   );
 }
 
-/** A + 文 translate mark (screenshot Languages icon). */
+/** Google Translate–style mark (G + 文). Use `size-[1em]` inside launchers. */
 export function TranslateGlyph({
   className = "size-5",
 }: {
@@ -404,7 +404,9 @@ export function TranslateGlyph({
     <img
       src="/widgets/icon-lang-hi.png"
       alt=""
-      className={className}
+      className={`block max-w-none object-contain ${className}`}
+      width={512}
+      height={512}
       draggable={false}
     />
   );

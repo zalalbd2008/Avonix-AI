@@ -1205,8 +1205,15 @@ export function CepWidgetStudio({
                         AI
                       </span>
                     )}
-                    <span className="truncate">
-                      {payload.title || "Chat with us"}
+                    <span className="min-w-0 truncate">
+                      <span className="block truncate text-[13px] font-bold leading-tight">
+                        {theme.agentName || payload.title || "Chat with us"}
+                      </span>
+                      {theme.statusText ? (
+                        <span className="mt-0.5 block truncate text-[10px] font-medium opacity-80">
+                          {theme.statusText}
+                        </span>
+                      ) : null}
                     </span>
                     {theme.onlineIndicator !== false ? (
                       <span className="ml-auto size-2 rounded-full bg-[#22c55e] ring-2 ring-white/40" />
@@ -1217,17 +1224,19 @@ export function CepWidgetStudio({
                       {payload.greeting || "Hi! How can we help?"}
                     </div>
                     {(payload.quickReplies ?? []).length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {(payload.quickReplies ?? []).slice(0, 3).map((q) => (
+                      <div className="grid grid-cols-2 gap-2">
+                        {(payload.quickReplies ?? []).slice(0, 6).map((q) => (
                           <span
                             key={q.id}
-                            className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                            style={{
-                              borderColor: primary,
-                              color: primary,
-                            }}
+                            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[#e8edf5] bg-white px-2.5 py-2 text-[11px] font-semibold text-ink shadow-sm"
                           >
-                            {q.label}
+                            <span
+                              className="grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-bold text-white"
+                              style={{ background: primary }}
+                            >
+                              •
+                            </span>
+                            <span className="leading-snug">{q.label}</span>
                           </span>
                         ))}
                       </div>
@@ -1247,16 +1256,30 @@ export function CepWidgetStudio({
                 </div>
 
                 {surface !== "wizard" ? (
-                  <button
-                    type="button"
-                    className="relative rounded-full px-5 py-3 text-[13px] font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,.18)]"
-                    style={{ background: primary }}
-                  >
-                    {theme.launcherLabel || "Chat"}
-                    {theme.onlineIndicator !== false ? (
-                      <span className="absolute top-1 right-1 size-2.5 rounded-full border-2 border-white bg-[#22c55e]" />
+                  <div className="mt-3 flex items-center justify-end gap-2.5">
+                    {theme.launcherLabel ? (
+                      <span
+                        className="flex max-w-[180px] items-center gap-2 truncate rounded-full px-3 py-2 text-[11px] font-semibold text-white shadow-md"
+                        style={{ background: primary }}
+                      >
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/20 text-[9px]">
+                          AI
+                        </span>
+                        <span className="truncate">{theme.launcherLabel}</span>
+                      </span>
                     ) : null}
-                  </button>
+                    <button
+                      type="button"
+                      className="relative size-11 shrink-0 rounded-full text-[13px] font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,.18)]"
+                      style={{ background: primary }}
+                      aria-label={theme.launcherLabel || "Chat"}
+                    >
+                      <span className="sr-only">{theme.launcherLabel || "Chat"}</span>
+                      {theme.onlineIndicator !== false ? (
+                        <span className="absolute top-1 right-1 size-2.5 rounded-full border-2 border-white bg-[#22c55e]" />
+                      ) : null}
+                    </button>
+                  </div>
                 ) : null}
               </div>
             </div>

@@ -208,6 +208,7 @@ export type CepWidgetPayload = {
   quickReplies?: Array<{
     id: string;
     label: string;
+    icon?: string;
     action: "send_text" | "open_url" | "transfer_agent" | "start_form";
     value?: string;
   }>;

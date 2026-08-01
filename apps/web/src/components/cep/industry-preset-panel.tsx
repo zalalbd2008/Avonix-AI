@@ -224,9 +224,10 @@ export function IndustryPresetPanel({
         ...payload.ai,
         systemPromptOverride: expDraft.aiPrompt,
       },
-      quickReplies: expDraft.quickActionGrid.slice(0, 8).map((q) => ({
+      quickReplies: expDraft.quickActionGrid.slice(0, 6).map((q) => ({
         id: q.id,
         label: q.label,
+        icon: q.icon,
         action: q.action,
         value: q.value,
       })),

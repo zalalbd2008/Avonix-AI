@@ -307,10 +307,10 @@
     "px;overflow:hidden;box-shadow:0 16px 48px rgba(15,23,42,.18);}" +
     ".avonix-cep-panel.is-open{display:flex;animation:avonix-cep-pop .22s ease;}" +
     /* Bubble mode: keep FAB visible while open. Wizard: never show FAB. */
-    ".avonix-cep-root.is-open:not(.avonix-cep-root--wizard) > .avonix-cep-launcher{display:flex!important;}" +
+    ".avonix-cep-root.is-open:not(.avonix-cep-root--wizard) .avonix-cep-launcher{display:flex!important;}" +
     "@keyframes avonix-cep-pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}" +
     ".avonix-cep-root--wizard .avonix-cep-panel,.avonix-cep-root--wizard .avonix-cep-panel.is-open{display:flex!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;flex:1 1 auto;min-height:0;border-radius:12px;box-shadow:none;animation:none;}" +
-    ".avonix-cep-root--wizard .avonix-cep-launcher,.avonix-cep-root--wizard.is-open > .avonix-cep-launcher{display:none!important;visibility:hidden!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;}" +
+    ".avonix-cep-root--wizard .avonix-cep-fab-row,.avonix-cep-root--wizard .avonix-cep-launcher,.avonix-cep-root--wizard.is-open .avonix-cep-launcher{display:none!important;visibility:hidden!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;}" +
     ".avonix-cep-root--wizard .avonix-cep-online{display:none!important;}" +
     /* Home */
     ".avonix-cep-home{display:flex;flex-direction:column;flex:1;min-height:0;}" +
@@ -378,7 +378,7 @@
     ".avonix-cep-icon{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);color:inherit;border-radius:var(--avx-rs);cursor:pointer;padding:0;transition:background .15s;}" +
     ".avonix-cep-icon:hover{background:rgba(255,255,255,.22);}" +
     ".avonix-cep-icon svg{width:17px;height:17px;}" +
-    ".avonix-cep-ai__avatar{width:34px;height:34px;border-radius:9px;overflow:hidden;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:#fff;}" +
+    ".avonix-cep-ai__avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:#fff;}" +
     ".avonix-cep-ai__avatar img{width:100%;height:100%;object-fit:cover;}" +
     ".avonix-cep-ai__avatar svg{width:19px;height:19px;}" +
     ".avonix-cep-ai__info{min-width:0;flex:1;}" +
@@ -409,14 +409,26 @@
     ".avonix-cep-bubble--system{background:transparent;border:0;color:var(--avx-muted);font-size:12px;text-align:center;padding:6px;}" +
     ".avonix-cep-bubble--bot a{color:var(--avx-primary);}" +
     ".avonix-cep-bubble--error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-bottom-left-radius:4px;}" +
-    /* Try asking */
-    ".avonix-cep-try{align-self:stretch;margin:2px 0 2px 6px;}" +
-    ".avonix-cep-try__label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--avx-muted);margin:0 0 8px 2px;}" +
-    ".avonix-cep-btns{display:flex;flex-direction:column;gap:8px;}" +
-    ".avonix-cep-btn{display:flex;width:100%;align-items:center;gap:10px;text-align:left;font-size:13.5px;font-weight:400;line-height:1.35;color:var(--avx-ink-2);background:var(--avx-surface);border:1px solid var(--avx-border);border-radius:10px;padding:11px 14px;cursor:pointer;transition:border-color .15s,background .15s;}" +
-    ".avonix-cep-btn:hover{border-color:var(--avx-primary);background:var(--avx-tint);color:var(--avx-ink-2);}" +
-    ".avonix-cep-btn__ico{flex:0 0 auto;width:18px;height:18px;color:var(--avx-primary);display:flex;align-items:center;justify-content:center;}" +
-    ".avonix-cep-btn__ico svg{width:16px;height:16px;}" +
+    /* Industry preset action cards (2-col grid, reference style) */
+    ".avonix-cep-try{align-self:stretch;margin:4px 0 2px;}" +
+    ".avonix-cep-try__label{display:none;}" +
+    ".avonix-cep-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}" +
+    ".avonix-cep-btn{display:flex;width:100%;align-items:center;gap:10px;text-align:left;font-size:12.5px;font-weight:600;line-height:1.3;color:var(--avx-ink-2);background:#fff;border:1px solid #e8edf5;border-radius:12px;padding:12px 11px;cursor:pointer;box-shadow:0 1px 3px rgba(15,23,42,.06);transition:border-color .15s,background .15s,transform .15s,box-shadow .15s;min-height:48px;}" +
+    ".avonix-cep-btn:hover{border-color:color-mix(in srgb,var(--avx-primary) 45%,#e8edf5);background:var(--avx-tint);transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,23,42,.08);}" +
+    ".avonix-cep-btn__ico{flex:0 0 auto;width:28px;height:28px;border-radius:8px;background:color-mix(in srgb,var(--avx-primary) 12%,#fff);color:var(--avx-primary);display:flex;align-items:center;justify-content:center;}" +
+    ".avonix-cep-btn__ico svg{width:15px;height:15px;}" +
+    ".avonix-cep-btn__txt{flex:1;min-width:0;}" +
+    /* Launcher + CTA pill row */
+    ".avonix-cep-fab-row{display:flex;align-items:center;gap:10px;pointer-events:auto;}" +
+    ".avonix-cep-cta-pill{display:flex;align-items:center;gap:8px;max-width:min(220px,52vw);padding:8px 12px 8px 8px;border-radius:999px;background:var(--avx-primary);color:var(--avx-on-primary);box-shadow:0 8px 22px rgba(15,23,42,.18);cursor:pointer;border:0;font:inherit;text-align:left;animation:avonix-cep-pop .28s ease;}" +
+    ".avonix-cep-cta-pill[hidden]{display:none!important;}" +
+    ".avonix-cep-cta-pill__av{width:28px;height:28px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}" +
+    ".avonix-cep-cta-pill__av img{width:100%;height:100%;object-fit:cover;}" +
+    ".avonix-cep-cta-pill__av svg{width:14px;height:14px;}" +
+    ".avonix-cep-cta-pill__txt{font-size:12.5px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+    ".avonix-cep-root.is-open .avonix-cep-cta-pill{display:none!important;}" +
+    ".avonix-cep-reply-eta{margin:0;padding:0 4px 2px;font-size:11px;color:var(--avx-muted);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;}" +
+    ".avonix-cep-reply-eta__dot{width:7px;height:7px;border-radius:999px;background:var(--avx-online);flex:0 0 auto;}" +
     ".avonix-cep-lead{margin-top:8px;border-radius:var(--avx-rl);padding:10px;background:var(--avx-surface);border:1px solid var(--avx-border);max-height:280px;overflow:auto;}" +
     /* Typing */
     ".avonix-cep-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:var(--avx-bot);border:1px solid var(--avx-bot-border);border-radius:var(--avx-r);border-bottom-left-radius:4px;}" +
@@ -505,14 +517,56 @@
     return wrap;
   }
 
-  function suggestionIcon(idx) {
-    var icons = [
-      '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 9.2c.4-1.2 1.4-1.9 2.6-1.9 1.4 0 2.4.9 2.4 2.2 0 1.2-.7 1.8-1.7 2.3-.7.3-1 .7-1 1.5v.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>',
-      '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-      '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 10.5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1" fill="currentColor"/></svg>',
-      '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M15.5 7.5c0-1.4-1.6-2.5-3.5-2.5S8.5 6.1 8.5 7.5 10 9.8 12 10.2c2 .4 3.5 1.4 3.5 3s-1.6 2.8-3.5 2.8-3.5-1.1-3.5-2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  function suggestionIcon(key, idx) {
+    var k = String(key || "").toLowerCase();
+    var icons = {
+      calendar:
+        '<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 3.5v3M16 3.5v3M3.5 9.5h17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      phone:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M8.2 4.8l2 1.2c.5.3.7.9.5 1.4l-.8 1.9a12.5 12.5 0 005.8 5.8l1.9-.8c.5-.2 1.1 0 1.4.5l1.2 2c.3.6.1 1.3-.5 1.6A15.2 15.2 0 016.6 6.3c.3-.6 1-.8 1.6-.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+      image:
+        '<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="M3.8 16.5l4.4-4.2 3.2 3 3.4-3.8 5.4 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      layers:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M12 4.5l8 4.2-8 4.2-8-4.2 8-4.2zM4 12.2l8 4.2 8-4.2M4 16l8 4.2 8-4.2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+      "map-pin":
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M12 21s6.5-5.2 6.5-10.2A6.5 6.5 0 0012 4.3a6.5 6.5 0 00-6.5 6.5C5.5 15.8 12 21 12 21z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10.8" r="2.1" stroke="currentColor" stroke-width="1.8"/></svg>',
+      shield:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5l7 2.8v5.2c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6.3l7-2.8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+      heart:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M12 19.2S4.8 14.2 4.8 9.6A3.8 3.8 0 0112 7.4a3.8 3.8 0 017.2 2.2c0 4.6-7.2 9.6-7.2 9.6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+      alert:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M12 4.2L21 19.5H3L12 4.2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.2M12 16.8h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      clock:
+        '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4.4l2.8 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      "file-text":
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M7 3.8h7.2L19 8.6V20.2a1 1 0 01-1 1H7a1 1 0 01-1-1V4.8a1 1 0 011-1z" stroke="currentColor" stroke-width="1.8"/><path d="M14 3.8V9h5.2M8.8 12.5h6.4M8.8 15.5h6.4M8.8 18.2h4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      calculator:
+        '<svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3.5" width="14" height="17" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 8h8M8 12h2.2M11.9 12h2.2M15.8 12H18M8 15.5h2.2M11.9 15.5h2.2M15.8 15.5H18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      headphones:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M4.8 13.5v2.2A2.2 2.2 0 007 17.9h1.2v-4.4H7A2.2 2.2 0 004.8 13.5zm14.4 0A2.2 2.2 0 0017 11.3h-1.2v4.4H17a2.2 2.2 0 002.2-2.2z" stroke="currentColor" stroke-width="1.8"/><path d="M5.2 13.2a6.8 6.8 0 0113.6 0" stroke="currentColor" stroke-width="1.8"/></svg>',
+      "pen-tool":
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M14.2 5.2l4.6 4.6-9.3 9.3H4.9v-4.6l9.3-9.3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12.8 6.6l4.6 4.6" stroke="currentColor" stroke-width="1.8"/></svg>',
+      sparkles:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5l1.4 4.2L17.5 9 13.4 10.3 12 14.5l-1.4-4.2L6.5 9l4.1-1.3L12 3.5zM18.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+      briefcase:
+        '<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="7.5" width="17" height="12" rx="2.2" stroke="currentColor" stroke-width="1.8"/><path d="M9 7.5V6.2A1.7 1.7 0 0110.7 4.5h2.6A1.7 1.7 0 0115 6.2v1.3M3.5 12.5h17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      stethoscope:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M6.5 4.5v6.2a5.5 5.5 0 0011 0V4.5M6.5 4.5H5M17.5 4.5H19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="18.5" cy="17.5" r="2.3" stroke="currentColor" stroke-width="1.8"/><path d="M12 15.8v1.4a3.8 3.8 0 003.8 3.8h.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      "git-branch":
+        '<svg viewBox="0 0 24 24" fill="none"><circle cx="7" cy="6" r="2.2" stroke="currentColor" stroke-width="1.8"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="12" r="2.2" stroke="currentColor" stroke-width="1.8"/><path d="M7 8.2v7.6M7 12h7.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      car:
+        '<svg viewBox="0 0 24 24" fill="none"><path d="M4 14.5l1.6-5.2A2.2 2.2 0 017.7 7.8h8.6a2.2 2.2 0 012.1 1.5l1.6 5.2M4 14.5h16v3.2a1.5 1.5 0 01-1.5 1.5H5.5A1.5 1.5 0 014 17.7v-3.2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="16.2" r="1" fill="currentColor"/><circle cx="16.5" cy="16.2" r="1" fill="currentColor"/></svg>',
+    };
+    if (icons[k]) return icons[k];
+    var fallback = [
+      icons.sparkles,
+      icons.calendar,
+      icons.image,
+      icons.phone,
+      icons.layers,
+      icons.briefcase,
     ];
-    return icons[idx % icons.length];
+    return fallback[idx % fallback.length];
   }
 
   /* ---- Root / FAB ---- */
@@ -776,8 +830,17 @@
     form.appendChild(disc);
   }
 
+  var replyEta = document.createElement("p");
+  replyEta.className = "avonix-cep-reply-eta";
+  replyEta.innerHTML =
+    '<span class="avonix-cep-reply-eta__dot" aria-hidden="true"></span><span></span>';
+  replyEta.querySelector("span:last-child").textContent =
+    theme.replyEtaText ||
+    "We typically reply in under 2 minutes.";
+
   ai.appendChild(aiHead);
   ai.appendChild(log);
+  ai.appendChild(replyEta);
   ai.appendChild(form);
 
   /* ---- Terms agreement (required before chat) ---- */
@@ -897,7 +960,36 @@
 
   root.classList.add(alignEnd ? "is-align-end" : "is-align-start");
   root.appendChild(panel);
-  root.appendChild(button);
+
+  var fabRow = document.createElement("div");
+  fabRow.className = "avonix-cep-fab-row";
+  var launcherCta = String(theme.launcherLabel || config.label || "").trim();
+  var ctaPill = null;
+  if (launcherCta && surface !== "wizard") {
+    ctaPill = document.createElement("button");
+    ctaPill.type = "button";
+    ctaPill.className = "avonix-cep-cta-pill";
+    ctaPill.setAttribute("aria-label", launcherCta);
+    var pillAv = document.createElement("span");
+    pillAv.className = "avonix-cep-cta-pill__av";
+    if (avatarUrl) {
+      pillAv.innerHTML =
+        '<img src="' + String(avatarUrl).replace(/"/g, "") + '" alt="">';
+    } else {
+      pillAv.innerHTML = CHAT_SVG;
+    }
+    var pillTxt = document.createElement("span");
+    pillTxt.className = "avonix-cep-cta-pill__txt";
+    pillTxt.textContent = launcherCta;
+    ctaPill.appendChild(pillAv);
+    ctaPill.appendChild(pillTxt);
+    ctaPill.addEventListener("click", function () {
+      setOpen(true);
+    });
+  }
+  if (ctaPill) fabRow.appendChild(ctaPill);
+  fabRow.appendChild(button);
+  root.appendChild(fabRow);
 
   function sanitizeAgreeHtml(raw) {
     var wrap = document.createElement("div");
@@ -1183,21 +1275,18 @@
   function appendTryAsking(buttons) {
     var tryBox = document.createElement("div");
     tryBox.className = "avonix-cep-try";
-    var lab = document.createElement("div");
-    lab.className = "avonix-cep-try__label";
-    lab.textContent = "Try asking";
-    tryBox.appendChild(lab);
     var btns = document.createElement("div");
     btns.className = "avonix-cep-btns";
-    (buttons || []).forEach(function (btn, idx) {
+    (buttons || []).slice(0, 6).forEach(function (btn, idx) {
       var el = document.createElement("button");
       el.type = "button";
       el.className = "avonix-cep-btn";
+      var iconKey = btn.icon || btn.id || "";
       el.innerHTML =
         '<span class="avonix-cep-btn__ico">' +
-        suggestionIcon(idx) +
-        "</span><span></span>";
-      el.lastChild.textContent = btn.label || "OK";
+        suggestionIcon(iconKey, idx) +
+        '</span><span class="avonix-cep-btn__txt"></span>';
+      el.querySelector(".avonix-cep-btn__txt").textContent = btn.label || "OK";
       el.addEventListener("click", function () {
         handleButton(btn);
       });
@@ -1611,6 +1700,9 @@
     // Use configured outer size only — never a higher floor, or same % drifts vs a11y/lang.
     var bw = launcherPx;
     var bh = launcherPx;
+    if (ctaPill && !root.classList.contains("is-open")) {
+      bw = launcherPx + 190;
+    }
 
     root.style.left = "auto";
     root.style.right = "auto";
@@ -1632,6 +1724,7 @@
       root.style.alignItems = openLeft ? "flex-end" : "flex-start";
       root.classList.toggle("is-align-end", openLeft);
       root.classList.toggle("is-align-start", !openLeft);
+      fabRow.style.flexDirection = openLeft ? "row" : "row-reverse";
       var tileR = launcherTileRadius(!openLeft);
       root.style.setProperty("--avx-launcher-radius", tileR);
       button.style.borderRadius = tileR;
@@ -1652,6 +1745,7 @@
     root.style.alignItems = edgeX === "left" ? "flex-start" : "flex-end";
     root.classList.toggle("is-align-end", edgeX === "right");
     root.classList.toggle("is-align-start", edgeX === "left");
+    fabRow.style.flexDirection = edgeX === "right" ? "row" : "row-reverse";
     var edgeTileR = launcherTileRadius(edgeX === "left");
     root.style.setProperty("--avx-launcher-radius", edgeTileR);
     button.style.borderRadius = edgeTileR;

@@ -38,8 +38,8 @@
     48,
     (Number(theme.launcherIconSize) || 22) + 2 * (Number(theme.launcherPadding) || 14)
   );
-  var launcherIcon = theme.launcherIcon || "dots"; // dots | compose
-  var statusText = theme.statusText || "Online · typically replies in a few minutes";
+  var launcherIcon = theme.launcherIcon || "compose"; // compose | dots — match reference FABs
+  var statusText = theme.statusText || "A few minutes";
   var agentName = theme.agentName || config.title || "Live chat";
   var privacyUrl = theme.privacyUrl || "";
   var preChatOn = theme.preChatEnabled !== false;
@@ -59,9 +59,9 @@
       : null;
   var useFree = freeX != null && freeY != null;
   var z = theme.zIndex || 2147483000;
-  var radius = theme.radius != null ? theme.radius : 16;
-  var deskW = theme.desktopWidth || "min(380px, calc(100vw - 32px))";
-  var deskH = theme.desktopHeight || "min(560px, calc(100vh - 120px))";
+  var radius = theme.radius != null ? theme.radius : 32;
+  var deskW = theme.desktopWidth || "min(360px, calc(100vw - 28px))";
+  var deskH = theme.desktopHeight || "min(600px, calc(100vh - 100px))";
   var mobW = theme.mobileWidth || "calc(100vw - 24px)";
   var mobH = theme.mobileHeight || "min(70vh, calc(100dvh - 96px))";
   var surface = config.surface || "bubble";
@@ -84,74 +84,78 @@
 
   var style = document.createElement("style");
   style.textContent =
-    ":root{--avx-cep-primary:" + primary + ";--avx-cep-primary-end:" + primaryEnd + ";--avx-cep-soft:" + primarySoft + ";--avx-cep-link:" + linkAccent + ";--avx-cep-text:" + (theme.textColor || "#0f172a") + ";--avx-cep-muted:#64748b;--avx-cep-bg:" + (theme.backgroundColor || "#ffffff") + ";--avx-cep-panel-radius:" + (theme.radius != null ? theme.radius : 22) + "px;--avx-cep-launcher:" + launcherPx + "px;}" +
-    ".avonix-cep-root{position:fixed;z-index:" + z + ";" + rootPosCss + "font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:" + (stackUp ? "column-reverse" : "column") + ";align-items:" + (alignEnd ? "flex-end" : "flex-start") + ";gap:14px;max-width:calc(100vw - 16px);}" +
+    ":root{--avx-cep-primary:" + primary + ";--avx-cep-primary-end:" + primaryEnd + ";--avx-cep-soft:" + primarySoft + ";--avx-cep-link:" + linkAccent + ";--avx-cep-text:" + (theme.textColor || "#1a1a1a") + ";--avx-cep-muted:#9aa3af;--avx-cep-bg:#f7f7f8;--avx-cep-panel-radius:" + radius + "px;--avx-cep-launcher:" + launcherPx + "px;}" +
+    ".avonix-cep-root{position:fixed;z-index:" + z + ";" + rootPosCss + "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:" + (stackUp ? "column-reverse" : "column") + ";align-items:" + (alignEnd ? "flex-end" : "flex-start") + ";gap:14px;max-width:calc(100vw - 16px);}" +
     ".avonix-cep-root--wizard{position:relative;inset:auto;z-index:1;width:100%;max-width:100%;align-items:stretch;bottom:auto;top:auto;left:auto;right:auto;flex-direction:column;}" +
-    /* Circular gradient launcher */
-    ".avonix-cep-launcher{cursor:pointer;border:0;width:var(--avx-cep-launcher);height:var(--avx-cep-launcher);padding:0;border-radius:50%;color:#fff;background:linear-gradient(145deg,var(--avx-cep-primary-end) 0%,var(--avx-cep-primary) 100%);box-shadow:0 10px 28px color-mix(in srgb,var(--avx-cep-primary) 38%,transparent),0 2px 6px rgba(15,23,42,.12);position:relative;display:grid;place-items:center;transition:transform .18s ease,box-shadow .18s ease;}" +
-    ".avonix-cep-launcher:hover{transform:scale(1.05);}" +
-    ".avonix-cep-launcher:focus-visible{outline:3px solid var(--avx-cep-primary);outline-offset:3px;}" +
-    ".avonix-cep-launcher__glyph{width:54%;height:54%;display:block;}" +
-    (theme.pulse
-      ? ".avonix-cep-launcher::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--avx-cep-primary);opacity:.4;animation:avonix-cep-pulse 1.8s ease infinite;pointer-events:none;}" +
-        "@keyframes avonix-cep-pulse{0%{transform:scale(1);opacity:.4}70%{transform:scale(1.18);opacity:0}100%{opacity:0}}"
+    /* FAB — circular primary gradient, soft shadow */
+    ".avonix-cep-launcher{cursor:pointer;border:0;width:var(--avx-cep-launcher);height:var(--avx-cep-launcher);padding:0;border-radius:50%;color:var(--avx-cep-primary);background:linear-gradient(135deg,var(--avx-cep-primary-end) 0%,var(--avx-cep-primary) 100%);box-shadow:0 8px 24px rgba(15,23,42,.18);position:relative;display:grid;place-items:center;transition:transform .15s ease;}" +
+    ".avonix-cep-launcher:hover{transform:translateY(-1px) scale(1.03);}" +
+    ".avonix-cep-launcher__glyph{width:56%;height:56%;display:block;}" +
+    (theme.pulse !== false
+      ? ".avonix-cep-launcher::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--avx-cep-primary);opacity:.35;animation:avonix-cep-pulse 1.9s ease infinite;pointer-events:none;}" +
+        "@keyframes avonix-cep-pulse{0%{transform:scale(1);opacity:.35}70%{transform:scale(1.2);opacity:0}100%{opacity:0}}"
       : "") +
-    ".avonix-cep-online{position:absolute;top:4px;right:4px;width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.06);}" +
-    /* Panel card */
-    ".avonix-cep-panel{display:none;flex-direction:column;width:" + deskW + ";height:" + deskH + ";max-width:min(100%,calc(100vw - 24px));max-height:min(620px,calc(100dvh - 110px));background:var(--avx-cep-bg);color:var(--avx-cep-text);border-radius:var(--avx-cep-panel-radius);overflow:hidden;box-shadow:0 24px 64px rgba(15,23,42,.22),0 2px 8px rgba(15,23,42,.06);border:1px solid rgba(15,23,42,.06);}" +
+    ".avonix-cep-online{display:none!important;}" +
+    /* Panel — soft card, large radius */
+    ".avonix-cep-panel{display:none;flex-direction:column;width:" + deskW + ";height:" + deskH + ";max-width:min(100%,calc(100vw - 24px));max-height:min(640px,calc(100dvh - 96px));background:#fff;color:var(--avx-cep-text);border-radius:var(--avx-cep-panel-radius);overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.18);border:1px solid rgba(15,23,42,.06);}" +
     ".avonix-cep-root--wizard .avonix-cep-panel{display:flex;width:100%;height:min(640px,70vh);max-width:100%;box-shadow:none;}" +
     ".avonix-cep-root--wizard .avonix-cep-launcher{display:none;}" +
-    /* Header */
-    ".avonix-cep-header{padding:12px 14px;background:#fff;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:10px;flex-shrink:0;}" +
-    ".avonix-cep-icon-btn{width:34px;height:34px;border-radius:50%;border:0;background:#0f172a;color:#fff;display:grid;place-items:center;cursor:pointer;flex-shrink:0;padding:0;}" +
-    ".avonix-cep-icon-btn--ghost{background:transparent;color:#64748b;}" +
-    ".avonix-cep-icon-btn--ghost:hover{background:#f1f5f9;color:#0f172a;}" +
-    ".avonix-cep-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;background:var(--avx-cep-soft);flex-shrink:0;}" +
-    ".avonix-cep-header__meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px;}" +
-    ".avonix-cep-header__name{font-size:15px;font-weight:700;line-height:1.2;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
-    ".avonix-cep-header__status{font-size:12px;color:var(--avx-cep-muted);display:flex;align-items:center;gap:5px;line-height:1.2;}" +
-    ".avonix-cep-header__status-dot{width:8px;height:8px;border-radius:50%;background:var(--avx-cep-primary);flex-shrink:0;}" +
-    /* Log / bubbles */
-    ".avonix-cep-log{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:#f4f6f9;}" +
-    ".avonix-cep-day{align-self:center;font-size:11px;font-weight:600;color:#64748b;background:#e8edf5;padding:4px 10px;border-radius:999px;margin-bottom:4px;}" +
-    ".avonix-cep-row{display:flex;gap:8px;align-items:flex-end;}" +
-    ".avonix-cep-row--you{flex-direction:row-reverse;}" +
-    ".avonix-cep-row .avonix-cep-avatar{width:28px;height:28px;}" +
-    ".avonix-cep-bubble{max-width:82%;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(15,23,42,.04);}" +
-    ".avonix-cep-bubble--bot{align-self:flex-start;background:#fff;border:1px solid #e8edf5;color:#0f172a;border-bottom-left-radius:6px;}" +
-    ".avonix-cep-bubble--you{align-self:flex-end;background:var(--avx-cep-primary);color:#fff;border-bottom-right-radius:6px;}" +
-    ".avonix-cep-bubble--system{align-self:center;background:transparent;border:0;box-shadow:none;color:#64748b;font-size:12px;text-align:center;max-width:94%;}" +
-    ".avonix-cep-meta{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin:2px 0 0 36px;}" +
+    /* Header — white, avatar, name, purple status icon + short text */
+    ".avonix-cep-header{padding:14px 14px 12px;background:#fff;display:flex;align-items:center;gap:10px;flex-shrink:0;}" +
+    ".avonix-cep-icon-btn{width:36px;height:36px;border-radius:50%;border:0;background:#1c1c1e;color:#fff;display:grid;place-items:center;cursor:pointer;flex-shrink:0;padding:0;}" +
+    ".avonix-cep-icon-btn--ghost{background:transparent;color:#8e8e93;width:auto;height:auto;padding:6px;border-radius:8px;}" +
+    ".avonix-cep-icon-btn--ghost:hover{color:#1c1c1e;}" +
+    ".avonix-cep-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;background:#e8e8ed;flex-shrink:0;}" +
+    ".avonix-cep-header__meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;}" +
+    ".avonix-cep-header__name{font-size:16px;font-weight:700;line-height:1.15;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+    ".avonix-cep-header__status{font-size:12px;color:#8e8e93;display:flex;align-items:center;gap:5px;line-height:1.2;font-weight:500;}" +
+    ".avonix-cep-header__status-ico{width:12px;height:12px;flex-shrink:0;color:var(--avx-cep-primary);display:block;}" +
+    /* Messages */
+    ".avonix-cep-log{flex:1;overflow-y:auto;padding:8px 16px 16px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#fafafa 0%,#f3f3f5 100%);}" +
+    ".avonix-cep-day{align-self:center;font-size:11px;font-weight:500;color:#8e8e93;background:rgba(0,0,0,.06);padding:5px 12px;border-radius:999px;margin:6px 0 10px;}" +
+    ".avonix-cep-row{display:flex;flex-direction:column;gap:4px;max-width:100%;}" +
+    ".avonix-cep-row--you{align-items:flex-end;}" +
+    ".avonix-cep-row:not(.avonix-cep-row--you){align-items:flex-start;}" +
+    ".avonix-cep-row .avonix-cep-avatar{display:none;}" +
+    ".avonix-cep-bubble{max-width:85%;padding:12px 16px;border-radius:22px;font-size:15px;line-height:1.4;word-break:break-word;}" +
+    ".avonix-cep-bubble--bot{background:#fff;color:#111;box-shadow:0 2px 10px rgba(15,23,42,.06);}" +
+    ".avonix-cep-bubble--you{background:var(--avx-cep-primary);color:#fff;border-bottom-right-radius:8px;}" +
+    ".avonix-cep-bubble--system{align-self:center;background:transparent;box-shadow:none;color:#8e8e93;font-size:12px;text-align:center;max-width:92%;padding:6px;}" +
+    ".avonix-cep-meta{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#b0b0b8;margin:2px 4px 0;}" +
     ".avonix-cep-bubble a{color:inherit;text-decoration:underline;}" +
-    ".avonix-cep-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}" +
-    ".avonix-cep-btn{border:1px solid color-mix(in srgb,var(--avx-cep-primary) 35%,#e2e8f0);background:#fff;color:var(--avx-cep-primary);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}" +
-    ".avonix-cep-btn:hover{background:var(--avx-cep-soft);}" +
-    ".avonix-cep-lead{margin-top:8px;border:1px solid #e6e9f0;border-radius:14px;padding:10px;background:#fafbfc;max-height:320px;overflow:auto;}" +
-    /* Composer */
-    ".avonix-cep-form{display:flex;align-items:center;gap:8px;padding:12px 12px 14px;border-top:1px solid #eef2f7;background:#fff;flex-shrink:0;}" +
-    ".avonix-cep-input-wrap{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:#f4f6f9;border-radius:999px;padding:4px 6px 4px 14px;border:1px solid #e8edf5;}" +
-    ".avonix-cep-input{flex:1;min-width:0;border:0;background:transparent;padding:10px 4px;font-size:14px;outline:none;color:var(--avx-cep-text);}" +
-    ".avonix-cep-send{cursor:pointer;border:0;border-radius:50%;width:40px;height:40px;display:grid;place-items:center;font-size:0;color:#fff;background:var(--avx-cep-primary);flex-shrink:0;box-shadow:0 4px 12px color-mix(in srgb,var(--avx-cep-primary) 35%,transparent);}" +
+    ".avonix-cep-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}" +
+    ".avonix-cep-btn{border:0;background:#fff;color:#111;border-radius:999px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(15,23,42,.08);}" +
+    ".avonix-cep-btn:hover{background:#f5f5f7;}" +
+    ".avonix-cep-lead{margin-top:8px;border-radius:16px;padding:10px;background:#fff;box-shadow:0 2px 10px rgba(15,23,42,.06);max-height:280px;overflow:auto;}" +
+    /* Composer — full pill with icons inside, no outer send circle */
+    ".avonix-cep-form{display:flex;align-items:center;gap:0;padding:12px 14px 18px;background:transparent;flex-shrink:0;border:0;}" +
+    ".avonix-cep-input-wrap{flex:1;min-width:0;display:flex;align-items:center;gap:4px;background:#fff;border-radius:999px;padding:6px 10px 6px 18px;box-shadow:0 4px 18px rgba(15,23,42,.08);border:0;}" +
+    ".avonix-cep-input{flex:1;min-width:0;border:0;background:transparent;padding:12px 4px;font-size:15px;outline:none;color:#111;}" +
+    ".avonix-cep-input::placeholder{color:#b0b0b8;}" +
+    ".avonix-cep-tool{border:0;background:transparent;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#8e8e93;cursor:pointer;padding:0;flex-shrink:0;}" +
+    ".avonix-cep-tool:hover{color:var(--avx-cep-primary);background:#f5f5f7;}" +
+    ".avonix-cep-send{border:0;background:transparent;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--avx-cep-primary);cursor:pointer;padding:0;flex-shrink:0;}" +
     ".avonix-cep-send svg{width:18px;height:18px;}" +
-    /* Start / pre-chat gate */
-    ".avonix-cep-gate{display:none;flex-direction:column;flex:1;min-height:0;padding:18px 22px 22px;background:#fff;position:relative;}" +
+    /* Start chat — left title, underline email, no big CTA look */
+    ".avonix-cep-gate{display:none;flex-direction:column;flex:1;min-height:0;padding:28px 28px 24px;background:#fff;position:relative;}" +
     ".avonix-cep-gate.is-on{display:flex;}" +
-    ".avonix-cep-gate__close{position:absolute;top:12px;right:12px;}" +
-    ".avonix-cep-gate__hero{display:flex;align-items:flex-end;justify-content:center;gap:18px;min-height:110px;margin:8px 0 18px;}" +
-    ".avonix-cep-gate__hero img{max-height:96px;max-width:100%;object-fit:contain;}" +
-    ".avonix-cep-gate__title{margin:0 0 18px;font-size:26px;font-weight:800;letter-spacing:-.03em;color:#0f172a;text-align:center;}" +
-    ".avonix-cep-gate__field{margin:0 0 14px;}" +
-    ".avonix-cep-gate__label{display:block;font-size:13px;color:#94a3b8;margin-bottom:4px;}" +
-    ".avonix-cep-gate__email{width:100%;border:0;border-bottom:1.5px solid #cbd5e1;padding:8px 0;font-size:15px;outline:none;background:transparent;color:#0f172a;box-sizing:border-box;}" +
-    ".avonix-cep-gate__email:focus{border-bottom-color:var(--avx-cep-primary);}" +
-    ".avonix-cep-gate__privacy{font-size:12px;line-height:1.45;color:#64748b;margin:0 0 16px;}" +
-    ".avonix-cep-gate__privacy a{color:var(--avx-cep-link);font-weight:600;text-decoration:none;}" +
-    ".avonix-cep-gate__check{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#475569;margin:0 0 10px;cursor:pointer;}" +
-    ".avonix-cep-gate__check input{margin-top:2px;accent-color:var(--avx-cep-primary);}" +
-    ".avonix-cep-gate__go{margin-top:auto;width:100%;border:0;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:700;color:#fff;background:var(--avx-cep-primary);cursor:pointer;box-shadow:0 8px 20px color-mix(in srgb,var(--avx-cep-primary) 30%,transparent);}" +
-    ".avonix-cep-chat{display:flex;flex-direction:column;flex:1;min-height:0;}" +
+    ".avonix-cep-gate__close{position:absolute;top:16px;right:16px;background:transparent;border:0;color:#333;cursor:pointer;padding:4px;line-height:0;}" +
+    ".avonix-cep-gate__hero{display:flex;align-items:center;justify-content:center;min-height:100px;margin:12px 0 28px;color:#222;}" +
+    ".avonix-cep-gate__hero img{max-height:100px;max-width:100%;object-fit:contain;}" +
+    ".avonix-cep-gate__title{margin:0 0 22px;font-size:28px;font-weight:700;letter-spacing:-.02em;color:#111;text-align:left;}" +
+    ".avonix-cep-gate__field{margin:0 0 12px;}" +
+    ".avonix-cep-gate__label{display:none;}" +
+    ".avonix-cep-gate__email{width:100%;border:0;border-bottom:1px solid #c8c8c8;padding:10px 0;font-size:16px;outline:none;background:transparent;color:#111;box-sizing:border-box;}" +
+    ".avonix-cep-gate__email::placeholder{color:#9a9a9a;}" +
+    ".avonix-cep-gate__email:focus{border-bottom-color:#333;}" +
+    ".avonix-cep-gate__privacy{font-size:12px;line-height:1.45;color:#555;margin:0 0 20px;}" +
+    ".avonix-cep-gate__privacy a{color:#1a5cff;font-weight:600;text-decoration:none;}" +
+    ".avonix-cep-gate__check{display:flex;align-items:center;gap:10px;font-size:14px;color:#444;margin:0 0 12px;cursor:pointer;}" +
+    ".avonix-cep-gate__check input{width:16px;height:16px;margin:0;accent-color:#333;border-radius:3px;}" +
+    ".avonix-cep-gate__go{margin-top:auto;align-self:flex-start;border:0;background:transparent;padding:8px 0;font-size:15px;font-weight:700;color:var(--avx-cep-primary);cursor:pointer;}" +
+    ".avonix-cep-chat{display:flex;flex-direction:column;flex:1;min-height:0;background:linear-gradient(180deg,#fff 0%,#f7f7f8 28%);}" +
     ".avonix-cep-chat.is-hidden{display:none;}" +
-    "@media (max-width:640px){.avonix-cep-root:not(.avonix-cep-root--wizard) .avonix-cep-panel{width:" + mobW + ";height:" + mobH + ";border-radius:18px;}}";
+    "@media (max-width:640px){.avonix-cep-root:not(.avonix-cep-root--wizard) .avonix-cep-panel{width:" + mobW + ";height:" + mobH + ";border-radius:28px;}}";
   document.head.appendChild(style);
 
   function playPing() {
@@ -286,6 +290,12 @@
 
     row.appendChild(wrap);
     log.appendChild(row);
+    if (who !== "you" && !isSys) {
+      var meta = document.createElement("div");
+      meta.className = "avonix-cep-meta";
+      meta.textContent = "Bot · Just now";
+      log.appendChild(meta);
+    }
     log.scrollTop = log.scrollHeight;
     if (opts.sound && who !== "you") playPing();
   }
@@ -315,14 +325,27 @@
   root.setAttribute("data-surface", surface);
 
   function launcherGlyphSvg() {
-    if (launcherIcon === "compose") {
-      return '<svg class="avonix-cep-launcher__glyph" viewBox="0 0 48 48" aria-hidden="true"><path fill="#fff" d="M10 12c0-2.2 1.8-4 4-4h20c2.2 0 4 1.8 4 4v16c0 2.2-1.8 4-4 4H22l-8 8v-8h-0c-2.2 0-4-1.8-4-4V12z"/><path fill="currentColor" d="M28.2 16.4l3.4 3.4-9.2 9.2H19v-3.4l9.2-9.2zm4.1-1.7l1.7 1.7c.5.5.5 1.3 0 1.8l-1.5 1.5-3.4-3.4 1.5-1.5c.5-.5 1.3-.5 1.7-.1z"/></svg>';
+    // White bubble + cutout (currentColor = primary shows through)
+    var bubble = '<path fill="#fff" d="M9 11.5c0-2.5 2-4.5 4.5-4.5h21c2.5 0 4.5 2 4.5 4.5v15c0 2.5-2 4.5-4.5 4.5H22.2L14 38v-7H13.5C11 31 9 29 9 26.5v-15z"/>';
+    if (launcherIcon === "dots") {
+      return '<svg class="avonix-cep-launcher__glyph" viewBox="0 0 48 48" aria-hidden="true">' + bubble +
+        '<circle cx="18.5" cy="19.5" r="2.6" fill="currentColor"/><circle cx="24" cy="19.5" r="2.6" fill="currentColor"/><circle cx="29.5" cy="19.5" r="2.6" fill="currentColor"/></svg>';
     }
-    return '<svg class="avonix-cep-launcher__glyph" viewBox="0 0 48 48" aria-hidden="true"><path fill="#fff" d="M10 12c0-2.2 1.8-4 4-4h20c2.2 0 4 1.8 4 4v16c0 2.2-1.8 4-4 4H22l-8 8v-8h-0c-2.2 0-4-1.8-4-4V12z"/><circle cx="18" cy="20" r="2.4" fill="currentColor"/><circle cx="24" cy="20" r="2.4" fill="currentColor"/><circle cx="30" cy="20" r="2.4" fill="currentColor"/></svg>';
+    // compose / pencil (default — matches first reference)
+    return '<svg class="avonix-cep-launcher__glyph" viewBox="0 0 48 48" aria-hidden="true">' + bubble +
+      '<g fill="currentColor" transform="translate(24 19.5) rotate(-45) translate(-24 -19.5)"><rect x="21.2" y="11" width="5.6" height="14" rx="1.2"/><path d="M21.2 25.2L24 31.2l2.8-6z"/></g></svg>';
   }
 
   function defaultHeroSvg() {
-    return '<svg width="160" height="90" viewBox="0 0 160 90" fill="none" aria-hidden="true"><path d="M18 58l28-18 10 6-8 20-12-4 6-10-24 6z" stroke="#0f172a" stroke-width="1.6" stroke-linejoin="round"/><path d="M46 40c18-14 38-18 54-10" stroke="#0f172a" stroke-width="1.4" stroke-dasharray="3 4" fill="none"/><path d="M108 28h28v36h-18l-10 10V28z" stroke="#0f172a" stroke-width="1.6" stroke-linejoin="round"/><path d="M116 40h12M116 48h12M116 56h8" stroke="#0f172a" stroke-width="1.4" stroke-linecap="round"/></svg>';
+    return '<svg width="200" height="110" viewBox="0 0 200 110" fill="none" aria-hidden="true">' +
+      '<path d="M22 70l34-22 8 8-14 26-10-6 8-12-26 6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<path d="M58 48c22-16 48-22 70-12" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.5 4" fill="none"/>' +
+      '<path d="M34 52h10M40 44v8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>' +
+      '<path d="M128 34h36v40H146l-12 12V34z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<path d="M138 34v-8h16v8" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<rect x="142" y="48" width="14" height="10" rx="1" stroke="currentColor" stroke-width="1.4"/>' +
+      '<path d="M170 52h8M174 46v10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>' +
+      '</svg>';
   }
 
   var button = document.createElement("button");
@@ -348,7 +371,7 @@
   gate.className = "avonix-cep-gate";
   var gateClose = document.createElement("button");
   gateClose.type = "button";
-  gateClose.className = "avonix-cep-icon-btn avonix-cep-icon-btn--ghost avonix-cep-gate__close";
+  gateClose.className = "avonix-cep-gate__close";
   gateClose.setAttribute("aria-label", "Close");
   gateClose.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   var gateHero = document.createElement("div");
@@ -371,16 +394,13 @@
   gateEmail.type = "email";
   gateEmail.id = "avonix-cep-email";
   gateEmail.className = "avonix-cep-gate__email";
-  gateEmail.placeholder = "you@example.com";
+  gateEmail.placeholder = "Email";
   gateEmail.autocomplete = "email";
   gateField.appendChild(gateEmail);
   var gatePrivacy = document.createElement("p");
   gatePrivacy.className = "avonix-cep-gate__privacy";
-  if (privacyUrl) {
-    gatePrivacy.innerHTML = 'We need to process your personal data in line with our <a href="' + String(privacyUrl).replace(/"/g, "") + '" target="_blank" rel="noopener">Privacy Policy</a>.';
-  } else {
-    gatePrivacy.textContent = "We use your email only to continue this conversation.";
-  }
+  var pUrl = privacyUrl || "#";
+  gatePrivacy.innerHTML = 'We need to process your personal data in line with our <a href="' + String(pUrl).replace(/"/g, "") + '"' + (privacyUrl ? ' target="_blank" rel="noopener"' : '') + '>Privacy Policy</a>.';
   var gateAgree = document.createElement("label");
   gateAgree.className = "avonix-cep-gate__check";
   gateAgree.innerHTML = '<input type="checkbox" id="avonix-cep-agree"> <span>I agree</span>';
@@ -390,7 +410,7 @@
   var gateGo = document.createElement("button");
   gateGo.type = "button";
   gateGo.className = "avonix-cep-gate__go";
-  gateGo.textContent = theme.startButtonLabel || "Continue to chat";
+  gateGo.textContent = theme.startButtonLabel || "Continue →";
   gate.appendChild(gateClose);
   gate.appendChild(gateHero);
   gate.appendChild(gateTitle);
@@ -436,7 +456,7 @@
   nameEl.textContent = agentName;
   var statusEl = document.createElement("div");
   statusEl.className = "avonix-cep-header__status";
-  statusEl.innerHTML = '<span class="avonix-cep-header__status-dot" aria-hidden="true"></span><span></span>';
+  statusEl.innerHTML = '<svg class="avonix-cep-header__status-ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2.5 3.2c0-.9.7-1.6 1.6-1.6h7.8c.9 0 1.6.7 1.6 1.6v5.2c0 .9-.7 1.6-1.6 1.6H7.2L4 13.2V10H4.1c-.9 0-1.6-.7-1.6-1.6V3.2z"/></svg><span></span>';
   statusEl.lastChild.textContent = statusText;
   meta.appendChild(nameEl);
   meta.appendChild(statusEl);
@@ -445,7 +465,7 @@
   menuBtn.type = "button";
   menuBtn.className = "avonix-cep-icon-btn avonix-cep-icon-btn--ghost";
   menuBtn.setAttribute("aria-label", "Close");
-  menuBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 8h14M5 12h14M5 16h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  menuBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h12M4 17h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
   header.appendChild(menuBtn);
 
   var log = document.createElement("div");
@@ -460,16 +480,28 @@
   var input = document.createElement("input");
   input.type = "text";
   input.className = "avonix-cep-input";
-  input.placeholder = config.placeholder || theme.placeholder || "Write a reply…";
+  input.placeholder = config.placeholder || theme.placeholder || "Write a reply...";
   input.setAttribute("aria-label", "Your message");
   inputWrap.appendChild(input);
+  var heartBtn = document.createElement("button");
+  heartBtn.type = "button";
+  heartBtn.className = "avonix-cep-tool";
+  heartBtn.setAttribute("aria-label", "React");
+  heartBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.4-7-9.2C5 8 6.8 6.2 9 6.2c1.3 0 2.4.6 3 1.5.6-.9 1.7-1.5 3-1.5 2.2 0 4 1.8 4 4.6C19 15.6 12 20 12 20z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+  var galleryBtn = document.createElement("button");
+  galleryBtn.type = "button";
+  galleryBtn.className = "avonix-cep-tool";
+  galleryBtn.setAttribute("aria-label", "Attach image");
+  galleryBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="M6.5 16.5l4.2-4.2 2.6 2.6 2.4-2.8 3.8 4.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var send = document.createElement("button");
   send.type = "submit";
   send.className = "avonix-cep-send";
   send.setAttribute("aria-label", "Send");
-  send.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  send.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  inputWrap.appendChild(heartBtn);
+  inputWrap.appendChild(galleryBtn);
+  inputWrap.appendChild(send);
   form.appendChild(inputWrap);
-  form.appendChild(send);
 
   chatSurface.appendChild(header);
   chatSurface.appendChild(log);

@@ -79,12 +79,9 @@
     el.classList.add("avonix-fab-stacked");
     el.style.gap = "0px";
     var pill = el.querySelector(".avonix-cep-cta-pill");
-    if (pill) pill.removeAttribute("hidden");
+    if (pill) pill.setAttribute("hidden", "");
     var fabRow = el.querySelector(".avonix-cep-fab-row");
-    // DOM is [pill, launcher] — reverse on left edge so launcher stays in the stack column.
-    if (fabRow) {
-      fabRow.style.flexDirection = openLeft ? "row" : "row-reverse";
-    }
+    if (fabRow) fabRow.style.flexDirection = "row";
 
     var r = narrow ? Math.max(6, Math.round(size * (10 / 44))) + "px" : null;
     el.style.flexDirection = "column";
@@ -102,7 +99,6 @@
       if (btn) btn.style.borderRadius = r;
     }
 
-    // Align root so the launcher (not the CTA pill) sits on the stack X/Y.
     var launcher = el.querySelector(".avonix-cep-launcher");
     if (launcher) {
       var rootBox = el.getBoundingClientRect();

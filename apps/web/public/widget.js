@@ -282,7 +282,18 @@
     (alignEnd ? "flex-end" : "flex-start") +
     ";gap:12px;max-width:calc(100vw - 16px);box-sizing:border-box;}" +
     ".avonix-cep-root.avonix-fab-stacked{gap:0!important;}" +
-    /* Keep CTA label visible beside launcher while stacked (does not affect vertical gap). */
+    ".avonix-cep-root.avonix-fab-stacked:not(.is-open) .avonix-cep-cta-pill{display:none!important;}" +
+    /* Hover tooltip — fully outside the launcher tile (same pattern as a11y/lang). */
+    ".avonix-cep-fab-row{position:relative;}" +
+    ".avonix-cep-launcher-tip{position:absolute;top:50%;z-index:5;width:max-content;max-width:min(220px,70vw);padding:7px 11px;border-radius:8px;background:#fff;color:#1e293b;font-size:12px;font-weight:600;line-height:1.25;white-space:nowrap;box-shadow:0 4px 14px rgba(15,23,42,.16);pointer-events:none;opacity:0;visibility:hidden;transform:translateY(-50%) translateX(-6px);transition:opacity .15s ease,visibility .15s ease,transform .15s ease;}" +
+    ".avonix-cep-root.is-align-start .avonix-cep-launcher-tip{left:calc(var(--avx-launcher) + 10px);right:auto;}" +
+    ".avonix-cep-root.is-align-end .avonix-cep-launcher-tip{right:calc(var(--avx-launcher) + 10px);left:auto;transform:translateY(-50%) translateX(6px);}" +
+    ".avonix-cep-launcher-tip::after{content:\"\";position:absolute;top:50%;width:8px;height:8px;background:#fff;transform:translateY(-50%) rotate(45deg);box-shadow:-1px 1px 2px rgba(15,23,42,.06);}" +
+    ".avonix-cep-root.is-align-start .avonix-cep-launcher-tip::after{left:-4px;right:auto;}" +
+    ".avonix-cep-root.is-align-end .avonix-cep-launcher-tip::after{right:-4px;left:auto;box-shadow:1px -1px 2px rgba(15,23,42,.06);}" +
+    ".avonix-cep-fab-row:hover .avonix-cep-launcher-tip,.avonix-cep-fab-row:focus-within .avonix-cep-launcher-tip{opacity:1;visibility:visible;transform:translateY(-50%) translateX(0);}" +
+    ".avonix-cep-root.is-open .avonix-cep-launcher-tip{display:none!important;}" +
+    /* Inline shortcode / embed — fill the host container, never float. */
     ".avonix-chat-wizard{display:flex;flex-direction:column;width:100%;height:100%;min-height:420px;box-sizing:border-box;}" +
     ".avonix-cep-root--wizard{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:1;width:100%!important;max-width:100%!important;height:100%!important;min-height:100%;flex:1 1 auto;align-items:stretch!important;flex-direction:column!important;gap:0!important;max-width:none!important;box-sizing:border-box;}" +
     ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
@@ -1012,6 +1023,13 @@
   }
   if (ctaPill) fabRow.appendChild(ctaPill);
   fabRow.appendChild(button);
+  if (launcherCta && surface !== "wizard") {
+    var launcherTip = document.createElement("span");
+    launcherTip.className = "avonix-cep-launcher-tip";
+    launcherTip.setAttribute("aria-hidden", "true");
+    launcherTip.textContent = launcherCta;
+    fabRow.appendChild(launcherTip);
+  }
   root.appendChild(fabRow);
 
   function sanitizeAgreeHtml(raw) {
@@ -1776,15 +1794,9 @@
     if (chatStacked) {
       root.classList.add("avonix-fab-stacked");
       root.style.gap = "0px";
-      if (ctaPill) ctaPill.removeAttribute("hidden");
-      // Launcher on the stack edge; CTA label sits beside it.
-      fabRow.style.flexDirection = useFree
-        ? freeX >= 50
-          ? "row"
-          : "row-reverse"
-        : edgeX === "right"
-          ? "row"
-          : "row-reverse";
+      // Stacked: icon-only column; label is hover tooltip outside the tile.
+      if (ctaPill) ctaPill.setAttribute("hidden", "");
+      fabRow.style.flexDirection = "row";
       if (window.AvonixFabStack && typeof window.AvonixFabStack.schedule === "function") {
         window.AvonixFabStack.schedule();
       }

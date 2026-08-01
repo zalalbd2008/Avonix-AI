@@ -88,6 +88,22 @@
   var startConvLabel = theme.startButtonLabel || "Start Conversation";
   var openOnLaunch = theme.openOnLaunch !== false; // default: skip home, open AI directly
   var preChatOn = theme.preChatEnabled === true;
+  var agreementRequired = theme.agreementRequired !== false; // default: required
+  var agreementBrand =
+    theme.agreementBrandName || theme.agentName || config.title || "Support";
+  var agreementLogo = theme.agreementLogoUrl || "";
+  var agreementIntro =
+    theme.agreementIntro ||
+    "Hi! I am your " + agreementBrand + " Virtual Agent.";
+  var agreementBody =
+    theme.agreementBody ||
+    "I'm happy to help find what you need. To continue, you will need to agree to our Terms Of Use and Privacy Policy.";
+  var termsUrl = theme.termsUrl || "";
+  var privacyUrl = theme.privacyUrl || "";
+  var agreeLabel = theme.agreeLabel || "I Agree";
+  var disagreeLabel = theme.disagreeLabel || "I Don't Agree";
+  var agreeStorageKey =
+    "avonix-cep-agree-" + String(config.widget_id || config.website_id || "site");
   var disclaimer = theme.disclaimer || "";
   var avatarUrl =
     config.bot_avatar_url ||
@@ -215,7 +231,21 @@
     ".avonix-cep-root--wizard .avonix-cep-launcher{display:none;}" +
     /* Home */
     ".avonix-cep-home{display:flex;flex-direction:column;flex:1;min-height:0;}" +
-    ".avonix-cep-home.is-hidden,.avonix-cep-ai.is-hidden,.avonix-cep-gate.is-hidden{display:none!important;}" +
+    ".avonix-cep-home.is-hidden,.avonix-cep-ai.is-hidden,.avonix-cep-gate.is-hidden,.avonix-cep-agree.is-hidden{display:none!important;}" +
+    /* Terms agreement gate */
+    ".avonix-cep-agree{display:flex;flex-direction:column;flex:1;min-height:0;background:#fff;}" +
+    ".avonix-cep-agree__body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 22px 18px;text-align:center;}" +
+    ".avonix-cep-agree__logo{width:72px;height:72px;object-fit:contain;margin:0 0 14px;display:block;}" +
+    ".avonix-cep-agree__mark{width:64px;height:64px;margin:0 0 14px;border-radius:16px;background:linear-gradient(135deg,var(--avx-primary-end),var(--avx-primary));display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:700;}" +
+    ".avonix-cep-agree__brand{margin:0 0 18px;font-size:22px;font-weight:700;letter-spacing:-0.02em;color:var(--avx-ink);font-family:Georgia,'Times New Roman',serif;line-height:1.2;}" +
+    ".avonix-cep-agree__intro{margin:0 0 12px;font-size:14.5px;line-height:1.45;color:var(--avx-ink);font-weight:500;}" +
+    ".avonix-cep-agree__copy{margin:0;font-size:13.5px;line-height:1.55;color:var(--avx-ink-3);max-width:280px;}" +
+    ".avonix-cep-agree__copy a{color:var(--avx-primary);font-weight:600;text-decoration:underline;text-underline-offset:2px;}" +
+    ".avonix-cep-agree__actions{display:flex;gap:10px;padding:8px 18px 22px;flex-shrink:0;}" +
+    ".avonix-cep-agree__btn{flex:1;min-height:42px;border-radius:999px;border:1.5px solid var(--avx-primary);background:#fff;color:var(--avx-primary);font-size:13.5px;font-weight:600;cursor:pointer;padding:10px 12px;transition:background .15s,color .15s,transform .15s;}" +
+    ".avonix-cep-agree__btn:hover{background:color-mix(in srgb,var(--avx-primary) 8%,#fff);transform:translateY(-1px);}" +
+    ".avonix-cep-agree__btn.is-primary{background:var(--avx-primary);color:var(--avx-on-primary);}" +
+    ".avonix-cep-agree__btn.is-primary:hover{filter:brightness(.95);background:var(--avx-primary);}" +
     ".avonix-cep-home__head{display:flex;align-items:center;gap:13px;padding:18px 18px 16px;background:var(--avx-head);flex-shrink:0;}" +
     ".avonix-cep-home__avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;}" +
     ".avonix-cep-home__avatar img{width:100%;height:100%;object-fit:cover;}" +
@@ -635,11 +665,98 @@
   ai.appendChild(log);
   ai.appendChild(form);
 
+  /* ---- Terms agreement (required before chat) ---- */
+  var agree = document.createElement("div");
+  agree.className = "avonix-cep-agree is-hidden";
+  agree.setAttribute("role", "dialog");
+  agree.setAttribute("aria-label", "Terms agreement");
+  var agreeBody = document.createElement("div");
+  agreeBody.className = "avonix-cep-agree__body";
+  if (agreementLogo) {
+    var logoImg = document.createElement("img");
+    logoImg.className = "avonix-cep-agree__logo";
+    logoImg.src = String(agreementLogo).replace(/"/g, "");
+    logoImg.alt = agreementBrand;
+    agreeBody.appendChild(logoImg);
+  } else {
+    var mark = document.createElement("div");
+    mark.className = "avonix-cep-agree__mark";
+    mark.setAttribute("aria-hidden", "true");
+    mark.textContent = String(agreementBrand).trim().charAt(0).toUpperCase() || "A";
+    agreeBody.appendChild(mark);
+  }
+  var brandEl = document.createElement("p");
+  brandEl.className = "avonix-cep-agree__brand";
+  brandEl.textContent = agreementBrand;
+  agreeBody.appendChild(brandEl);
+  var introEl = document.createElement("p");
+  introEl.className = "avonix-cep-agree__intro";
+  introEl.textContent = agreementIntro;
+  agreeBody.appendChild(introEl);
+  var copyEl = document.createElement("p");
+  copyEl.className = "avonix-cep-agree__copy";
+  copyEl.innerHTML = linkAgreementCopy(agreementBody, termsUrl, privacyUrl);
+  agreeBody.appendChild(copyEl);
+  var agreeActions = document.createElement("div");
+  agreeActions.className = "avonix-cep-agree__actions";
+  var agreeYes = document.createElement("button");
+  agreeYes.type = "button";
+  agreeYes.className = "avonix-cep-agree__btn";
+  agreeYes.textContent = agreeLabel;
+  var agreeNo = document.createElement("button");
+  agreeNo.type = "button";
+  agreeNo.className = "avonix-cep-agree__btn";
+  agreeNo.textContent = disagreeLabel;
+  agreeActions.appendChild(agreeYes);
+  agreeActions.appendChild(agreeNo);
+  agree.appendChild(agreeBody);
+  agree.appendChild(agreeActions);
+
+  panel.appendChild(agree);
   panel.appendChild(home);
   panel.appendChild(gate);
   panel.appendChild(ai);
   root.appendChild(panel);
   root.appendChild(button);
+
+  function linkAgreementCopy(text, terms, privacy) {
+    var esc = String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    function wrap(label, url) {
+      if (!url) return label;
+      var href = String(url).replace(/"/g, "&quot;");
+      return (
+        '<a href="' +
+        href +
+        '" target="_blank" rel="noopener noreferrer">' +
+        label +
+        "</a>"
+      );
+    }
+    return esc
+      .replace(/Terms Of Use/gi, function (m) {
+        return wrap(m, terms);
+      })
+      .replace(/Privacy Policy/gi, function (m) {
+        return wrap(m, privacy);
+      });
+  }
+
+  function hasAgreed() {
+    if (!agreementRequired) return true;
+    try {
+      return localStorage.getItem(agreeStorageKey) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+  function setAgreed() {
+    try {
+      localStorage.setItem(agreeStorageKey, "1");
+    } catch (e) {}
+  }
 
   /* ---- TTS ---- */
   var speech =
@@ -871,19 +988,31 @@
 
   function showHome() {
     aiViewActive = false;
+    agree.classList.add("is-hidden");
     home.classList.remove("is-hidden");
     gate.classList.add("is-hidden");
     ai.classList.add("is-hidden");
   }
 
   function showGate() {
+    aiViewActive = false;
+    agree.classList.add("is-hidden");
     home.classList.add("is-hidden");
     gate.classList.remove("is-hidden");
     ai.classList.add("is-hidden");
   }
 
+  function showAgreement() {
+    aiViewActive = false;
+    agree.classList.remove("is-hidden");
+    home.classList.add("is-hidden");
+    gate.classList.add("is-hidden");
+    ai.classList.add("is-hidden");
+  }
+
   function showAi() {
     aiViewActive = true;
+    agree.classList.add("is-hidden");
     home.classList.add("is-hidden");
     gate.classList.add("is-hidden");
     ai.classList.remove("is-hidden");
@@ -928,6 +1057,20 @@
   function openAiFlow() {
     if (preChatOn && !hasStarted() && !leadGatePassed) showGate();
     else showAi();
+  }
+
+  /** After terms agreement — home or AI / lead gate. */
+  function proceedAfterAgreement() {
+    if (!openOnLaunch) showHome();
+    else openAiFlow();
+  }
+
+  function beginOpenFlow() {
+    if (agreementRequired && !hasAgreed()) {
+      showAgreement();
+      return;
+    }
+    proceedAfterAgreement();
   }
 
   function startPoll() {
@@ -1175,7 +1318,7 @@
     button.setAttribute("aria-expanded", open ? "true" : "false");
     placeRoot();
     if (open) {
-      openAiFlow();
+      beginOpenFlow();
     } else {
       stopSpeech();
     }
@@ -1188,6 +1331,13 @@
     setOpen(false);
   });
   gateHead.querySelector(".avonix-cep-close").addEventListener("click", function () {
+    setOpen(false);
+  });
+  agreeYes.addEventListener("click", function () {
+    setAgreed();
+    proceedAfterAgreement();
+  });
+  agreeNo.addEventListener("click", function () {
     setOpen(false);
   });
   startBtn.addEventListener("click", openAiFlow);
@@ -1232,7 +1382,7 @@
       target.appendChild(root);
       open = true;
       panel.classList.add("is-open");
-      openAiFlow();
+      beginOpenFlow();
       return;
     }
     document.body.appendChild(root);

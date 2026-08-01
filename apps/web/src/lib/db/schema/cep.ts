@@ -88,6 +88,22 @@ export type CepWidgetTheme = {
   preChatEnabled?: boolean;
   /** Skip home panel and open AI (or lead gate) immediately. */
   openOnLaunch?: boolean;
+  /**
+   * Required Terms / Privacy agreement screen when the visitor opens chat.
+   * Default true — must tap “I Agree” before chat continues.
+   */
+  agreementRequired?: boolean;
+  /** Brand / site name on the agreement card. */
+  agreementBrandName?: string;
+  /** Optional logo above the brand name. */
+  agreementLogoUrl?: string;
+  /** First line under the brand (e.g. “Hi! I am your … Virtual Agent.”). */
+  agreementIntro?: string;
+  /** Body copy; “Terms of Use” / “Privacy Policy” become links when URLs are set. */
+  agreementBody?: string;
+  termsUrl?: string;
+  agreeLabel?: string;
+  disagreeLabel?: string;
   /** Home panel body copy (before Start Conversation). */
   homeContent?: string;
   startTitle?: string;
@@ -235,6 +251,13 @@ export function defaultCepWidgetPayload(
         "Hi! Ask me anything about our site and I'll help right away.",
       openOnLaunch: true,
       preChatEnabled: false,
+      agreementRequired: true,
+      agreementBrandName: "Customer Support",
+      agreementIntro: "Hi! I am your virtual agent.",
+      agreementBody:
+        "I'm happy to help find what you need. To continue, you will need to agree to our Terms Of Use and Privacy Policy.",
+      agreeLabel: "I Agree",
+      disagreeLabel: "I Don't Agree",
       startTitle: "Leave your contact",
       startButtonLabel: "Start Conversation",
     },

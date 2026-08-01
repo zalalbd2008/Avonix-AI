@@ -645,6 +645,127 @@ export function CepWidgetStudio({
                     }
                   />
                 </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[12px] font-medium">Terms of use URL</span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.termsUrl ?? ""}
+                    placeholder="https://yoursite.com/terms"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: {
+                          ...p.theme,
+                          termsUrl: e.target.value || undefined,
+                        },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={theme.agreementRequired !== false}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: {
+                          ...p.theme,
+                          agreementRequired: e.target.checked,
+                        },
+                      }))
+                    }
+                  />
+                  Require Terms / Privacy agreement before chat (required gate)
+                </label>
+                {theme.agreementRequired !== false ? (
+                  <>
+                    <label className="block">
+                      <span className="text-[12px] font-medium">
+                        Agreement brand name
+                      </span>
+                      <input
+                        className={`${input} mt-1`}
+                        value={
+                          theme.agreementBrandName ??
+                          theme.agentName ??
+                          payload.title ??
+                          ""
+                        }
+                        onChange={(e) =>
+                          setPayload((p) => ({
+                            ...p,
+                            theme: {
+                              ...p.theme,
+                              agreementBrandName: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[12px] font-medium">
+                        Agreement logo URL
+                      </span>
+                      <input
+                        className={`${input} mt-1`}
+                        value={theme.agreementLogoUrl ?? ""}
+                        placeholder="https://… (optional)"
+                        onChange={(e) =>
+                          setPayload((p) => ({
+                            ...p,
+                            theme: {
+                              ...p.theme,
+                              agreementLogoUrl: e.target.value || undefined,
+                            },
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="text-[12px] font-medium">
+                        Agreement intro
+                      </span>
+                      <input
+                        className={`${input} mt-1`}
+                        value={
+                          theme.agreementIntro ??
+                          "Hi! I am your virtual agent."
+                        }
+                        onChange={(e) =>
+                          setPayload((p) => ({
+                            ...p,
+                            theme: {
+                              ...p.theme,
+                              agreementIntro: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="text-[12px] font-medium">
+                        Agreement body
+                      </span>
+                      <textarea
+                        className={`${input} mt-1 min-h-[72px]`}
+                        value={
+                          theme.agreementBody ??
+                          "I'm happy to help find what you need. To continue, you will need to agree to our Terms Of Use and Privacy Policy."
+                        }
+                        onChange={(e) =>
+                          setPayload((p) => ({
+                            ...p,
+                            theme: {
+                              ...p.theme,
+                              agreementBody: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </label>
+                  </>
+                ) : null}
                 <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
                   <input
                     type="checkbox"

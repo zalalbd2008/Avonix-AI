@@ -32,20 +32,48 @@ export function generateEmergencyKey(): string {
 }
 
 export async function getPlatformSettings() {
-  const [row] = await db
-    .select()
-    .from(platformSettings)
-    .where(eq(platformSettings.id, "default"))
-    .limit(1);
-  return (
-    row ?? {
+  try {
+    const [row] = await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.id, "default"))
+      .limit(1);
+    return (
+      row ?? {
+        id: "default" as const,
+        maxPlatformOwners: DEFAULT_MAX_PLATFORM_OWNERS,
+        aiKeys: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    );
+  } catch {
+    // Pre-migration DBs may lack ai_keys — still serve owner settings.
+    try {
+      const [row] = await db
+        .select({
+          id: platformSettings.id,
+          maxPlatformOwners: platformSettings.maxPlatformOwners,
+          createdAt: platformSettings.createdAt,
+          updatedAt: platformSettings.updatedAt,
+        })
+        .from(platformSettings)
+        .where(eq(platformSettings.id, "default"))
+        .limit(1);
+      if (row) {
+        return { ...row, aiKeys: {} };
+      }
+    } catch {
+      /* fall through */
+    }
+    return {
       id: "default" as const,
       maxPlatformOwners: DEFAULT_MAX_PLATFORM_OWNERS,
       aiKeys: {},
       createdAt: new Date(),
       updatedAt: new Date(),
-    }
-  );
+    };
+  }
 }
 
 export async function countPlatformOwners(): Promise<number> {

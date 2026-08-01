@@ -52,12 +52,17 @@ function envKeyFor(provider: CepAiProvider): string | null {
 }
 
 async function readCipherMap(): Promise<PlatformAiKeysCipher> {
-  const [row] = await db
-    .select({ aiKeys: platformSettings.aiKeys })
-    .from(platformSettings)
-    .where(eq(platformSettings.id, "default"))
-    .limit(1);
-  return row?.aiKeys ?? {};
+  try {
+    const [row] = await db
+      .select({ aiKeys: platformSettings.aiKeys })
+      .from(platformSettings)
+      .where(eq(platformSettings.id, "default"))
+      .limit(1);
+    return row?.aiKeys ?? {};
+  } catch {
+    // Migration 0032 not applied yet — treat as empty keys (env still works).
+    return {};
+  }
 }
 
 /** Decrypted platform DB keys only (no env). */
@@ -161,6 +166,13 @@ export async function savePlatformAiKeys(
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not save API keys.";
+    if (/ai_keys|column/i.test(msg)) {
+      return {
+        ok: false,
+        error:
+          "Database migration missing: run ALTER TABLE platform_settings ADD COLUMN ai_keys… (0032_platform_ai_keys).",
+      };
+    }
     return { ok: false, error: msg };
   }
 }

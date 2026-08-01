@@ -149,7 +149,7 @@ export const CREATIVE_PRESETS: CepIndustryPreset[] = [
       assistantName: "Alex",
       assistantRole: "Your Logo Design Assistant",
       greeting:
-        "Hi! 👋 Need a new logo or a redesign? Pick an option below and I’ll guide you.",
+        "Hi! Need a new logo or a redesign? Pick an option below and I’ll guide you.",
       matchKeywords: ["logo design", "logo designer", "brand mark", "logotype", "wordmark"],
       primaryCta: { label: "I need a New Logo", action: "brief" },
       secondaryCta: { label: "See Our Portfolio", action: "portfolio" },

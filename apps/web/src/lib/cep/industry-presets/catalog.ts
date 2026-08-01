@@ -1,23 +1,34 @@
+import { ACTIVE_CATEGORIES, INDUSTRY_CATEGORIES } from "./categories";
 import { CREATIVE_PRESETS } from "./creative";
+import { DENTAL_PRESETS } from "./dental";
 import { HEALTHCARE_PRESETS } from "./healthcare";
+import { HOME_SERVICES_PRESETS } from "./home-services";
+import { PROFESSIONAL_PRESETS } from "./professional";
+import { WEB_DIGITAL_PRESETS } from "./web-digital";
 import type {
   CepIndustryPreset,
-  IndustryFamily,
+  IndustryCategory,
   IndustryPresetId,
 } from "./types";
 
 export const INDUSTRY_PRESETS: CepIndustryPreset[] = [
   ...HEALTHCARE_PRESETS,
+  ...DENTAL_PRESETS,
   ...CREATIVE_PRESETS,
+  ...WEB_DIGITAL_PRESETS,
+  ...HOME_SERVICES_PRESETS,
+  ...PROFESSIONAL_PRESETS,
 ];
 
 const BY_ID = new Map<IndustryPresetId, CepIndustryPreset>(
   INDUSTRY_PRESETS.map((p) => [p.id, p]),
 );
 
-export function listIndustryPresets(family?: IndustryFamily): CepIndustryPreset[] {
-  if (!family) return INDUSTRY_PRESETS;
-  return INDUSTRY_PRESETS.filter((p) => p.family === family);
+export function listIndustryPresets(
+  category?: IndustryCategory,
+): CepIndustryPreset[] {
+  if (!category) return INDUSTRY_PRESETS;
+  return INDUSTRY_PRESETS.filter((p) => p.category === category || p.family === category);
 }
 
 export function getIndustryPreset(
@@ -28,9 +39,9 @@ export function getIndustryPreset(
 }
 
 export function assertIndustryPresetLibrary(): void {
-  if (INDUSTRY_PRESETS.length < 20) {
+  if (INDUSTRY_PRESETS.length < 50) {
     throw new Error(
-      `Industry preset library incomplete: expected ≥20, got ${INDUSTRY_PRESETS.length}`,
+      `Industry preset library incomplete: expected ≥50, got ${INDUSTRY_PRESETS.length}`,
     );
   }
   const ids = new Set(INDUSTRY_PRESETS.map((p) => p.id));
@@ -38,3 +49,5 @@ export function assertIndustryPresetLibrary(): void {
     throw new Error("Duplicate industry preset ids detected");
   }
 }
+
+export { ACTIVE_CATEGORIES, INDUSTRY_CATEGORIES };

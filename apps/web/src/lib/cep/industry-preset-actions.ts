@@ -5,6 +5,9 @@ import { withAgency } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import {
+  ACTIVE_CATEGORIES,
+  INDUSTRY_CATEGORIES,
+  PRESET_VARIANTS,
   applyExperienceToPayload,
   applyIndustryPreset,
   customizePresetWithBrand,
@@ -17,6 +20,7 @@ import {
   pickBestPreset,
   type DetectedSiteBrand,
   type IndustryPresetId,
+  type PresetVariantId,
 } from "@/lib/cep/industry-presets";
 import type { CepWidgetPayload } from "@/lib/db/schema";
 
@@ -39,23 +43,46 @@ async function loadWebsiteUrl(agencyId: string, websiteId: string) {
 
 export async function actionListIndustryPresets() {
   await requireAgency();
-  return listIndustryPresets().map((p) => ({
-    id: p.id,
-    family: p.family,
-    industryName: p.industryName,
-    catalogBlurb: p.catalogBlurb,
-    designPersonality: p.designPersonality,
-    assistantName: p.assistantName,
-    colors: p.colorPalette,
-    businessGoal: p.businessGoal,
-    conversionGoal: p.conversionGoal,
-  }));
+  return {
+    categories: INDUSTRY_CATEGORIES.filter((c) =>
+      ACTIVE_CATEGORIES.includes(c.id),
+    ),
+    variants: PRESET_VARIANTS,
+    presets: listIndustryPresets().map((p) => ({
+      id: p.id,
+      family: p.family,
+      category: p.category,
+      industryName: p.industryName,
+      catalogBlurb: p.catalogBlurb,
+      designPersonality: p.designPersonality,
+      assistantName: p.assistantName,
+      colors: p.colorPalette,
+      businessGoal: p.businessGoal,
+      conversionGoal: p.conversionGoal,
+      experienceCount: 3,
+    })),
+    totals: {
+      industries: listIndustryPresets().length,
+      experiences: listIndustryPresets().length * 3,
+    },
+  };
 }
 
 export async function actionDetectSiteBrand(input: {
   websiteId: string;
 }): Promise<
-  | { ok: true; brand: DetectedSiteBrand; matches: Array<{ id: string; score: number; name: string }> }
+  | {
+      ok: true;
+      brand: DetectedSiteBrand;
+      matches: Array<{
+        id: string;
+        score: number;
+        confidence: number;
+        name: string;
+        category: string;
+        suggestedVariant: PresetVariantId;
+      }>;
+    }
   | { ok: false; error: string }
 > {
   const ctx = await requireAgency();
@@ -70,7 +97,10 @@ export async function actionDetectSiteBrand(input: {
     const matches = matchIndustryPresets(brand, 5).map((m) => ({
       id: m.preset.id,
       score: m.score,
+      confidence: m.confidence,
       name: m.preset.industryName,
+      category: m.preset.category,
+      suggestedVariant: m.suggestedVariant,
     }));
     return { ok: true, brand, matches };
   } catch (e) {
@@ -85,7 +115,7 @@ export async function actionApplyIndustryPreset(input: {
   websiteId: string;
   presetId: IndustryPresetId;
   payload: CepWidgetPayload;
-  /** When true, crawl the site and customize the preset with brand signals. */
+  variant?: PresetVariantId;
   detectAndCustomize?: boolean;
 }): Promise<
   | {
@@ -94,12 +124,14 @@ export async function actionApplyIndustryPreset(input: {
       brand: DetectedSiteBrand | null;
       presetId: IndustryPresetId;
       presetName: string;
+      variant: PresetVariantId;
     }
   | { ok: false; error: string }
 > {
   const ctx = await requireAgency();
   const preset = getIndustryPreset(input.presetId);
   if (!preset) return { ok: false, error: "Unknown industry preset." };
+  const variant = input.variant ?? "professional";
 
   let brand: DetectedSiteBrand | null = null;
   if (input.detectAndCustomize) {
@@ -113,13 +145,14 @@ export async function actionApplyIndustryPreset(input: {
     }
   }
 
-  const payload = applyIndustryPreset(input.payload, preset, brand);
+  const payload = applyIndustryPreset(input.payload, preset, brand, variant);
   return {
     ok: true,
     payload,
     brand,
     presetId: preset.id,
     presetName: preset.industryName,
+    variant,
   };
 }
 
@@ -133,7 +166,15 @@ export async function actionAutoSelectIndustryPreset(input: {
       brand: DetectedSiteBrand;
       presetId: IndustryPresetId;
       presetName: string;
-      matches: Array<{ id: string; score: number; name: string }>;
+      variant: PresetVariantId;
+      confidence: number;
+      matches: Array<{
+        id: string;
+        score: number;
+        confidence: number;
+        name: string;
+        suggestedVariant: PresetVariantId;
+      }>;
     }
   | { ok: false; error: string }
 > {
@@ -147,16 +188,25 @@ export async function actionAutoSelectIndustryPreset(input: {
     const matches = matchIndustryPresets(brand, 5).map((m) => ({
       id: m.preset.id,
       score: m.score,
+      confidence: m.confidence,
       name: m.preset.industryName,
+      suggestedVariant: m.suggestedVariant,
     }));
-    const preset = pickBestPreset(brand);
-    const payload = applyIndustryPreset(input.payload, preset, brand);
+    const best = pickBestPreset(brand);
+    const payload = applyIndustryPreset(
+      input.payload,
+      best.preset,
+      brand,
+      best.variant,
+    );
     return {
       ok: true,
       payload,
       brand,
-      presetId: preset.id,
-      presetName: preset.industryName,
+      presetId: best.preset.id,
+      presetName: best.preset.industryName,
+      variant: best.variant,
+      confidence: best.confidence,
       matches,
     };
   } catch (e) {
@@ -195,10 +245,13 @@ export async function actionImportIndustryPresetJson(input: {
   if (!result.ok) return result;
 
   const experience = result.preset
-    ? customizePresetWithBrand(result.preset, null)
+    ? customizePresetWithBrand(
+        result.preset,
+        null,
+        result.experience.variant ?? "professional",
+      )
     : result.experience;
 
-  // Prefer imported experience fields (may be a customized export).
   const merged = {
     ...experience,
     ...result.experience,

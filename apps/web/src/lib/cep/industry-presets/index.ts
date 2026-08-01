@@ -6,12 +6,19 @@ export type {
   ColorPalette,
   DisplayRule,
   FlowStep,
+  IndustryCategory,
+  IndustryCategoryMeta,
   IndustryFamily,
   IndustryPresetId,
+  PresetVariantId,
   QuickAction,
 } from "./types";
 
+export { PRESET_VARIANTS } from "./types";
+
 export {
+  ACTIVE_CATEGORIES,
+  INDUSTRY_CATEGORIES,
   INDUSTRY_PRESETS,
   assertIndustryPresetLibrary,
   getIndustryPreset,
@@ -30,6 +37,10 @@ export {
   customizePresetWithBrand,
   presetToExperience,
 } from "./apply";
+export {
+  resolvePresetExperience,
+  listVariantExperiences,
+} from "./variants";
 export {
   INDUSTRY_PRESET_PACKAGE_VERSION,
   exportIndustryPresetJson,

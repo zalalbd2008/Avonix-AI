@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import type { CepWidgetPayload } from "@/lib/db/schema";
-import type { CepIndustryExperience, IndustryFamily } from "@/lib/cep/industry-presets/types";
+import type {
+  CepIndustryExperience,
+  IndustryCategory,
+  PresetVariantId,
+} from "@/lib/cep/industry-presets/types";
 import {
   actionApplyIndustryPreset,
   actionAutoSelectIndustryPreset,
@@ -17,7 +21,8 @@ const input =
 
 type CatalogItem = {
   id: string;
-  family: IndustryFamily;
+  family: IndustryCategory;
+  category: IndustryCategory;
   industryName: string;
   catalogBlurb: string;
   designPersonality: string;
@@ -30,7 +35,11 @@ type CatalogItem = {
   };
   businessGoal: string;
   conversionGoal: string;
+  experienceCount: number;
 };
+
+type CategoryMeta = { id: IndustryCategory; label: string; blurb: string };
+type VariantMeta = { id: PresetVariantId; label: string; blurb: string };
 
 type DetectedBrandSummary = {
   businessName: string | null;
@@ -57,13 +66,23 @@ export function IndustryPresetPanel({
   onApplyPayload: (next: CepWidgetPayload) => void;
 }) {
   const [catalog, setCatalog] = useState<CatalogItem[] | null>(null);
-  const [family, setFamily] = useState<"all" | IndustryFamily>("all");
+  const [categories, setCategories] = useState<CategoryMeta[]>([]);
+  const [variantMeta, setVariantMeta] = useState<VariantMeta[]>([]);
+  const [totals, setTotals] = useState({ industries: 0, experiences: 0 });
+  const [family, setFamily] = useState<"all" | IndustryCategory>("all");
+  const [variant, setVariant] = useState<PresetVariantId>("professional");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [brand, setBrand] = useState<DetectedBrandSummary | null>(null);
   const [matches, setMatches] = useState<
-    Array<{ id: string; score: number; name: string }>
+    Array<{
+      id: string;
+      score: number;
+      confidence?: number;
+      name: string;
+      suggestedVariant?: PresetVariantId;
+    }>
   >([]);
   const [importText, setImportText] = useState("");
   const [expDraft, setExpDraft] = useState<CepIndustryExperience | null>(
@@ -76,14 +95,17 @@ export function IndustryPresetPanel({
   const filtered = useMemo(() => {
     if (!catalog) return [];
     if (family === "all") return catalog;
-    return catalog.filter((c) => c.family === family);
+    return catalog.filter((c) => c.category === family || c.family === family);
   }, [catalog, family]);
 
   function loadCatalog() {
     setError(null);
     startTransition(async () => {
-      const rows = await actionListIndustryPresets();
-      setCatalog(rows);
+      const res = await actionListIndustryPresets();
+      setCatalog(res.presets);
+      setCategories(res.categories);
+      setVariantMeta(res.variants);
+      setTotals(res.totals);
     });
   }
 
@@ -93,17 +115,26 @@ export function IndustryPresetPanel({
   }, []);
 
   useEffect(() => {
-    if (payload.experience) setExpDraft(payload.experience);
+    if (payload.experience) {
+      setExpDraft(payload.experience);
+      if (payload.experience.variant) setVariant(payload.experience.variant);
+    }
   }, [payload.experience]);
 
-  function applyPreset(presetId: string, detectAndCustomize: boolean) {
+  function applyPreset(
+    presetId: string,
+    detectAndCustomize: boolean,
+    variantOverride?: PresetVariantId,
+  ) {
     setError(null);
     setNotice(null);
+    const v = variantOverride ?? variant;
     startTransition(async () => {
       const res = await actionApplyIndustryPreset({
         websiteId,
         presetId: presetId as never,
         payload,
+        variant: v,
         detectAndCustomize,
       });
       if (!res.ok) {
@@ -112,6 +143,7 @@ export function IndustryPresetPanel({
       }
       onApplyPayload(res.payload);
       setExpDraft(res.payload.experience ?? null);
+      setVariant(res.variant);
       if (res.brand) {
         setBrand({
           businessName: res.brand.businessName,
@@ -130,8 +162,8 @@ export function IndustryPresetPanel({
       }
       setNotice(
         detectAndCustomize
-          ? `Applied “${res.presetName}” and customized from site crawl.`
-          : `Applied “${res.presetName}” preset (library design preserved).`,
+          ? `Applied “${res.presetName}” (${res.variant}) and customized from site crawl.`
+          : `Applied “${res.presetName}” · ${res.variant} variant (library design preserved).`,
       );
     });
   }
@@ -165,8 +197,9 @@ export function IndustryPresetPanel({
         faqs: res.brand.faqs,
       });
       setMatches(res.matches);
+      setVariant(res.variant);
       setNotice(
-        `Matched “${res.presetName}” from site crawl · customized preset (not redesigned).`,
+        `Matched “${res.presetName}” (${res.confidence}% · ${res.variant}) from site crawl — customized, not redesigned.`,
       );
       setSection("detect");
     });
@@ -280,9 +313,10 @@ export function IndustryPresetPanel({
           Enterprise Industry Preset Library
         </p>
         <p className="mt-1 text-[13px] text-muted">
-          AI customizes a professional industry preset — it never invents a
-          widget design from scratch. Every section below is editable and
-          exportable as JSON.
+          AI customizes a professional industry experience — it never invents a
+          widget design from scratch. {totals.industries || 50} industries × 3
+          variants = {totals.experiences || 150} ready-to-deploy experiences.
+          Every section is editable and exportable as JSON.
         </p>
       </div>
 
@@ -340,9 +374,38 @@ export function IndustryPresetPanel({
               value={family}
               onChange={(e) => setFamily(e.target.value as typeof family)}
             >
-              <option value="all">All industries</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="creative_marketing">Creative & Marketing</option>
+              <option value="all">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={`${input} max-w-[200px]`}
+              value={variant}
+              onChange={(e) => setVariant(e.target.value as PresetVariantId)}
+            >
+              {(variantMeta.length
+                ? variantMeta
+                : [
+                    { id: "minimal" as const, label: "Minimal", blurb: "" },
+                    {
+                      id: "professional" as const,
+                      label: "Professional",
+                      blurb: "",
+                    },
+                    {
+                      id: "premium" as const,
+                      label: "Premium / Conversion",
+                      blurb: "",
+                    },
+                  ]
+              ).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label}
+                </option>
+              ))}
             </select>
             <button
               type="button"
@@ -361,6 +424,10 @@ export function IndustryPresetPanel({
               Refresh library
             </button>
           </div>
+          <p className="text-[11px] text-faint">
+            Variant: Minimal (lean) · Professional (default) · Premium (max
+            conversion). AI picks industry + variant — then brand-customizes.
+          </p>
 
           <div className="grid gap-2 sm:grid-cols-2">
             {filtered.map((p) => (
@@ -388,7 +455,7 @@ export function IndustryPresetPanel({
                     </p>
                     <p className="mt-1 text-[12px] text-muted">{p.catalogBlurb}</p>
                     <p className="mt-1 text-[11px] text-faint">
-                      Assistant: {p.assistantName}
+                      Assistant: {p.assistantName} · 3 variants
                     </p>
                   </div>
                 </div>
@@ -399,7 +466,7 @@ export function IndustryPresetPanel({
                     onClick={() => applyPreset(p.id, false)}
                     className="rounded-md bg-[#0b1e3a] px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60"
                   >
-                    Apply preset
+                    Apply {variant}
                   </button>
                   <button
                     type="button"
@@ -501,12 +568,17 @@ export function IndustryPresetPanel({
                 >
                   <span className="text-[12px] text-ink">
                     {m.name}{" "}
-                    <span className="text-faint">(score {m.score})</span>
+                    <span className="text-faint">
+                      ({m.confidence ?? m.score}%
+                      {m.suggestedVariant ? ` · ${m.suggestedVariant}` : ""})
+                    </span>
                   </span>
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => applyPreset(m.id, true)}
+                    onClick={() =>
+                      applyPreset(m.id, true, m.suggestedVariant ?? variant)
+                    }
                     className="text-[11px] font-semibold text-brand"
                   >
                     Apply + customize

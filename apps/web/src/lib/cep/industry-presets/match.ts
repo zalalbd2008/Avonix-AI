@@ -1,16 +1,36 @@
 import { INDUSTRY_PRESETS } from "./catalog";
 import type { DetectedSiteBrand } from "./detect";
-import type { CepIndustryPreset, IndustryPresetId } from "./types";
+import type { CepIndustryPreset, IndustryPresetId, PresetVariantId } from "./types";
 
 export type PresetMatch = {
   preset: CepIndustryPreset;
   score: number;
+  /** 0–100 confidence for studio display */
+  confidence: number;
   matchedKeywords: string[];
+  suggestedVariant: PresetVariantId;
 };
+
+function suggestVariant(brand: DetectedSiteBrand, preset: CepIndustryPreset): PresetVariantId {
+  const corpus = brand.corpus || "";
+  const conversionHeavy =
+    brand.hasBooking ||
+    /\b(book|appointment|estimate|quote|free consult|financing|reviews?)\b/i.test(corpus);
+  const lean =
+    corpus.length < 800 ||
+    /\b(minimal|simple|fast)\b/i.test(corpus);
+
+  if (conversionHeavy && (preset.category === "home_services" || preset.category === "dental" || preset.category === "web_digital")) {
+    return "premium";
+  }
+  if (lean && preset.category === "professional") return "minimal";
+  if (conversionHeavy) return "premium";
+  return "professional";
+}
 
 /**
  * Score library presets against crawled site corpus.
- * Always returns the best existing preset — never invents a new design.
+ * Always returns an existing preset — never invents a design.
  */
 export function matchIndustryPresets(
   brand: DetectedSiteBrand,
@@ -25,40 +45,55 @@ export function matchIndustryPresets(
       if (!needle) continue;
       if (corpus.includes(needle)) {
         matched.push(kw);
-        // Longer phrases are more specific.
-        score += Math.min(12, 3 + Math.floor(needle.length / 4));
+        score += Math.min(14, 4 + Math.floor(needle.length / 3));
       }
     }
-    // Soft boosts from detected services / booking
     for (const svc of brand.services) {
       if (preset.matchKeywords.some((k) => k.includes(svc) || svc.includes(k))) {
         score += 2;
       }
     }
-    if (brand.hasBooking && preset.family === "healthcare") score += 1;
-    if (
-      brand.hasBooking === false &&
-      preset.family === "creative_marketing" &&
-      /\b(quote|brief|portfolio|seo|marketing)\b/i.test(preset.industryName)
-    ) {
-      score += 0.5;
+    if (brand.hasBooking && (preset.category === "healthcare" || preset.category === "dental")) {
+      score += 2;
     }
-    return { preset, score, matchedKeywords: matched };
+    if (brand.hasBooking && preset.category === "home_services") score += 1.5;
+    return {
+      preset,
+      score,
+      confidence: 0,
+      matchedKeywords: matched,
+      suggestedVariant: suggestVariant(brand, preset),
+    };
   });
 
-  return scored
+  const ranked = scored
     .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score || a.preset.industryName.localeCompare(b.preset.industryName))
-    .slice(0, limit);
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.preset.industryName.localeCompare(b.preset.industryName),
+    );
+
+  const top = ranked[0]?.score || 1;
+  return ranked.slice(0, limit).map((m) => ({
+    ...m,
+    confidence: Math.min(99, Math.round((m.score / top) * 92 + (m.matchedKeywords.length > 1 ? 5 : 0))),
+  }));
 }
 
 export function pickBestPreset(
   brand: DetectedSiteBrand,
   fallbackId: IndustryPresetId = "general-medical-clinic",
-): CepIndustryPreset {
+): { preset: CepIndustryPreset; variant: PresetVariantId; confidence: number } {
   const top = matchIndustryPresets(brand, 1)[0];
-  if (top) return top.preset;
-  return (
-    INDUSTRY_PRESETS.find((p) => p.id === fallbackId) ?? INDUSTRY_PRESETS[0]
-  );
+  if (top) {
+    return {
+      preset: top.preset,
+      variant: top.suggestedVariant,
+      confidence: top.confidence,
+    };
+  }
+  const preset =
+    INDUSTRY_PRESETS.find((p) => p.id === fallbackId) ?? INDUSTRY_PRESETS[0]!;
+  return { preset, variant: "professional", confidence: 35 };
 }

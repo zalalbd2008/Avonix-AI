@@ -1,11 +1,61 @@
 /**
- * Enterprise Industry Preset Library for Live Chat.
- * AI customizes these presets — it must never invent a widget design from scratch.
+ * Enterprise Industry Preset Library
+ * AI customizes these presets — never invents a widget design from scratch.
+ *
+ * Category architecture supports 100+ presets.
+ * Each industry has 3 variants: minimal | professional | premium.
  */
 
-export type IndustryFamily = "healthcare" | "creative_marketing";
+export type IndustryCategory =
+  | "healthcare"
+  | "dental"
+  | "creative"
+  | "web_digital"
+  | "home_services"
+  | "professional"
+  /** Reserved for future library expansion */
+  | "beauty"
+  | "legal"
+  | "financial"
+  | "construction"
+  | "automotive"
+  | "hospitality"
+  | "education"
+  | "fitness"
+  | "ecommerce"
+  | "saas"
+  | "technology"
+  | "enterprise";
+
+/** @deprecated use IndustryCategory */
+export type IndustryFamily = IndustryCategory;
+
+export type PresetVariantId = "minimal" | "professional" | "premium";
+
+export const PRESET_VARIANTS: Array<{
+  id: PresetVariantId;
+  label: string;
+  blurb: string;
+}> = [
+  {
+    id: "minimal",
+    label: "Minimal",
+    blurb: "Clean, fast, fewer UI elements — speed-first.",
+  },
+  {
+    id: "professional",
+    label: "Professional",
+    blurb: "Balanced corporate experience — default B2B/B2C.",
+  },
+  {
+    id: "premium",
+    label: "Premium / Conversion",
+    blurb: "Max CTA, trust, reviews, booking & lead capture.",
+  },
+];
 
 export type IndustryPresetId =
+  // Healthcare (12)
   | "emergency-room"
   | "urgent-care"
   | "general-medical-clinic"
@@ -17,15 +67,50 @@ export type IndustryPresetId =
   | "diagnostic-lab"
   | "physical-therapy"
   | "mental-health"
+  | "womens-health"
+  // Dental specialties (5)
+  | "cosmetic-dentistry"
+  | "dental-implant"
+  | "pediatric-dentistry"
+  | "endodontics"
+  | "oral-surgery"
+  // Creative & branding (8)
   | "logo-design"
   | "branding-agency"
   | "business-card-design"
   | "graphic-design-studio"
+  | "print-design"
+  | "packaging-design"
+  | "creative-design-agency"
+  | "marketing-collateral"
+  // Web & digital (8)
   | "website-design"
   | "wordpress-agency"
-  | "seo-local-seo"
+  | "seo-agency"
+  | "local-seo-agency"
   | "gbp-management"
-  | "digital-marketing";
+  | "digital-marketing"
+  | "social-media-marketing"
+  | "ppc-ads"
+  // Home services (8)
+  | "roofing"
+  | "hvac"
+  | "plumbing"
+  | "electrician"
+  | "pest-control"
+  | "cleaning-service"
+  | "landscaping"
+  | "garage-door"
+  // Professional services (9)
+  | "law-firm"
+  | "cpa-accounting"
+  | "insurance-agency"
+  | "real-estate"
+  | "mortgage"
+  | "property-management"
+  | "financial-advisor"
+  | "business-consultant"
+  | "it-support";
 
 export type ColorPalette = {
   primary: string;
@@ -76,60 +161,95 @@ export type AnalyticsEvent = {
   when: string;
 };
 
-/** Rich experience layer stored on the widget payload (editable). */
+/** Full editable industry experience (stored on widget payload). */
 export type CepIndustryExperience = {
   industryPresetId: IndustryPresetId;
   industryName: string;
+  category: IndustryCategory;
+  variant: PresetVariantId;
   designPersonality: string;
-  colorPalette: ColorPalette;
+  businessGoal: string;
+  conversionGoal: string;
+  primaryCta: { label: string; action: string };
+  secondaryCta: { label: string; action: string };
+  headerLayout: string;
+  headerTheme: string;
   headerDesign: string;
+  colorPalette: ColorPalette;
+  typography: string;
   assistantName: string;
   assistantRole: string;
   avatarStyle: string;
   greeting: string;
-  suggestedQuestions: string[];
   quickActionGrid: QuickAction[];
-  primaryCta: { label: string; action: string };
-  secondaryCta: { label: string; action: string };
+  suggestedQuestions: string[];
+  popularServices: string[];
+  aiPersonality: string;
+  salesStrategy: string;
+  salesConversationFlow: string;
   leadCaptureStrategy: string;
+  leadQualificationFlow: FlowStep[];
   conversationFlow: FlowStep[];
   appointmentFlow: FlowStep[];
+  estimateFlow: FlowStep[];
   quoteFlow: FlowStep[];
   portfolioFlow: FlowStep[];
   pricingFlow: FlowStep[];
   faqFlow: FlowStep[];
+  reviewCollectionFlow: FlowStep[];
   contactFlow: FlowStep[];
+  fileUploadNotes: string;
+  imageUploadNotes: string;
+  locationSharingNotes: string;
+  liveAgentFlow: FlowStep[];
+  callBackRequest: string;
+  smsRequest: string;
+  emailRequest: string;
   humanHandoffRules: string[];
+  humanEscalation: string;
   trustBadges: string[];
   trustIndicators: string[];
   footer: string;
   bubbleCta: string;
-  salesConversationFlow: string;
+  bubbleAnimation: string;
   followUpSequence: string[];
   followUpLogic: string;
   aiPrompt: string;
-  businessGoal: string;
-  conversionGoal: string;
+  knowledgeBaseMapping: string[];
   recommendedIcons: string[];
   illustrationStyle: string;
   animations: string[];
+  desktopLayout: string;
+  tabletLayout: string;
+  mobileLayout: string;
+  /** @deprecated use mobileLayout */
   mobileNotes: string;
+  /** @deprecated use desktopLayout */
   desktopNotes: string;
   darkModeNotes: string;
   accessibilityRules: string[];
-  automationRules: AutomationRule[];
   displayRules: DisplayRule[];
+  behaviorRules: string[];
+  automationRules: AutomationRule[];
   triggerRules: string[];
+  smartTriggers: string[];
   exitIntentRules: string[];
+  returningVisitorLogic: string;
+  businessHoursLogic: string;
+  offlineMode: string;
   analyticsEvents: AnalyticsEvent[];
 };
 
-/** Full library entry: experience + applyable widget patch fields. */
-export type CepIndustryPreset = CepIndustryExperience & {
+/** Catalog entry — professional variant is the base; others resolve via variants engine. */
+export type CepIndustryPreset = Omit<CepIndustryExperience, "variant"> & {
   id: IndustryPresetId;
-  family: IndustryFamily;
-  /** Short catalog blurb for the studio picker. */
+  family: IndustryCategory;
   catalogBlurb: string;
-  /** Keywords used to match crawled site text (lowercase). */
   matchKeywords: string[];
+};
+
+export type IndustryCategoryMeta = {
+  id: IndustryCategory;
+  label: string;
+  blurb: string;
 };

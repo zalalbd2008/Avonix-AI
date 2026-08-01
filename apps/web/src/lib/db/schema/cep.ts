@@ -125,6 +125,8 @@ export type CepWidgetTheme = {
   botBubbleColor?: string;
   /** Footer disclaimer under the composer. */
   disclaimer?: string;
+  /** Small reply-time line under action cards / above composer. */
+  replyEtaText?: string;
 };
 
 /** Page visibility — same shape as CTA/Popup pageTarget. */

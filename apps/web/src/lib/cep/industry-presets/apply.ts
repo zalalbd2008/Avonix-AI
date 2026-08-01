@@ -3,34 +3,27 @@ import type { DetectedSiteBrand } from "./detect";
 import type {
   CepIndustryExperience,
   CepIndustryPreset,
+  PresetVariantId,
 } from "./types";
+import { resolvePresetExperience } from "./variants";
 
-/** Strip catalog-only fields into the editable experience stored on the widget. */
 export function presetToExperience(
   preset: CepIndustryPreset,
+  variant: PresetVariantId = "professional",
 ): CepIndustryExperience {
-  const {
-    id,
-    family: _family,
-    catalogBlurb: _blurb,
-    matchKeywords: _kw,
-    ...experience
-  } = preset;
-  return {
-    ...experience,
-    industryPresetId: id,
-  };
+  return resolvePresetExperience(preset, variant);
 }
 
 /**
- * Customize a library preset with crawled brand signals.
- * Colors / name / logo / CTAs / contact context are patched — design language stays.
+ * Customize a library preset (+ variant) with crawled brand signals.
+ * Design language stays — only branding/content patches.
  */
 export function customizePresetWithBrand(
   preset: CepIndustryPreset,
   brand: DetectedSiteBrand | null | undefined,
+  variant: PresetVariantId = "professional",
 ): CepIndustryExperience {
-  const base = presetToExperience(preset);
+  const base = resolvePresetExperience(preset, variant);
   if (!brand) return base;
 
   const name = brand.businessName?.trim();
@@ -38,11 +31,8 @@ export function customizePresetWithBrand(
   const accent = brand.brandColors[1] ?? brand.brandColors[0];
 
   let greeting = base.greeting;
-  if (name) {
-    greeting = greeting.replace(/\b(our|the)\s+(clinic|hospital|studio|agency)\b/gi, name);
-    if (!greeting.toLowerCase().includes(name.toLowerCase())) {
-      greeting = `${greeting}\n\nYou're chatting with ${name}.`;
-    }
+  if (name && !greeting.toLowerCase().includes(name.toLowerCase())) {
+    greeting = `${greeting}\n\nYou're chatting with ${name}.`;
   }
 
   const contactBits = [
@@ -60,13 +50,14 @@ export function customizePresetWithBrand(
         ? `Detected services/topics: ${brand.services.join(", ")}.`
         : null,
       brand.hasBooking || brand.hasAppointmentLanguage
-        ? "Site appears to support appointment/booking language — prefer booking CTAs when relevant."
+        ? "Site appears to support appointment/booking language — prefer booking CTAs."
         : null,
       brand.primaryCta
         ? `Site primary CTA language leans toward: “${brand.primaryCta}”.`
         : null,
-      "Never invent medical advice, prices, or case-study claims not grounded in site knowledge.",
-      "Do not redesign the widget experience — stay within this industry preset's flows and tone.",
+      `Preset variant: ${variant}.`,
+      "Never invent claims not grounded in site knowledge.",
+      "Do not redesign the widget — stay within this industry preset experience.",
     ]
       .filter(Boolean)
       .join(" ");
@@ -94,42 +85,39 @@ export function customizePresetWithBrand(
   if (brand.phone) trustBadges.unshift(`Call ${brand.phone}`);
   if (name) trustBadges.unshift(name);
 
+  const popularServices =
+    brand.services.length > 0
+      ? [...brand.services.slice(0, 6), ...base.popularServices].slice(0, 8)
+      : base.popularServices;
+
   return {
     ...base,
     colorPalette,
     greeting,
     primaryCta,
     aiPrompt,
+    popularServices,
     trustBadges: trustBadges.slice(0, 6),
     footer: name ? `${base.footer} · ${name}` : base.footer,
+    knowledgeBaseMapping: [
+      ...base.knowledgeBaseMapping,
+      ...(brand.faqs.length ? ["faqs"] : []),
+      ...(brand.hasBooking ? ["booking"] : []),
+    ],
   };
 }
 
-/**
- * Apply an industry experience onto a CEP widget payload.
- * Preserves placement / sizes / unrelated settings; patches identity, theme, AI, modules, quick replies.
- */
 export function applyExperienceToPayload(
   current: CepWidgetPayload,
   experience: CepIndustryExperience,
   opts?: { logoUrl?: string | null },
 ): CepWidgetPayload {
-  const isHealthcare =
-    experience.industryPresetId.includes("clinic") ||
-    experience.industryPresetId.includes("hospital") ||
-    experience.industryPresetId.includes("dental") ||
-    experience.industryPresetId.includes("orthodont") ||
-    experience.industryPresetId.includes("eye") ||
-    experience.industryPresetId.includes("diagnostic") ||
-    experience.industryPresetId.includes("physical") ||
-    experience.industryPresetId.includes("mental") ||
-    experience.industryPresetId.includes("emergency") ||
-    experience.industryPresetId.includes("urgent") ||
-    experience.industryPresetId.includes("family-doctor");
+  const care =
+    experience.category === "healthcare" || experience.category === "dental";
+  const creativeish =
+    experience.category === "creative" || experience.category === "web_digital";
 
-  const isCreative = !isHealthcare;
-
-  const quickReplies = experience.quickActionGrid.slice(0, 6).map((q) => ({
+  const quickReplies = experience.quickActionGrid.slice(0, 8).map((q) => ({
     id: q.id,
     label: q.label,
     icon: q.icon,
@@ -143,9 +131,11 @@ export function applyExperienceToPayload(
     experience,
     title: experience.assistantName,
     greeting: experience.greeting,
-    placeholder: isCreative
-      ? "Ask about projects, packages, or timelines…"
-      : "Ask about visits, hours, or how we can help…",
+    placeholder: care
+      ? "Ask about visits, hours, or how we can help…"
+      : creativeish
+        ? "Ask about projects, packages, or timelines…"
+        : "Ask about services, pricing, or next steps…",
     theme: {
       ...current.theme,
       primaryColor: experience.colorPalette.primary,
@@ -164,6 +154,12 @@ export function applyExperienceToPayload(
       agreementLogoUrl:
         opts?.logoUrl || current.theme?.agreementLogoUrl || undefined,
       agreementIntro: `Hi! I am your ${experience.assistantRole}.`,
+      replyEtaText:
+        experience.variant === "premium"
+          ? "We typically reply in under 2 minutes."
+          : experience.variant === "minimal"
+            ? "We’ll reply as soon as we can."
+            : "We typically reply in under 2 minutes.",
     },
     ai: {
       ...current.ai,
@@ -172,14 +168,20 @@ export function applyExperienceToPayload(
     modules: {
       ...current.modules,
       leadForm: true,
-      appointment: isHealthcare || experience.appointmentFlow.length > 0,
+      appointment:
+        care ||
+        experience.category === "home_services" ||
+        experience.appointmentFlow.length > 0,
       transferAgent: true,
-      productCarousel: isCreative,
+      productCarousel: creativeish,
     },
     triggers: {
       ...current.triggers,
-      delayMs: current.triggers?.delayMs ?? 3000,
-      exitIntent: true,
+      delayMs:
+        experience.variant === "premium"
+          ? 2000
+          : (current.triggers?.delayMs ?? 3000),
+      exitIntent: experience.variant !== "minimal",
     },
     quickReplies,
     botAvatarUrl: current.botAvatarUrl,
@@ -191,8 +193,9 @@ export function applyIndustryPreset(
   current: CepWidgetPayload,
   preset: CepIndustryPreset,
   brand?: DetectedSiteBrand | null,
+  variant: PresetVariantId = "professional",
 ): CepWidgetPayload {
-  const experience = customizePresetWithBrand(preset, brand);
+  const experience = customizePresetWithBrand(preset, brand, variant);
   return applyExperienceToPayload(current, experience, {
     logoUrl: brand?.logoUrl,
   });

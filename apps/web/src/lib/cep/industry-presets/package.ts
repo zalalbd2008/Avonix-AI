@@ -6,7 +6,7 @@ import type {
   IndustryPresetId,
 } from "./types";
 
-export const INDUSTRY_PRESET_PACKAGE_VERSION = 1 as const;
+export const INDUSTRY_PRESET_PACKAGE_VERSION = 2 as const;
 
 export type IndustryPresetPackage = {
   format: "avonix-cep-industry-preset";

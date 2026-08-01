@@ -45,8 +45,8 @@ export function placementHorizontalAlign(
 
 /**
  * Shared floating chrome: tooltip/panel box + launcher icon.
- * Used by Languages, Accessibility, and Live Chat previews so the icon
- * always moves with the box and mirrors left/right alignment.
+ * Panel is absolutely positioned above the launcher so layout size === button
+ * (same model as the live WP widgets). Placement % always tracks the FAB.
  */
 export function FloatingLauncherGroup({
   placement,
@@ -62,17 +62,19 @@ export function FloatingLauncherGroup({
   const align = placementHorizontalAlign(placement);
 
   return (
-    <div
-      className={`flex flex-col gap-1.5 ${
-        align === "start" ? "items-start" : "items-end"
-      }`}
-    >
+    <div className="relative inline-flex flex-col items-stretch">
       {open ? (
-        <div className="w-[210px] overflow-hidden rounded-xl border border-[#e8edf5] bg-white shadow-lg">
+        <div
+          className={`absolute bottom-[calc(100%+6px)] z-20 w-[210px] overflow-hidden rounded-xl border border-[#e8edf5] bg-white shadow-lg ${
+            align === "start" ? "left-0" : "right-0"
+          }`}
+        >
           {panel}
         </div>
       ) : null}
-      {launcher}
+      <div data-placement-anchor className="relative z-10">
+        {launcher}
+      </div>
     </div>
   );
 }

@@ -316,8 +316,21 @@ CSS;
 
   var xPct = Math.max(0, Math.min(100, Number(placement.xPercent) || 90));
   var yPct = Math.max(0, Math.min(100, Number(placement.yPercent) || 8));
-  root.style.left = "calc(" + xPct + "% - " + outer / 2 + "px)";
-  root.style.top = "calc(" + yPct + "% - " + outer / 2 + "px)";
+
+  function placeLang() {
+    var vw = window.innerWidth || document.documentElement.clientWidth || 360;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    var maxX = Math.max(0, vw - outer);
+    var maxY = Math.max(0, vh - outer);
+    var x = Math.round((xPct / 100) * maxX);
+    var y = Math.round((yPct / 100) * maxY);
+    root.style.left = Math.min(vw - outer, Math.max(0, x)) + "px";
+    root.style.top = Math.min(vh - outer, Math.max(0, y)) + "px";
+    root.style.right = "auto";
+    root.style.bottom = "auto";
+  }
+  placeLang();
+  window.addEventListener("resize", placeLang);
 
   var align = xPct < 50 ? "start" : "end";
   var stack = document.createElement("div");

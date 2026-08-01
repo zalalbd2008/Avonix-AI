@@ -84,13 +84,21 @@ export function DraggablePlacementCanvas({
   }, []);
 
   useEffect(() => {
-    const el = groupRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
+    const root = groupRef.current;
+    if (!root) return;
+    const measure = () => {
+      const anchor =
+        (root.querySelector("[data-placement-anchor]") as HTMLElement | null) ||
+        root;
+      const r = anchor.getBoundingClientRect();
       setGroupSize({ w: Math.max(24, r.width), h: Math.max(24, r.height) });
-    });
-    ro.observe(el);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    const anchor =
+      (root.querySelector("[data-placement-anchor]") as HTMLElement | null) ||
+      root;
+    ro.observe(anchor);
     return () => ro.disconnect();
   }, [children]);
 
@@ -190,7 +198,7 @@ export function DraggablePlacementCanvas({
       </div>
       <div
         ref={canvasRef}
-        className="relative mx-auto h-[480px] w-full max-w-[320px] touch-none overflow-hidden rounded-2xl border border-[#dbe3ee] bg-[#f8fafc] shadow-sm"
+        className="relative mx-auto aspect-[9/19] w-full max-w-[min(100%,360px)] min-h-[380px] max-h-[min(72vh,720px)] touch-none overflow-hidden rounded-2xl border border-[#dbe3ee] bg-[#f8fafc] shadow-sm"
       >
         <div
           className="pointer-events-none absolute inset-0 opacity-50"
@@ -200,7 +208,7 @@ export function DraggablePlacementCanvas({
           <div className="absolute inset-x-6 top-12 h-2 w-1/2 rounded bg-[#e8edf5]" />
           <div className="absolute inset-x-6 top-20 bottom-10 rounded-xl border border-dashed border-[#d5dde8] bg-white/80" />
           <p className="absolute inset-x-0 bottom-3 text-center text-[10px] font-medium text-[#94a3b8]">
-            Live view — drag the group anywhere
+            Screen preview — same % placement as the live site
           </p>
         </div>
 
@@ -222,13 +230,13 @@ export function DraggablePlacementCanvas({
           style={{ left: point.x, top: point.y }}
         >
           <div
-            className={`rounded-xl transition ${
+            className={`relative rounded-xl transition ${
               dragging
                 ? "scale-[1.02] ring-2 ring-brand/60 shadow-lg"
                 : "hover:ring-2 hover:ring-brand/30"
             }`}
           >
-            <div className="mb-1 flex items-center justify-center gap-1 rounded-md bg-[#13233c]/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/90">
+            <div className="pointer-events-none absolute -top-6 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#13233c]/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/90">
               <span aria-hidden>⠿</span> Drag
             </div>
             {children}

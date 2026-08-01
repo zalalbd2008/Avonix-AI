@@ -467,32 +467,29 @@ CSS;
 
   function place() {
     var pl = CFG.placement || {};
-    var vw = window.innerWidth || 360;
-    var vh = window.innerHeight || 640;
-    var margin = 8;
-    var bottomClear = 16;
-    try {
-      if (document.querySelector(".avonix-bottom-nav, .avonix-cta-bar, .avonix-cep-launcher")) bottomClear = 88;
-    } catch (e) {}
-    var xPct = pl.xPercent != null ? Number(pl.xPercent) : (String(CFG.position || "").indexOf("right") >= 0 ? 92 : 8);
-    var yPct = pl.yPercent != null ? Number(pl.yPercent) : (String(CFG.position || "").indexOf("top") >= 0 ? 8 : 88);
-    var maxX = Math.max(0, vw - outer - margin * 2);
-    var maxY = Math.max(0, vh - outer - bottomClear - margin);
-    var x = Math.round((Math.min(100, Math.max(0, xPct)) / 100) * maxX) + margin;
-    var y = Math.round((Math.min(100, Math.max(0, yPct)) / 100) * maxY) + margin;
-    x = Math.min(vw - outer - margin, Math.max(margin, x));
-    y = Math.min(vh - outer - bottomClear, Math.max(margin, y));
-    var openUp = yPct >= 45;
-    var openLeft = xPct >= 50;
+    var vw = window.innerWidth || document.documentElement.clientWidth || 360;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    var xPct = Math.max(0, Math.min(100, Number(pl.xPercent)));
+    var yPct = Math.max(0, Math.min(100, Number(pl.yPercent)));
+    if (!isFinite(xPct)) xPct = String(CFG.position || "").indexOf("right") >= 0 ? 92 : 3;
+    if (!isFinite(yPct)) yPct = String(CFG.position || "").indexOf("top") >= 0 ? 3 : 97;
+    // Same math as apps/web screen-placement pointFromPlacement():
+    // % of remaining space (viewport − launcher) so 0%/100% pin edges.
+    var maxX = Math.max(0, vw - outer);
+    var maxY = Math.max(0, vh - outer);
+    var x = Math.round((xPct / 100) * maxX);
+    var y = Math.round((yPct / 100) * maxY);
+    x = Math.min(vw - outer, Math.max(0, x));
+    y = Math.min(vh - outer, Math.max(0, y));
     root.style.left = x + "px";
+    root.style.top = y + "px";
     root.style.right = "auto";
-    root.style.top = "auto";
     root.style.bottom = "auto";
-    if (openUp) root.style.bottom = Math.max(bottomClear, vh - (y + outer)) + "px";
-    else root.style.top = y + "px";
+    var openLeft = xPct >= 50;
+    var nearTop = yPct < 28;
     stack.classList.toggle("is-end", openLeft);
     stack.classList.toggle("is-start", !openLeft);
-    stack.classList.toggle("is-below", !openUp);
+    stack.classList.toggle("is-below", nearTop);
   }
 
   state = load();

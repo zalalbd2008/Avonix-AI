@@ -17,6 +17,8 @@
     },
   };
 
+  var layingOut = false;
+
   function readGroup() {
     var g =
       window.AVONIX_FAB_GROUP ||
@@ -47,142 +49,166 @@
     return !m || m.linked !== false;
   }
 
-  function outerSize(el, id) {
+  /** Vertical step size = tile height (not width — CTA row can be wider). */
+  function tileHeight(el, id) {
     if (!el) return 44;
+    var sel =
+      id === "chat"
+        ? ".avonix-cep-launcher"
+        : id === "accessibility"
+          ? ".avonix-a11y-btn, .avonix-a11y-stack"
+          : id === "languages"
+            ? ".avonix-lang-btn, .avonix-lang-stack"
+            : null;
+    var node = sel ? el.querySelector(sel) : el;
+    if (node) {
+      var br = node.getBoundingClientRect();
+      if (br.height > 0) return Math.round(br.height);
+      if (br.width > 0) return Math.round(br.width);
+    }
     if (id === "chat") {
-      var btn = el.querySelector(".avonix-cep-launcher");
-      if (btn) {
-        var br = btn.getBoundingClientRect();
-        if (br.width > 0) return Math.round(br.width);
-      }
       var css = window.getComputedStyle(el).getPropertyValue("--avx-launcher");
       var n = parseFloat(css);
       if (isFinite(n) && n > 0) return Math.round(n);
-      return 44;
     }
-    if (id === "accessibility") {
-      var a = el.querySelector(".avonix-a11y-stack");
-      if (a) {
-        var ar = a.getBoundingClientRect();
-        if (ar.width > 0) return Math.round(ar.width);
-      }
-    }
-    if (id === "languages") {
-      var l = el.querySelector(".avonix-lang-stack");
-      if (l) {
-        var lr = l.getBoundingClientRect();
-        if (lr.width > 0) return Math.round(lr.width);
-      }
-    }
-    var r = el.getBoundingClientRect();
-    return r.width > 0 ? Math.round(r.width) : 44;
+    return 44;
   }
 
   function placeChatClosed(el, x, y, size, openLeft, narrow) {
     if (el.classList.contains("is-open")) return false;
+    el.classList.add("avonix-fab-stacked");
+    el.style.gap = "0px";
+    var pill = el.querySelector(".avonix-cep-cta-pill");
+    if (pill) pill.setAttribute("hidden", "");
+
     var r = narrow ? Math.max(6, Math.round(size * (10 / 44))) + "px" : null;
+    // Keep launcher at the top of the root (no column-reverse / panel gap).
+    el.style.flexDirection = "column";
+    el.style.alignItems = openLeft ? "flex-end" : "flex-start";
+    el.classList.toggle("is-align-end", openLeft);
+    el.classList.toggle("is-align-start", !openLeft);
     el.style.left = x + "px";
     el.style.top = y + "px";
     el.style.right = "auto";
     el.style.bottom = "auto";
     el.style.width = "";
-    el.style.flexDirection = "column";
-    el.style.alignItems = openLeft ? "flex-end" : "flex-start";
-    el.classList.toggle("is-align-end", openLeft);
-    el.classList.toggle("is-align-start", !openLeft);
     if (r) {
       el.style.setProperty("--avx-launcher-radius", r);
       var btn = el.querySelector(".avonix-cep-launcher");
       if (btn) btn.style.borderRadius = r;
     }
+
+    // Correct if launcher is not flush with root top (pill/centering leftovers).
+    var launcher = el.querySelector(".avonix-cep-launcher");
+    if (launcher) {
+      var rootTop = el.getBoundingClientRect().top;
+      var btnTop = launcher.getBoundingClientRect().top;
+      var drift = Math.round(btnTop - rootTop);
+      if (drift !== 0) {
+        el.style.top = y - drift + "px";
+      }
+    }
     return true;
   }
 
   function layout() {
+    if (layingOut) return;
     var g = readGroup();
     if (!g) return;
 
-    var order = Array.isArray(g.order)
-      ? g.order.slice()
-      : ["accessibility", "languages", "chat"];
-    var gap =
-      typeof g.gap_px === "number" && isFinite(g.gap_px)
-        ? Math.max(0, Math.round(g.gap_px))
-        : 1;
+    layingOut = true;
+    try {
+      var order = Array.isArray(g.order)
+        ? g.order.slice()
+        : ["accessibility", "languages", "chat"];
+      var gap =
+        typeof g.gap_px === "number" && isFinite(g.gap_px)
+          ? Math.max(0, Math.round(g.gap_px))
+          : 1;
 
-    var vw = window.innerWidth || document.documentElement.clientWidth || 360;
-    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
-    var narrow = vw < 640;
-    var inset = narrow ? 8 : 0;
+      var vw = window.innerWidth || document.documentElement.clientWidth || 360;
+      var vh =
+        window.innerHeight || document.documentElement.clientHeight || 640;
+      var narrow = vw < 640;
+      var inset = narrow ? 8 : 0;
 
-    var linked = [];
-    var sizes = {};
-    order.forEach(function (id) {
-      if (!ROOTS[id] || !memberLinked(g, id)) return;
-      var el = ROOTS[id]();
-      if (!el || !el.isConnected) return;
-      if (id === "chat" && el.classList.contains("is-open")) return;
-      sizes[id] = outerSize(el, id);
-      linked.push({ id: id, el: el });
-    });
-    if (linked.length < 1) return;
+      var linked = [];
+      var sizes = {};
+      order.forEach(function (id) {
+        if (!ROOTS[id] || !memberLinked(g, id)) return;
+        var el = ROOTS[id]();
+        if (!el || !el.isConnected) return;
+        if (id === "chat" && el.classList.contains("is-open")) return;
+        sizes[id] = tileHeight(el, id);
+        linked.push({ id: id, el: el });
+      });
+      if (linked.length < 1) return;
 
-    var pl = g.placement || {};
-    var xPct = Number(pl.xPercent);
-    var yPct = Number(pl.yPercent);
-    // Infer from current topmost FAB when studio has not saved a group yet.
-    if (!isFinite(xPct) || !isFinite(yPct)) {
-      var anchor = linked[0].el.getBoundingClientRect();
-      xPct = (anchor.left / Math.max(1, vw)) * 100;
-      yPct = (anchor.top / Math.max(1, vh)) * 100;
-    }
+      var pl = g.placement || {};
+      var xPct = Number(pl.xPercent);
+      var yPct = Number(pl.yPercent);
+      // Infer from current topmost FAB when studio has not saved a group yet.
+      if (!isFinite(xPct) || !isFinite(yPct)) {
+        var anchorEl = linked[0].el;
+        var anchorBtn =
+          anchorEl.querySelector(
+            ".avonix-a11y-btn, .avonix-lang-btn, .avonix-cep-launcher",
+          ) || anchorEl;
+        var anchor = anchorBtn.getBoundingClientRect();
+        xPct = (anchor.left / Math.max(1, vw)) * 100;
+        yPct = (anchor.top / Math.max(1, vh)) * 100;
+      }
 
-    var firstSize = sizes[linked[0].id] || 44;
-    var stackH = 0;
-    linked.forEach(function (item, i) {
-      stackH += sizes[item.id] || 44;
-      if (i < linked.length - 1) stackH += gap;
-    });
+      var firstSize = sizes[linked[0].id] || 44;
+      var stackH = 0;
+      linked.forEach(function (item, i) {
+        stackH += sizes[item.id] || 44;
+        if (i < linked.length - 1) stackH += gap;
+      });
 
-    var x = Math.round((xPct / 100) * vw);
-    var y = Math.round((yPct / 100) * vh);
-    x = Math.min(
-      Math.max(inset, vw - firstSize - inset),
-      Math.max(inset, x),
-    );
-    y = Math.min(Math.max(inset, vh - stackH - inset), Math.max(inset, y));
-
-    var openLeft = xPct >= 50;
-    var cursor = y;
-    linked.forEach(function (item) {
-      var size = sizes[item.id] || 44;
-      var slotX = Math.min(
-        Math.max(inset, vw - size - inset),
+      var x = Math.round((xPct / 100) * vw);
+      var y = Math.round((yPct / 100) * vh);
+      x = Math.min(
+        Math.max(inset, vw - firstSize - inset),
         Math.max(inset, x),
       );
-      var el = item.el;
-      if (item.id === "chat") {
-        placeChatClosed(el, slotX, cursor, size, openLeft, narrow);
-      } else {
-        el.style.left = slotX + "px";
-        el.style.top = cursor + "px";
-        el.style.right = "auto";
-        el.style.bottom = "auto";
-        var rad = Math.max(6, Math.round(size * (10 / 44)));
-        var radius = narrow
-          ? rad + "px"
-          : openLeft
-            ? rad + "px 0 0 " + rad + "px"
-            : "0 " + rad + "px " + rad + "px 0";
-        if (item.id === "accessibility") {
-          el.style.setProperty("--avonix-a11y-radius", radius);
+      y = Math.min(Math.max(inset, vh - stackH - inset), Math.max(inset, y));
+
+      var openLeft = xPct >= 50;
+      var cursor = y;
+      linked.forEach(function (item) {
+        var size = sizes[item.id] || 44;
+        var slotX = Math.min(
+          Math.max(inset, vw - size - inset),
+          Math.max(inset, x),
+        );
+        var el = item.el;
+        el.setAttribute("data-avonix-fab-stacked", "1");
+        if (item.id === "chat") {
+          placeChatClosed(el, slotX, cursor, size, openLeft, narrow);
+        } else {
+          el.style.left = slotX + "px";
+          el.style.top = cursor + "px";
+          el.style.right = "auto";
+          el.style.bottom = "auto";
+          var rad = Math.max(6, Math.round(size * (10 / 44)));
+          var radius = narrow
+            ? rad + "px"
+            : openLeft
+              ? rad + "px 0 0 " + rad + "px"
+              : "0 " + rad + "px " + rad + "px 0";
+          if (item.id === "accessibility") {
+            el.style.setProperty("--avonix-a11y-radius", radius);
+          }
+          if (item.id === "languages") {
+            el.style.setProperty("--avonix-lang-radius", radius);
+          }
         }
-        if (item.id === "languages") {
-          el.style.setProperty("--avonix-lang-radius", radius);
-        }
-      }
-      cursor += size + gap;
-    });
+        cursor += size + gap;
+      });
+    } finally {
+      layingOut = false;
+    }
   }
 
   var scheduled = false;
@@ -213,7 +239,10 @@
       true,
     );
     try {
-      var mo = new MutationObserver(schedule);
+      var mo = new MutationObserver(function () {
+        if (layingOut) return;
+        schedule();
+      });
       mo.observe(document.documentElement, {
         childList: true,
         subtree: true,

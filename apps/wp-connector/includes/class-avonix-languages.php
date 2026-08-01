@@ -396,6 +396,16 @@ CSS;
   stack.className = "avonix-lang-stack";
 
   function placeLang() {
+    var fabG = window.AVONIX_FAB_GROUP || (CFG && CFG.fab_group) || null;
+    var stacked =
+      (!fabG || fabG.enabled !== false) &&
+      !(fabG && fabG.members && fabG.members.languages && fabG.members.languages.linked === false);
+    if (stacked) {
+      if (window.AvonixFabStack && typeof window.AvonixFabStack.schedule === "function") {
+        window.AvonixFabStack.schedule();
+      }
+      return;
+    }
     var pct = readPlacementPercents();
     var xPct = pct.xPct;
     var yPct = pct.yPct;

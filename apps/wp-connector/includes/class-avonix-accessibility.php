@@ -486,6 +486,17 @@ CSS;
   }
 
   function place() {
+    // Linked stack owns position — local % place would fight AvonixFabStack.
+    var fabG = window.AVONIX_FAB_GROUP || (CFG && CFG.fab_group) || null;
+    var stacked =
+      (!fabG || fabG.enabled !== false) &&
+      !(fabG && fabG.members && fabG.members.accessibility && fabG.members.accessibility.linked === false);
+    if (stacked) {
+      if (window.AvonixFabStack && typeof window.AvonixFabStack.schedule === "function") {
+        window.AvonixFabStack.schedule();
+      }
+      return;
+    }
     var pl = CFG.placement || {};
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
     var vh = window.innerHeight || document.documentElement.clientHeight || 640;

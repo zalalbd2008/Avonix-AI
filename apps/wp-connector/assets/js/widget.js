@@ -281,6 +281,8 @@
     ";align-items:" +
     (alignEnd ? "flex-end" : "flex-start") +
     ";gap:12px;max-width:calc(100vw - 16px);box-sizing:border-box;}" +
+    ".avonix-cep-root.avonix-fab-stacked{gap:0!important;}" +
+    ".avonix-cep-root.avonix-fab-stacked:not(.is-open) .avonix-cep-cta-pill{display:none!important;}" +
     /* Inline shortcode / embed — fill the host container, never float. */
     ".avonix-chat-wizard{display:flex;flex-direction:column;width:100%;height:100%;min-height:420px;box-sizing:border-box;}" +
     ".avonix-cep-root--wizard{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:1;width:100%!important;max-width:100%!important;height:100%!important;min-height:100%;flex:1 1 auto;align-items:stretch!important;flex-direction:column!important;gap:0!important;max-width:none!important;box-sizing:border-box;}" +
@@ -1761,6 +1763,29 @@
     }
     // Phones: keep FABs fully on-screen (no flush half-cut edge dock).
     var edgeInset = narrow ? 8 : 0;
+
+    // Linked FAB stack owns closed-launcher placement (1px gap with a11y/lang).
+    // placeRoot must not re-pin bottom/% or the chat tile drifts below the stack.
+    var fabG =
+      window.AVONIX_FAB_GROUP ||
+      (config && config.fab_group) ||
+      null;
+    var chatStacked =
+      !isOpenNow &&
+      (!fabG || fabG.enabled !== false) &&
+      !(fabG && fabG.members && fabG.members.chat && fabG.members.chat.linked === false);
+    if (chatStacked) {
+      root.classList.add("avonix-fab-stacked");
+      root.style.gap = "0px";
+      if (ctaPill) ctaPill.setAttribute("hidden", "");
+      if (window.AvonixFabStack && typeof window.AvonixFabStack.schedule === "function") {
+        window.AvonixFabStack.schedule();
+      }
+      return;
+    }
+    root.classList.remove("avonix-fab-stacked");
+    root.style.gap = "";
+    if (ctaPill && !isOpenNow) ctaPill.removeAttribute("hidden");
 
     root.style.left = "auto";
     root.style.right = "auto";

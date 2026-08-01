@@ -85,6 +85,8 @@ export type LanguageSettings = {
     position: LanguageSwitcherPosition;
     /** Free screen placement for the floating switcher group. */
     placement: ScreenPlacement;
+    /** Launcher button fill color. */
+    primaryColor: string;
     /** Icon glyph size in px. */
     iconSize: number;
     /** Inner padding around the icon in px. */
@@ -181,6 +183,7 @@ export const DEFAULT_LANGUAGES: LanguageSettings = {
     style: "dropdown",
     position: "top-right",
     placement: defaultScreenPlacement("top-right", 12, 12),
+    primaryColor: "#e15d1a",
     iconSize: DEFAULT_LAUNCHER_METRICS.iconSize,
     buttonPadding: DEFAULT_LAUNCHER_METRICS.buttonPadding,
     showFlags: true,
@@ -266,6 +269,11 @@ export function mergeLanguageSettings(
       ...switcherRaw,
       position,
       placement,
+      primaryColor:
+        typeof switcherRaw.primaryColor === "string" &&
+        switcherRaw.primaryColor.trim()
+          ? switcherRaw.primaryColor.trim()
+          : DEFAULT_LANGUAGES.switcher.primaryColor,
       iconSize: switcherMetrics.iconSize,
       buttonPadding: switcherMetrics.buttonPadding,
     },

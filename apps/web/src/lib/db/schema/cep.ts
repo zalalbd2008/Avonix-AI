@@ -223,8 +223,9 @@ export function defaultCepWidgetPayload(
       zIndex: 2147483000,
       launcherLabel: "Live chat",
       launcherIcon: "compose",
-      launcherIconSize: 26,
-      launcherPadding: 20,
+      // Keep in sync with DEFAULT_LAUNCHER_METRICS (Accessibility / Languages).
+      launcherIconSize: 22,
+      launcherPadding: 11,
       onlineIndicator: true,
       pulse: false,
       onlineDotColor: "#00ff6a",

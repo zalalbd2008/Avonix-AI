@@ -658,6 +658,35 @@ export function LanguagesStudio({
                     ))}
                   </div>
                 </Field>
+                <Field label="Button color">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={settings.switcher.primaryColor}
+                      onChange={(e) =>
+                        patch({
+                          switcher: {
+                            ...settings.switcher,
+                            primaryColor: e.target.value,
+                          },
+                        })
+                      }
+                      className="h-10 w-12 cursor-pointer rounded-lg border border-[#e8edf5] bg-white p-1"
+                    />
+                    <input
+                      className={input}
+                      value={settings.switcher.primaryColor}
+                      onChange={(e) =>
+                        patch({
+                          switcher: {
+                            ...settings.switcher,
+                            primaryColor: e.target.value,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </Field>
                 <Field label="Button size">
                   <LauncherSizeControl
                     value={{
@@ -1396,7 +1425,8 @@ function SwitcherPreview({
         launcher={
           <FloatingLauncherButton
             label="Language"
-            color={LAUNCHER_ORANGE}
+            color={settings.switcher.primaryColor || LAUNCHER_ORANGE}
+            shape="circle"
             metrics={{
               iconSize: settings.switcher.iconSize,
               buttonPadding: settings.switcher.buttonPadding,

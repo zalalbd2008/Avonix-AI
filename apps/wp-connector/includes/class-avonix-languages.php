@@ -107,8 +107,8 @@ class Avonix_Languages
 #avonix-lang-root * { box-sizing: border-box; }
 #avonix-lang-root .avonix-lang-stack {
   position: relative;
-  width: var(--avonix-lang-size, 42px);
-  height: var(--avonix-lang-size, 42px);
+  width: var(--avonix-lang-size, 44px);
+  height: var(--avonix-lang-size, 44px);
   pointer-events: auto;
 }
 #avonix-lang-root .avonix-lang-panel {
@@ -144,7 +144,7 @@ class Avonix_Languages
 }
 #avonix-lang-root .avonix-lang-row:hover { background: #f8fafc; }
 #avonix-lang-root .avonix-lang-row.is-active {
-  background: rgba(225, 93, 26, 0.06);
+  background: color-mix(in srgb, var(--avonix-lang-primary, #e15d1a) 8%, #fff);
   color: #0b1e3a;
   font-weight: 650;
 }
@@ -155,13 +155,14 @@ class Avonix_Languages
   top: 0;
   display: grid;
   place-items: center;
-  width: var(--avonix-lang-size, 42px);
-  height: var(--avonix-lang-size, 42px);
+  width: var(--avonix-lang-size, 44px);
+  height: var(--avonix-lang-size, 44px);
   border: 0;
+  border-radius: 50%;
   cursor: pointer;
   color: #fff;
-  background: #e15d1a;
-  box-shadow: 0 8px 22px rgba(225, 93, 26, 0.35);
+  background: var(--avonix-lang-primary, #e15d1a);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--avonix-lang-primary, #e15d1a) 35%, transparent);
   transition: filter 0.15s ease;
   z-index: 1;
 }
@@ -198,10 +199,15 @@ CSS;
   var KEY = "avonix_lang";
   var sw = CFG.switcher;
   var placement = sw.placement || { xPercent: 92, yPercent: 8 };
-  var iconSize = Math.max(16, Math.min(40, Number(sw.icon_size) || 22));
-  var pad = Math.max(6, Math.min(20, Number(sw.button_padding) || 10));
-  var outer = iconSize + pad * 2;
-  var radius = Math.max(10, Math.round(outer * 0.32));
+  // Editable: outer = iconSize + 2×padding (same formula as Live Chat / Accessibility).
+  var iconSize = Math.round(Number(sw.icon_size));
+  if (!isFinite(iconSize)) iconSize = 22;
+  iconSize = Math.max(0, Math.min(100, iconSize));
+  var pad = Math.round(Number(sw.button_padding));
+  if (!isFinite(pad)) pad = 11;
+  pad = Math.max(0, Math.min(100, pad));
+  var outer = Math.max(1, iconSize + pad * 2);
+  var primary = String(sw.primary_color || "#e15d1a").trim() || "#e15d1a";
 
   function googleCode(code) {
     var map = { zh: "zh-CN", tw: "zh-TW", pt: "pt", he: "iw", nb: "no" };
@@ -313,6 +319,7 @@ CSS;
   root.setAttribute("translate", "no");
   root.className = "notranslate";
   root.style.setProperty("--avonix-lang-size", outer + "px");
+  root.style.setProperty("--avonix-lang-primary", primary);
 
   var xPct = Math.max(0, Math.min(100, Number(placement.xPercent) || 90));
   var yPct = Math.max(0, Math.min(100, Number(placement.yPercent) || 8));
@@ -363,10 +370,9 @@ CSS;
   btn.className = "avonix-lang-btn";
   btn.setAttribute("aria-label", "Languages");
   btn.setAttribute("aria-expanded", "false");
-  btn.style.borderRadius = radius + "px";
   btn.innerHTML =
     '<span class="avonix-lang-glyph" style="font-size:' +
-    Math.round(iconSize * 0.55) +
+    iconSize +
     'px">A文</span>';
 
   stack.appendChild(panel);

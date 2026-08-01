@@ -1110,6 +1110,7 @@ function WidgetPreview({
           <FloatingLauncherButton
             label={settings.label}
             color={settings.primaryColor}
+            shape="circle"
             metrics={{
               iconSize: settings.iconSize,
               buttonPadding: settings.buttonPadding,

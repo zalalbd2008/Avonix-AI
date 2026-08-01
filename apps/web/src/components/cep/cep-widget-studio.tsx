@@ -19,9 +19,11 @@ import {
   FloatingPanelHeader,
   LAUNCHER_ORANGE,
   LauncherSizeControl,
-  normalizeLauncherMetrics,
   placementHorizontalAlign,
 } from "@/components/widgets/floating-launcher-group";
+import {
+  normalizeLauncherMetrics,
+} from "@/lib/widgets/launcher-size";
 import {
   cepPositionFromAnchor,
   cornerFromPlacement,

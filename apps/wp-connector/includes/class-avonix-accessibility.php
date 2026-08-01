@@ -64,7 +64,7 @@ class Avonix_Accessibility
             'primaryColor'         => $config['primary_color'] ?? '#e15d1a',
             'iconStyle'            => $config['icon_style'] ?? 'classic',
             'iconSize'             => isset($config['icon_size']) ? (int) $config['icon_size'] : 22,
-            'buttonPadding'        => isset($config['button_padding']) ? (int) $config['button_padding'] : 10,
+            'buttonPadding'        => isset($config['button_padding']) ? (int) $config['button_padding'] : 11,
             'placement'            => $config['placement'] ?? null,
             'position'             => $config['position'] ?? 'bottom-left',
             'features'             => $config['features'] ?? [],
@@ -99,11 +99,11 @@ class Avonix_Accessibility
         return <<<'CSS'
 #avonix-a11y-root{position:fixed;z-index:2147482900;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;pointer-events:none}
 #avonix-a11y-root *{box-sizing:border-box}
-#avonix-a11y-root .avonix-a11y-stack{position:relative;width:var(--avonix-a11y-size,48px);height:var(--avonix-a11y-size,48px);pointer-events:auto}
+#avonix-a11y-root .avonix-a11y-stack{position:relative;width:var(--avonix-a11y-size,44px);height:var(--avonix-a11y-size,44px);pointer-events:auto}
 #avonix-a11y-root .avonix-a11y-btn{position:absolute;inset:0;display:grid;place-items:center;width:100%;height:100%;border:0;border-radius:50%;cursor:pointer;color:#fff;background:var(--avonix-a11y-primary,#e15d1a);box-shadow:0 8px 22px rgba(15,23,42,.22);transition:transform .15s ease,filter .15s;z-index:1;padding:0}
 #avonix-a11y-root .avonix-a11y-btn:hover{transform:scale(1.05);filter:brightness(1.05)}
 #avonix-a11y-root .avonix-a11y-btn:focus-visible{outline:2px solid #0b1e3a;outline-offset:2px}
-#avonix-a11y-root .avonix-a11y-btn svg{width:52%;height:52%;display:block}
+#avonix-a11y-root .avonix-a11y-btn svg{width:var(--avonix-a11y-icon,52%);height:var(--avonix-a11y-icon,52%);display:block}
 #avonix-a11y-root .avonix-a11y-panel{display:none;position:absolute;bottom:calc(100% + 10px);width:min(320px,calc(100vw - 24px));max-height:min(520px,70vh);overflow:auto;background:#fff;border:1px solid #e8edf5;border-radius:16px;box-shadow:0 16px 40px rgba(11,30,58,.18);z-index:2;padding:0;scrollbar-width:thin}
 #avonix-a11y-root .avonix-a11y-stack.is-open .avonix-a11y-panel{display:flex;flex-direction:column}
 #avonix-a11y-root .avonix-a11y-stack.is-start .avonix-a11y-panel{left:0}
@@ -152,9 +152,14 @@ CSS;
 
   var KEY = "avonix_a11y_prefs";
   var primary = CFG.primaryColor || "#e15d1a";
-  var iconSize = Math.max(16, Math.min(40, Number(CFG.iconSize) || 22));
-  var pad = Math.max(6, Math.min(24, Number(CFG.buttonPadding) || 10));
-  var outer = iconSize + pad * 2;
+  // Same formula as Live Chat / Languages — fully editable icon + padding.
+  var iconSize = Math.round(Number(CFG.iconSize));
+  if (!isFinite(iconSize)) iconSize = 22;
+  iconSize = Math.max(0, Math.min(100, iconSize));
+  var pad = Math.round(Number(CFG.buttonPadding));
+  if (!isFinite(pad)) pad = 11;
+  pad = Math.max(0, Math.min(100, pad));
+  var outer = Math.max(1, iconSize + pad * 2);
   var feats = CFG.features || {};
   var profiles = CFG.profiles || {};
   var state = {};
@@ -334,6 +339,7 @@ CSS;
   root.id = "avonix-a11y-root";
   root.style.setProperty("--avonix-a11y-primary", primary);
   root.style.setProperty("--avonix-a11y-size", outer + "px");
+  root.style.setProperty("--avonix-a11y-icon", iconSize + "px");
 
   var stack = document.createElement("div");
   stack.className = "avonix-a11y-stack";

@@ -30,6 +30,7 @@ export type ConnectorLanguagesConfig = {
     style: LanguageSettings["switcher"]["style"];
     position: LanguageSettings["switcher"]["position"];
     placement: LanguageSettings["switcher"]["placement"];
+    primary_color: string;
     icon_size: number;
     button_padding: number;
     show_flags: boolean;
@@ -89,6 +90,7 @@ export async function getConnectorLanguagesConfig(
       style: settings.switcher.style,
       position: settings.switcher.position,
       placement: settings.switcher.placement,
+      primary_color: settings.switcher.primaryColor,
       icon_size: settings.switcher.iconSize,
       button_padding: settings.switcher.buttonPadding,
       show_flags: settings.switcher.showFlags,

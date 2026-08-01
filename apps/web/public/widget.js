@@ -37,6 +37,7 @@
   }
 
   var onPrimary = theme.onPrimaryColor || "#ffffff";
+  var primaryEnd = theme.primaryColorEnd || primary;
   var headBg = theme.headerColor || mixHex(primary, "#0b1220", 0.8);
   var botBubble = theme.botBubbleColor || mixHex(primary, "#f8fafc", 0.94);
   var botBorder = mixHex(primary, "#ffffff", 0.87);
@@ -45,9 +46,17 @@
   var onlineDot = theme.onlineDotColor || "#00ff6a";
   var surfaceBg = theme.backgroundColor || "#ffffff";
   var canvasBg = "#f6f8fc";
-  var launcherPx = Math.max(
-    48,
-    (Number(theme.launcherIconSize) || 26) + 2 * (Number(theme.launcherPadding) || 20)
+  // Editable launcher: outer = iconSize + 2×padding (defaults 22 / 11).
+  var launcherIconSz = Number(theme.launcherIconSize);
+  var launcherPadSz = Number(theme.launcherPadding);
+  if (!isFinite(launcherIconSz)) launcherIconSz = 22;
+  if (!isFinite(launcherPadSz)) launcherPadSz = 11;
+  launcherIconSz = Math.max(0, Math.min(100, Math.round(launcherIconSz)));
+  launcherPadSz = Math.max(0, Math.min(100, Math.round(launcherPadSz)));
+  var launcherPx = Math.max(1, launcherIconSz + 2 * launcherPadSz);
+  var launcherIconPct = Math.max(
+    20,
+    Math.min(90, Math.round((launcherIconSz / launcherPx) * 100))
   );
   var agentName = theme.agentName || config.title || "Customer Support";
   var statusText = theme.statusText || "Online";
@@ -133,7 +142,11 @@
     canvasBg +
     ";--avx-border:#e2e8f0;--avx-border-soft:#f1f5f9;--avx-field:#cbd5e1;--avx-ink:#0f172a;--avx-ink-2:#1e293b;--avx-ink-3:#475569;--avx-muted:#94a3b8;--avx-time:10.5px;--avx-bubble-gap:4px;--avx-r:12px;--avx-rl:16px;--avx-rs:8px;--avx-launcher:" +
     launcherPx +
-    "px;--avx-shadow-lg:0 12px 32px -8px rgba(15,23,42,.18);}" +
+    "px;--avx-launcher-icon:" +
+    launcherIconPct +
+    "%;--avx-primary-end:" +
+    primaryEnd +
+    ";--avx-shadow-lg:0 12px 32px -8px rgba(15,23,42,.18);}" +
     ".avonix-cep-root{position:fixed;z-index:" +
     z +
     ";" +
@@ -147,10 +160,10 @@
     ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
     ".avonix-cep-root :where(button[class*=avonix-cep-],input[class*=avonix-cep-],a[class*=avonix-cep-]){margin:0;font-family:inherit;letter-spacing:normal;text-transform:none;-webkit-appearance:none;appearance:none;}" +
     /* FAB — Nexus style */
-    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:50%;background:var(--avx-primary);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;}" +
+    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:50%;background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;}" +
     ".avonix-cep-launcher:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.22);}" +
     ".avonix-cep-launcher__img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;position:relative;z-index:1;}" +
-    ".avonix-cep-launcher svg{width:40%;height:40%;position:relative;z-index:1;}" +
+    ".avonix-cep-launcher svg{width:var(--avx-launcher-icon,40%);height:var(--avx-launcher-icon,40%);position:relative;z-index:1;}" +
     ".avonix-cep-online{position:absolute;z-index:3;width:var(--avx-od);height:var(--avx-od);border-radius:999px;background:var(--avx-online);top:calc(14.645% - (var(--avx-od)/2));right:calc(14.645% - (var(--avx-od)/2));box-shadow:0 0 0 2px rgba(255,255,255,.22),0 0 16px color-mix(in srgb,var(--avx-online),transparent 15%);animation:avonix-cep-blink 1.05s ease-in-out infinite;}" +
     "@keyframes avonix-cep-blink{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.12);opacity:1;box-shadow:0 0 0 2px rgba(255,255,255,.35),0 0 18px rgba(0,255,106,.95)}}" +
     "@media (prefers-reduced-motion:reduce){.avonix-cep-online{animation:none}}" +
@@ -1045,9 +1058,9 @@
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
     var vh = window.innerHeight || document.documentElement.clientHeight || 640;
     var bottomClear = ctaBottomClearance();
-    // Prefer theme launcher size — offsetWidth is 0 when FAB is hidden (panel open).
-    var bw = Math.max(button.offsetWidth || 0, launcherPx, 48);
-    var bh = Math.max(button.offsetHeight || 0, launcherPx, 48);
+    // Use configured outer size only — never a higher floor, or same % drifts vs a11y/lang.
+    var bw = launcherPx;
+    var bh = launcherPx;
 
     root.style.left = "auto";
     root.style.right = "auto";

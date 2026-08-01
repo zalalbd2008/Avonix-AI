@@ -21,6 +21,11 @@ export const DEFAULT_LAUNCHER_METRICS: LauncherMetrics = {
   buttonPadding: 11,
 };
 
+/** Outer diameter shared by Live Chat / Accessibility / Languages (22 + 2×11). */
+export const SHARED_LAUNCHER_OUTER_PX =
+  DEFAULT_LAUNCHER_METRICS.iconSize +
+  DEFAULT_LAUNCHER_METRICS.buttonPadding * 2;
+
 /** Legacy preset → metrics (older saves). */
 const LEGACY_PRESET: Record<string, LauncherMetrics> = {
   sm: { iconSize: 16, buttonPadding: 10 },

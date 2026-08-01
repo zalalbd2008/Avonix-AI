@@ -286,21 +286,12 @@
     ".avonix-cep-root--wizard{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:1;width:100%!important;max-width:100%!important;height:100%!important;min-height:100%;flex:1 1 auto;align-items:stretch!important;flex-direction:column!important;gap:0!important;max-width:none!important;box-sizing:border-box;}" +
     ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
     ".avonix-cep-root :where(button[class*=avonix-cep-],input[class*=avonix-cep-],a[class*=avonix-cep-]){margin:0;font-family:inherit;letter-spacing:normal;text-transform:none;-webkit-appearance:none;appearance:none;}" +
-    /* FAB — edge-dock tile (flat on screen edge), label tip on hover */
-    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:var(--avx-launcher-radius,12px 0 0 12px);background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;z-index:1;}" +
-    ".avonix-cep-launcher:hover{transform:translateY(-2px);filter:brightness(1.05);box-shadow:0 10px 28px rgba(0,0,0,.22);}" +
+    /* FAB — edge-dock tile (flat on screen edge); no hover tip (keeps even gaps with other FABs) */
+    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:var(--avx-launcher-radius,12px 0 0 12px);background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:filter .15s ease,box-shadow .15s ease;z-index:1;}" +
+    ".avonix-cep-launcher:hover{filter:brightness(1.05);box-shadow:0 8px 26px rgba(0,0,0,.22);}" +
     /* Avatar must be out of flow so the online dot cannot be pushed to bottom-left. */
     ".avonix-cep-launcher__img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;z-index:1;}" +
     ".avonix-cep-launcher svg{width:var(--avx-launcher-icon,40%);height:var(--avx-launcher-icon,40%);position:relative;z-index:1;}" +
-    /* Hover tip — icon only until hover/focus */
-    ".avonix-cep-launch-wrap{position:relative;display:flex;align-items:center;flex-shrink:0;overflow:visible;}" +
-    ".avonix-cep-tip{position:absolute;top:50%;z-index:3;pointer-events:none;white-space:nowrap;border-radius:6px;background:#fff!important;color:#2a2f38!important;font-size:12px!important;font-weight:500!important;line-height:1.2!important;box-shadow:0 1px 4px rgba(15,23,42,.16)!important;opacity:0!important;visibility:hidden;max-width:0;overflow:hidden;padding:0!important;transform:translateY(-50%);transition:opacity .15s ease,visibility .15s ease,max-width .18s ease,padding .18s ease,transform .15s ease;}" +
-    ".avonix-cep-root.is-align-end .avonix-cep-tip{right:100%;left:auto;transform:translateY(-50%) translateX(4px);}" +
-    ".avonix-cep-root.is-align-start .avonix-cep-tip{left:100%;right:auto;transform:translateY(-50%) translateX(-4px);}" +
-    ".avonix-cep-launch-wrap:hover .avonix-cep-tip,.avonix-cep-launch-wrap:focus-within .avonix-cep-tip{opacity:1!important;visibility:visible;max-width:220px;padding:6px 10px!important;}" +
-    ".avonix-cep-root.is-align-end .avonix-cep-launch-wrap:hover .avonix-cep-tip,.avonix-cep-root.is-align-end .avonix-cep-launch-wrap:focus-within .avonix-cep-tip{transform:translateY(-50%) translateX(-8px);}" +
-    ".avonix-cep-root.is-align-start .avonix-cep-launch-wrap:hover .avonix-cep-tip,.avonix-cep-root.is-align-start .avonix-cep-launch-wrap:focus-within .avonix-cep-tip{transform:translateY(-50%) translateX(8px);}" +
-    ".avonix-cep-root--wizard .avonix-cep-tip,.avonix-cep-root.is-open .avonix-cep-tip{display:none!important;}" +
     /* Physical top-right only — never bottom/left (WP themes often reset spans). */
     ".avonix-cep-online{position:absolute!important;z-index:5!important;width:var(--avx-od)!important;height:var(--avx-od)!important;border-radius:999px!important;background:var(--avx-online)!important;top:2px!important;right:2px!important;bottom:auto!important;left:auto!important;inset:2px 2px auto auto!important;margin:0!important;transform:none!important;box-shadow:0 0 0 2px rgba(255,255,255,.22),0 0 16px color-mix(in srgb,var(--avx-online),transparent 15%)!important;animation:avonix-cep-blink 1.05s ease-in-out infinite;pointer-events:none!important;display:block!important;}" +
     "@keyframes avonix-cep-blink{0%,100%{opacity:.75;box-shadow:0 0 0 2px rgba(255,255,255,.22),0 0 10px color-mix(in srgb,var(--avx-online),transparent 40%)}50%{opacity:1;box-shadow:0 0 0 2px rgba(255,255,255,.4),0 0 18px rgba(0,255,106,.95)}}" +
@@ -315,10 +306,10 @@
     "px;overflow:hidden;box-shadow:0 16px 48px rgba(15,23,42,.18);}" +
     ".avonix-cep-panel.is-open{display:flex;animation:avonix-cep-pop .22s ease;}" +
     /* Bubble mode: keep FAB visible while open. Wizard: never show FAB. */
-    ".avonix-cep-root.is-open:not(.avonix-cep-root--wizard) > .avonix-cep-launch-wrap{display:flex!important;}" +
+    ".avonix-cep-root.is-open:not(.avonix-cep-root--wizard) > .avonix-cep-launcher{display:flex!important;}" +
     "@keyframes avonix-cep-pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}" +
     ".avonix-cep-root--wizard .avonix-cep-panel,.avonix-cep-root--wizard .avonix-cep-panel.is-open{display:flex!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;flex:1 1 auto;min-height:0;border-radius:12px;box-shadow:none;animation:none;}" +
-    ".avonix-cep-root--wizard .avonix-cep-launch-wrap,.avonix-cep-root--wizard.is-open > .avonix-cep-launch-wrap{display:none!important;visibility:hidden!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;}" +
+    ".avonix-cep-root--wizard .avonix-cep-launcher,.avonix-cep-root--wizard.is-open > .avonix-cep-launcher{display:none!important;visibility:hidden!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;}" +
     ".avonix-cep-root--wizard .avonix-cep-online{display:none!important;}" +
     /* Home */
     ".avonix-cep-home{display:flex;flex-direction:column;flex:1;min-height:0;}" +
@@ -903,18 +894,9 @@
   panel.appendChild(gate);
   panel.appendChild(ai);
 
-  var launchWrap = document.createElement("div");
-  launchWrap.className = "avonix-cep-launch-wrap";
-  var tip = document.createElement("span");
-  tip.className = "avonix-cep-tip";
-  tip.setAttribute("aria-hidden", "true");
-  tip.textContent = theme.launcherLabel || config.label || "Live Chat";
-  launchWrap.appendChild(button);
-  launchWrap.appendChild(tip);
-
   root.classList.add(alignEnd ? "is-align-end" : "is-align-start");
   root.appendChild(panel);
-  root.appendChild(launchWrap);
+  root.appendChild(button);
 
   function sanitizeAgreeHtml(raw) {
     var wrap = document.createElement("div");

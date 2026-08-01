@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { ClearConversationsButton } from "@/components/cep/clear-conversations-button";
 import { StatusPill, timeAgo } from "@/components/ui/status-pill";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
@@ -151,8 +152,8 @@ export default async function WebsiteConversationsPage({
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside className="flex w-full shrink-0 flex-col border-r border-line bg-[#fafbfc] max-md:border-r-0 md:w-[340px]">
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <div>
+          <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+            <div className="min-w-0">
               <p className="text-[13.5px] font-bold text-ink">Team inbox</p>
               <p className="text-[11.5px] text-faint">
                 {filtered.length === 0
@@ -160,6 +161,11 @@ export default async function WebsiteConversationsPage({
                   : `${filtered.length} conversation${filtered.length === 1 ? "" : "s"}`}
               </p>
             </div>
+            <ClearConversationsButton
+              clientId={clientId}
+              websiteId={websiteId}
+              count={rows.length}
+            />
           </div>
 
           <div className="flex-1 overflow-y-auto p-2">

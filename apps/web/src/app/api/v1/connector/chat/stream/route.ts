@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     conversation_id?: string;
     email?: string;
     name?: string;
+    phone?: string;
     action?: string;
     surface?: string;
   };
@@ -37,7 +38,9 @@ export async function POST(request: Request) {
   }
 
   const action =
-    body.action === "transfer_agent" || body.action === "start_form"
+    body.action === "transfer_agent" ||
+    body.action === "start_form" ||
+    body.action === "prechat_lead"
       ? body.action
       : null;
   const surface =
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
               : null,
           email: body.email,
           name: body.name,
+          phone: body.phone,
           action,
           surface,
         });

@@ -39,6 +39,16 @@ export default async function ContactsPage({
       <PageHeader
         title="Contacts"
         subtitle={`${rows.length} ${rows.length === 1 ? "person" : "people"} captured for this client`}
+        action={
+          rows.length > 0 ? (
+            <a
+              href={`/api/clients/${clientId}/contacts/export`}
+              className="rounded-lg border border-line bg-white px-3.5 py-2 text-[13px] font-semibold text-ink hover:bg-[#f8fafc]"
+            >
+              Export CSV
+            </a>
+          ) : null
+        }
       />
 
       {rows.length === 0 ? (

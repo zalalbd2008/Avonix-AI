@@ -141,6 +141,27 @@ class Avonix_Chat
         return $payload;
     }
 
+    /**
+     * Prefer the plugin-bundled widget.js (ships with connector updates).
+     * Falls back to the cloud endpoint copy when the local file is missing.
+     */
+    private function widget_script()
+    {
+        $local = dirname(AVONIX_PLUGIN_FILE) . '/assets/js/widget.js';
+        if (is_readable($local)) {
+            return [
+                'src'     => plugins_url('assets/js/widget.js', AVONIX_PLUGIN_FILE),
+                'version' => (string) filemtime($local),
+            ];
+        }
+
+        $endpoint = untrailingslashit((string) get_option(AVONIX_OPT_ENDPOINT, ''));
+        return [
+            'src'     => $endpoint !== '' ? $endpoint . '/widget.js' : '',
+            'version' => AVONIX_VERSION,
+        ];
+    }
+
     public function enqueue()
     {
         $client = new Avonix_Client();
@@ -167,11 +188,16 @@ class Avonix_Chat
             return;
         }
 
+        $script = $this->widget_script();
+        if ($script['src'] === '') {
+            return;
+        }
+
         wp_enqueue_script(
             'avonix-widget',
-            $endpoint . '/widget.js',
+            $script['src'],
             [],
-            AVONIX_VERSION,
+            $script['version'],
             true
         );
 
@@ -240,13 +266,16 @@ class Avonix_Chat
         $payload['wp_surface'] = Avonix_Page_Target::current_surface();
 
         // Ensure script is present even if bubble enqueue skipped somehow
-        wp_enqueue_script(
-            'avonix-widget',
-            $endpoint . '/widget.js',
-            [],
-            AVONIX_VERSION,
-            true
-        );
+        $script = $this->widget_script();
+        if ($script['src'] !== '') {
+            wp_enqueue_script(
+                'avonix-widget',
+                $script['src'],
+                [],
+                $script['version'],
+                true
+            );
+        }
         wp_add_inline_script(
             'avonix-widget',
             'window.AVONIX_CHAT = ' . wp_json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ';',
@@ -294,14 +323,41 @@ class Avonix_Chat
             ? sanitize_text_field(wp_unslash($_POST['surface']))
             : 'bubble';
 
+        $email = isset($_POST['email'])
+            ? sanitize_email(wp_unslash($_POST['email']))
+            : '';
+        $name = isset($_POST['name'])
+            ? sanitize_text_field(wp_unslash($_POST['name']))
+            : '';
+        $phone = isset($_POST['phone'])
+            ? sanitize_text_field(wp_unslash($_POST['phone']))
+            : '';
+
         $payload = [
-            'message'         => $message !== '' ? $message : ($chat_action === 'transfer_agent' ? 'Talk to a human' : 'Form'),
+            'message'         => $message !== ''
+                ? $message
+                : ($chat_action === 'transfer_agent'
+                    ? 'Talk to a human'
+                    : ($chat_action === 'prechat_lead' ? '' : 'Form')),
             'conversation_id' => $conversation !== '' ? $conversation : null,
             'widget_id'       => $widget_id !== '' ? $widget_id : null,
             'surface'         => $surface,
             'page_url'        => home_url('/'),
         ];
-        if ($chat_action === 'transfer_agent' || $chat_action === 'start_form') {
+        if ($email !== '') {
+            $payload['email'] = $email;
+        }
+        if ($name !== '') {
+            $payload['name'] = $name;
+        }
+        if ($phone !== '') {
+            $payload['phone'] = substr($phone, 0, 50);
+        }
+        if (
+            $chat_action === 'transfer_agent' ||
+            $chat_action === 'start_form' ||
+            $chat_action === 'prechat_lead'
+        ) {
             $payload['action'] = $chat_action;
         }
 
@@ -370,6 +426,15 @@ class Avonix_Chat
             'message'         => $message,
             'conversation_id' => $conversation !== '' ? $conversation : null,
             'surface'         => $surface,
+            'email'           => isset($_POST['email'])
+                ? sanitize_email(wp_unslash($_POST['email']))
+                : '',
+            'name'            => isset($_POST['name'])
+                ? sanitize_text_field(wp_unslash($_POST['name']))
+                : '',
+            'phone'           => isset($_POST['phone'])
+                ? substr(sanitize_text_field(wp_unslash($_POST['phone'])), 0, 50)
+                : '',
         ]);
         exit;
     }

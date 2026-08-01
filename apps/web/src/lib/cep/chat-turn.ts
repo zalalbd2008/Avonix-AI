@@ -1,7 +1,7 @@
 /**
  * Shared CEP chat turn logic (ADR-011 P1) — used by JSON and SSE routes.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { answerVisitor, chatConversation } from "@/lib/ai/chat";
 import { enqueueWebsiteAutomation } from "@/lib/automation/engine";
 import {
@@ -34,7 +34,8 @@ export type ChatTurnInput = {
   conversationId?: string | null;
   email?: string | null;
   name?: string | null;
-  action?: "transfer_agent" | "start_form" | null;
+  phone?: string | null;
+  action?: "transfer_agent" | "start_form" | "prechat_lead" | null;
   surface?: CepWidgetSurface;
 };
 
@@ -60,7 +61,12 @@ export async function runChatTurn(
   input: ChatTurnInput,
 ): Promise<ChatTurnOk | ChatTurnErr> {
   const question = String(input.message ?? "").trim().slice(0, MAX_QUESTION);
-  if (!question && input.action !== "transfer_agent" && input.action !== "start_form") {
+  if (
+    !question &&
+    input.action !== "transfer_agent" &&
+    input.action !== "start_form" &&
+    input.action !== "prechat_lead"
+  ) {
     return { ok: false, error: "Message was empty.", status: 400 };
   }
 
@@ -122,8 +128,45 @@ export async function runChatTurn(
   }
 
   const email = String(input.email ?? "").trim().toLowerCase();
+  const phone = String(input.phone ?? "").trim().slice(0, 50);
   if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    await linkVisitor(input, conversationId, email, String(input.name ?? "").trim());
+    await linkVisitor(
+      input,
+      conversationId,
+      email,
+      String(input.name ?? "").trim(),
+      phone,
+    );
+  }
+
+  // Pre-chat gate: create / link the lead, then open the messenger (no AI turn).
+  if (input.action === "prechat_lead") {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { ok: false, error: "A valid email is required.", status: 400 };
+    }
+    const name = String(input.name ?? "").trim();
+    const detail = [phone || null, email].filter(Boolean).join(" · ");
+    const leadBody = name
+      ? `${name} started a chat (${detail})`
+      : `Lead started a chat (${detail})`;
+    await withAgency(input.agencyId, (tx) =>
+      tx.insert(messages).values({
+        agencyId: input.agencyId,
+        conversationId,
+        author: "visitor",
+        body: leadBody,
+        blocks: textToBlocks(leadBody),
+      }),
+    );
+    await touchConversation(input.agencyId, conversationId);
+    return {
+      ok: true,
+      conversationId,
+      reply: "",
+      blocks: [],
+      handoffStatus: handoff,
+      skippedAi: true,
+    };
   }
 
   // Lead form request
@@ -450,12 +493,18 @@ async function linkVisitor(
   conversationId: string,
   email: string,
   name: string,
+  phone = "",
 ) {
   await withAgency(identity.agencyId, async (tx) => {
     const [existing] = await tx
       .select({ id: contacts.id })
       .from(contacts)
-      .where(eq(contacts.email, email))
+      .where(
+        and(
+          eq(contacts.clientId, identity.clientId),
+          eq(contacts.email, email),
+        ),
+      )
       .limit(1);
 
     let contactId = existing?.id;
@@ -469,10 +518,23 @@ async function linkVisitor(
           sourceWebsiteId: identity.websiteId,
           email,
           name: name || null,
+          phone: phone || null,
           status: "new",
         })
         .returning({ id: contacts.id });
       contactId = created.id;
+    } else {
+      const patch: { name?: string; phone?: string; updatedAt: Date } = {
+        updatedAt: new Date(),
+      };
+      if (name) patch.name = name;
+      if (phone) patch.phone = phone;
+      if (patch.name || patch.phone) {
+        await tx
+          .update(contacts)
+          .set(patch)
+          .where(eq(contacts.id, contactId));
+      }
     }
 
     await tx

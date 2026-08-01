@@ -85,7 +85,10 @@ export async function runChatTurn(
 
   const modules = cfg?.payload?.modules ?? {};
   const ai = cfg?.payload?.ai ?? null;
-  const systemOverride = cfg?.payload?.ai?.systemPromptOverride ?? null;
+  const systemOverride =
+    cfg?.payload?.ai?.systemPromptOverride?.trim() ||
+    cfg?.payload?.experience?.aiPrompt?.trim() ||
+    null;
 
   const [client] = await withAgency(input.agencyId, (tx) =>
     tx

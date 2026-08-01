@@ -16,6 +16,7 @@ import { primaryId, softDelete, timestamps } from "./_shared";
 import { agencyId } from "./_tenant";
 import { clients } from "./clients";
 import { websites } from "./websites";
+import type { CepIndustryExperience } from "@/lib/cep/industry-presets/types";
 
 export type CepWidgetStatus = "draft" | "published" | "archived";
 export type CepWidgetSurface = "bubble" | "wizard" | "sidebar" | "modal" | "fullscreen";
@@ -210,6 +211,13 @@ export type CepWidgetPayload = {
     action: "send_text" | "open_url" | "transfer_agent" | "start_form";
     value?: string;
   }>;
+  /**
+   * Enterprise Industry Preset Library id.
+   * AI customizes this preset — it must never invent a widget design from scratch.
+   */
+  industryPresetId?: string | null;
+  /** Editable industry experience layer (flows, CTAs, AI prompt, rules, etc.). */
+  experience?: CepIndustryExperience | null;
 };
 
 export const cepWidgets = pgTable(

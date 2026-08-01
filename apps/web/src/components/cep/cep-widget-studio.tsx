@@ -38,13 +38,15 @@ import {
   defaultAgreementHtml,
   sanitizeAgreementHtml,
 } from "@/components/ui/classic-html-editor";
+import { IndustryPresetPanel } from "@/components/cep/industry-preset-panel";
 
 const input =
   "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/15";
 
-type StudioTab = "appearance" | "behavior" | "ai" | "setup";
+type StudioTab = "presets" | "appearance" | "behavior" | "ai" | "setup";
 
 const TABS: { id: StudioTab; label: string }[] = [
+  { id: "presets", label: "Industry presets" },
   { id: "appearance", label: "Appearance" },
   { id: "behavior", label: "Behavior" },
   { id: "ai", label: "AI engine" },
@@ -97,7 +99,7 @@ export function CepWidgetStudio({
   const [surface, setSurface] = useState<CepWidgetSurface>(
     initial.surface ?? "bubble",
   );
-  const [tab, setTab] = useState<StudioTab>("appearance");
+  const [tab, setTab] = useState<StudioTab>("presets");
   const [payload, setPayload] = useState<CepWidgetPayload>(() => ({
     ...defaults,
     ...initial.payload,
@@ -120,6 +122,8 @@ export function CepWidgetStudio({
       ...defaults.modules,
       ...initial.payload?.modules,
     },
+    industryPresetId: initial.payload?.industryPresetId ?? null,
+    experience: initial.payload?.experience ?? null,
   }));
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -288,6 +292,13 @@ export function CepWidgetStudio({
       {/* Editor + live preview */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_0_rgba(11,30,58,.04)]">
+          {tab === "presets" ? (
+            <IndustryPresetPanel
+              websiteId={websiteId}
+              payload={payload}
+              onApplyPayload={(next) => setPayload(next)}
+            />
+          ) : null}
           {tab === "appearance" ? (
             <div className="space-y-4">
               <SectionEyebrow>Widget identity</SectionEyebrow>

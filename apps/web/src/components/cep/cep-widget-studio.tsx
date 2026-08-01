@@ -1224,21 +1224,42 @@ export function CepWidgetStudio({
                       {payload.greeting || "Hi! How can we help?"}
                     </div>
                     {(payload.quickReplies ?? []).length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {(payload.quickReplies ?? []).slice(0, 6).map((q) => (
-                          <span
-                            key={q.id}
-                            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[#e8edf5] bg-white px-2.5 py-2 text-[11px] font-semibold text-ink shadow-sm"
-                          >
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {(payload.quickReplies ?? []).slice(0, 6).map((q, i) => {
+                          const accents = [
+                            primary,
+                            "#ec4899",
+                            "#0ea5e9",
+                            "#8b5cf6",
+                            "#f59e0b",
+                            "#10b981",
+                          ];
+                          const accent = accents[i % accents.length]!;
+                          return (
                             <span
-                              className="grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-bold text-white"
-                              style={{ background: primary }}
+                              key={q.id}
+                              className="relative flex min-h-[52px] items-center gap-2.5 overflow-hidden rounded-[14px] border border-black/[0.07] bg-gradient-to-b from-white to-[#fafbff] px-2.5 py-2.5 text-[11.5px] font-semibold leading-snug text-ink shadow-[0_6px_16px_rgba(15,23,42,.06)]"
                             >
-                              •
+                              <span
+                                className="pointer-events-none absolute inset-0 opacity-90"
+                                style={{
+                                  background: `radial-gradient(120px 60px at 0% 0%, ${accent}22, transparent 70%)`,
+                                }}
+                              />
+                              <span
+                                className="relative grid size-8 shrink-0 place-items-center rounded-[10px] shadow-sm"
+                                style={{
+                                  color: accent,
+                                  background: `linear-gradient(145deg, ${accent}33, ${accent}14)`,
+                                  boxShadow: `inset 0 0 0 1px ${accent}33`,
+                                }}
+                              >
+                                <span className="text-[12px] font-bold">◆</span>
+                              </span>
+                              <span className="relative leading-snug">{q.label}</span>
                             </span>
-                            <span className="leading-snug">{q.label}</span>
-                          </span>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>

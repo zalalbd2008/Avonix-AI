@@ -33,6 +33,11 @@ import {
 } from "@/lib/widgets/screen-placement";
 import { PageDisplayConditions } from "@/components/widgets/page-display-conditions";
 import { ImageUrlField } from "@/components/ui/image-url-field";
+import {
+  ClassicHtmlEditor,
+  defaultAgreementHtml,
+  sanitizeAgreementHtml,
+} from "@/components/ui/classic-html-editor";
 
 const input =
   "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/15";
@@ -682,7 +687,7 @@ export function CepWidgetStudio({
                     </p>
                     <label className="block">
                       <span className="text-[12px] font-medium">
-                        Agreement brand name
+                        Letter-mark initial (when no logo)
                       </span>
                       <input
                         className={`${input} mt-1`}
@@ -692,6 +697,7 @@ export function CepWidgetStudio({
                           payload.title ??
                           ""
                         }
+                        placeholder="Customer Support"
                         onChange={(e) =>
                           setPayload((p) => ({
                             ...p,
@@ -755,48 +761,34 @@ export function CepWidgetStudio({
                         </p>
                       </label>
                     ) : null}
-                    <label className="block sm:col-span-2">
-                      <span className="text-[12px] font-medium">
-                        Agreement intro
-                      </span>
-                      <input
-                        className={`${input} mt-1`}
-                        value={
-                          theme.agreementIntro ??
-                          "Hi! I am your virtual agent."
-                        }
-                        onChange={(e) =>
-                          setPayload((p) => ({
-                            ...p,
-                            theme: {
-                              ...p.theme,
-                              agreementIntro: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </label>
-                    <label className="block sm:col-span-2">
-                      <span className="text-[12px] font-medium">
-                        Agreement body
-                      </span>
-                      <textarea
-                        className={`${input} mt-1 min-h-[72px]`}
-                        value={
-                          theme.agreementBody ??
-                          "I'm happy to help find what you need. To continue, you will need to agree to our Terms Of Use and Privacy Policy."
-                        }
-                        onChange={(e) =>
-                          setPayload((p) => ({
-                            ...p,
-                            theme: {
-                              ...p.theme,
-                              agreementBody: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </label>
+                    <ClassicHtmlEditor
+                      className="sm:col-span-2"
+                      label="Agreement text"
+                      minHeight={180}
+                      hint="Edit title, intro, and body here. Select text to bold, change color, or add links (Terms / Privacy)."
+                      value={
+                        theme.agreementHtml?.trim()
+                          ? theme.agreementHtml
+                          : defaultAgreementHtml({
+                              brand:
+                                theme.agreementBrandName ??
+                                theme.agentName ??
+                                payload.title ??
+                                "Customer Support",
+                              intro: theme.agreementIntro,
+                              body: theme.agreementBody,
+                            })
+                      }
+                      onChange={(html) =>
+                        setPayload((p) => ({
+                          ...p,
+                          theme: {
+                            ...p.theme,
+                            agreementHtml: sanitizeAgreementHtml(html),
+                          },
+                        }))
+                      }
+                    />
                   </>
                 ) : null}
                 <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">

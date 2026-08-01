@@ -143,6 +143,7 @@
   var agreementBody =
     theme.agreementBody ||
     "I'm happy to help find what you need. To continue, you will need to agree to our Terms Of Use and Privacy Policy.";
+  var agreementHtml = String(theme.agreementHtml || "").trim();
   var termsUrl = theme.termsUrl || "";
   var privacyUrl = theme.privacyUrl || "";
   var agreeLabel = theme.agreeLabel || "I Agree";
@@ -306,6 +307,10 @@
     ".avonix-cep-agree__body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 20px;text-align:center;box-sizing:border-box;}" +
     ".avonix-cep-agree__mark{width:56px;height:56px;margin:0 0 16px;border-radius:14px;background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:700;letter-spacing:-0.02em;flex-shrink:0;overflow:hidden;box-shadow:0 4px 14px color-mix(in srgb,var(--avx-primary) 28%,transparent);}" +
     ".avonix-cep-agree__logo{display:block;margin:0 0 16px;height:var(--avx-agree-logo,56px);width:auto;max-width:min(220px,80%);object-fit:contain;object-position:center;border-radius:0;background:transparent;box-shadow:none;}" +
+    ".avonix-cep-agree__rich{width:100%;max-width:300px;text-align:center;color:var(--avx-ink);font-size:14px;line-height:1.5;}" +
+    ".avonix-cep-agree__rich p{margin:0 0 12px;}" +
+    ".avonix-cep-agree__rich p:last-child{margin-bottom:0;}" +
+    ".avonix-cep-agree__rich a{color:var(--avx-primary);font-weight:600;text-decoration:underline;text-underline-offset:2px;}" +
     ".avonix-cep-agree__brand{margin:0 0 18px;font-size:23px;font-weight:700;letter-spacing:-0.025em;color:#0f172a;font-family:Georgia,'Times New Roman',Times,serif;line-height:1.2;}" +
     ".avonix-cep-agree__intro{margin:0 0 12px;font-size:14.5px;line-height:1.45;color:#0f172a;font-weight:600;max-width:280px;}" +
     ".avonix-cep-agree__copy{margin:0;font-size:13.5px;line-height:1.55;color:#64748b;max-width:280px;font-weight:400;}" +
@@ -783,20 +788,27 @@
     agreeBody.appendChild(mark);
   }
 
-  var brandEl = document.createElement("p");
-  brandEl.className = "avonix-cep-agree__brand";
-  brandEl.textContent = agreementBrand;
-  agreeBody.appendChild(brandEl);
+  if (agreementHtml) {
+    var richEl = document.createElement("div");
+    richEl.className = "avonix-cep-agree__rich";
+    richEl.innerHTML = sanitizeAgreeHtml(agreementHtml);
+    agreeBody.appendChild(richEl);
+  } else {
+    var brandEl = document.createElement("p");
+    brandEl.className = "avonix-cep-agree__brand";
+    brandEl.textContent = agreementBrand;
+    agreeBody.appendChild(brandEl);
 
-  var introEl = document.createElement("p");
-  introEl.className = "avonix-cep-agree__intro";
-  introEl.textContent = agreementIntro;
-  agreeBody.appendChild(introEl);
+    var introEl = document.createElement("p");
+    introEl.className = "avonix-cep-agree__intro";
+    introEl.textContent = agreementIntro;
+    agreeBody.appendChild(introEl);
 
-  var copyEl = document.createElement("p");
-  copyEl.className = "avonix-cep-agree__copy";
-  copyEl.innerHTML = linkAgreementCopy(agreementBody, termsUrl, privacyUrl);
-  agreeBody.appendChild(copyEl);
+    var copyEl = document.createElement("p");
+    copyEl.className = "avonix-cep-agree__copy";
+    copyEl.innerHTML = linkAgreementCopy(agreementBody, termsUrl, privacyUrl);
+    agreeBody.appendChild(copyEl);
+  }
 
   var agreeActions = document.createElement("div");
   agreeActions.className = "avonix-cep-agree__actions";
@@ -821,6 +833,88 @@
   panel.appendChild(ai);
   root.appendChild(panel);
   root.appendChild(button);
+
+  function sanitizeAgreeHtml(raw) {
+    var wrap = document.createElement("div");
+    wrap.innerHTML = String(raw || "");
+    var allowed = {
+      P: 1,
+      BR: 1,
+      DIV: 1,
+      SPAN: 1,
+      STRONG: 1,
+      B: 1,
+      EM: 1,
+      I: 1,
+      U: 1,
+      A: 1,
+      H1: 1,
+      H2: 1,
+      H3: 1,
+      H4: 1,
+      UL: 1,
+      OL: 1,
+      LI: 1,
+      FONT: 1,
+    };
+    function walk(node) {
+      var kids = Array.prototype.slice.call(node.childNodes);
+      for (var i = 0; i < kids.length; i++) {
+        var child = kids[i];
+        if (child.nodeType === 1) {
+          var el = child;
+          if (!allowed[el.tagName]) {
+            while (el.firstChild) node.insertBefore(el.firstChild, el);
+            node.removeChild(el);
+            continue;
+          }
+          var attrs = Array.prototype.slice.call(el.attributes || []);
+          for (var a = 0; a < attrs.length; a++) {
+            var name = String(attrs[a].name || "").toLowerCase();
+            if (name.indexOf("on") === 0 || name === "srcdoc") {
+              el.removeAttribute(attrs[a].name);
+              continue;
+            }
+            if (el.tagName === "A" && name === "href") {
+              var href = String(attrs[a].value || "").trim();
+              if (/^javascript:/i.test(href)) el.removeAttribute("href");
+              else {
+                el.setAttribute("target", "_blank");
+                el.setAttribute("rel", "noopener noreferrer");
+              }
+              continue;
+            }
+            if (name === "style") {
+              el.setAttribute(
+                "style",
+                String(attrs[a].value || "")
+                  .replace(/expression\s*\(/gi, "")
+                  .replace(/url\s*\(\s*['"]?\s*javascript:/gi, "")
+                  .replace(/position\s*:/gi, "")
+              );
+              continue;
+            }
+            if (el.tagName === "FONT" && (name === "color" || name === "size")) {
+              continue;
+            }
+            if (
+              name !== "href" &&
+              name !== "style" &&
+              name !== "target" &&
+              name !== "rel"
+            ) {
+              el.removeAttribute(attrs[a].name);
+            }
+          }
+          walk(el);
+        } else if (child.nodeType === 8) {
+          node.removeChild(child);
+        }
+      }
+    }
+    walk(wrap);
+    return wrap.innerHTML;
+  }
 
   function linkAgreementCopy(text, terms, privacy) {
     var esc = String(text || "")

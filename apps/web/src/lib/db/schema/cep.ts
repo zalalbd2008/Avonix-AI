@@ -103,6 +103,11 @@ export type CepWidgetTheme = {
   agreementIntro?: string;
   /** Body copy; “Terms of Use” / “Privacy Policy” become links when URLs are set. */
   agreementBody?: string;
+  /**
+   * Rich HTML for the full agreement copy (title + intro + body).
+   * Edited via classic editor — links, colors, bold/italic.
+   */
+  agreementHtml?: string;
   termsUrl?: string;
   agreeLabel?: string;
   disagreeLabel?: string;

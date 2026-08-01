@@ -1,7 +1,5 @@
 /*
- * Avonix CEP chat widget (ADR-011 P1)
- * Bubble + inline wizard · blocks · lead_form · transfer · poll · stream · sounds
- *
+ * Avonix CEP chat widget — Nexus Lead Suite parity (bubble + panel + AI messenger)
  * No build step. Talks only to WP admin-ajax (connector key stays server-side).
  */
 (function () {
@@ -13,44 +11,65 @@
 
   var theme = config.theme || {};
   var modules = config.modules || {};
-  var primary = theme.primaryColor || config.color || "#ff6600";
+  var primary = theme.primaryColor || config.color || "#2563eb";
+
   function parseHex(h) {
     h = String(h || "").replace("#", "").trim();
-    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
     if (h.length !== 6) return null;
     return {
       r: parseInt(h.slice(0, 2), 16),
       g: parseInt(h.slice(2, 4), 16),
-      b: parseInt(h.slice(4, 6), 16)
+      b: parseInt(h.slice(4, 6), 16),
     };
   }
   function mixHex(hex, toward, t) {
-    var a = parseHex(hex) || { r: 255, g: 102, b: 0 };
+    var a = parseHex(hex) || { r: 37, g: 99, b: 235 };
     var b = parseHex(toward) || { r: 255, g: 255, b: 255 };
-    function ch(x, y) { return Math.round(x + (y - x) * t); }
-    function hx(n) { var s = n.toString(16); return s.length < 2 ? "0" + s : s; }
+    function ch(x, y) {
+      return Math.round(x + (y - x) * t);
+    }
+    function hx(n) {
+      var s = n.toString(16);
+      return s.length < 2 ? "0" + s : s;
+    }
     return "#" + hx(ch(a.r, b.r)) + hx(ch(a.g, b.g)) + hx(ch(a.b, b.b));
   }
-  var primaryEnd = theme.primaryColorEnd || mixHex(primary, "#ffffff", 0.28);
-  var primarySoft = mixHex(primary, "#ffffff", 0.88);
-  var linkAccent = theme.linkColor || mixHex(primary, "#1d4ed8", 0.35);
-  var botBubbleBg = theme.botBubbleColor || mixHex(primary, "#ffffff", 0.92);
-  var headerBg = theme.headerColor || primary;
+
+  var onPrimary = theme.onPrimaryColor || "#ffffff";
+  var headBg = theme.headerColor || mixHex(primary, "#0b1220", 0.8);
+  var botBubble = theme.botBubbleColor || mixHex(primary, "#f8fafc", 0.94);
+  var botBorder = mixHex(primary, "#ffffff", 0.87);
+  var primaryTint = mixHex(primary, "#ffffff", 0.9);
+  var primaryRing = "color-mix(in srgb," + primary + ",transparent 82%)";
+  var onlineDot = theme.onlineDotColor || "#00ff6a";
+  var surfaceBg = theme.backgroundColor || "#ffffff";
+  var canvasBg = "#f6f8fc";
   var launcherPx = Math.max(
     48,
-    (Number(theme.launcherIconSize) || 22) + 2 * (Number(theme.launcherPadding) || 14)
+    (Number(theme.launcherIconSize) || 26) + 2 * (Number(theme.launcherPadding) || 20)
   );
-  var launcherIcon = theme.launcherIcon || "compose"; // compose | dots — match reference FABs
-  var statusText = theme.statusText || "Online";
   var agentName = theme.agentName || config.title || "Customer Support";
-  var privacyUrl = theme.privacyUrl || "";
+  var statusText = theme.statusText || "Online";
+  var homeContent =
+    theme.homeContent ||
+    config.home_content ||
+    config.greeting ||
+    "Hi! Ask me anything about our site and I'll help right away.";
+  var startConvLabel = theme.startButtonLabel || "Start Conversation";
+  var openOnLaunch = theme.openOnLaunch === true;
   var preChatOn = theme.preChatEnabled === true;
-  var startHero = theme.startHeroImageUrl || "";
+  var disclaimer = theme.disclaimer || "";
+  var avatarUrl =
+    config.bot_avatar_url ||
+    config.agent_avatar_url ||
+    theme.bubbleImageUrl ||
+    "";
   var rawPos = String(theme.position || "bottom_right").toLowerCase().replace(/-/g, "_");
   var edgeX = rawPos.indexOf("left") >= 0 ? "left" : "right";
   var edgeY = rawPos.indexOf("top") >= 0 ? "top" : "bottom";
-  var ox = theme.offsetX != null ? theme.offsetX : 20;
-  var oy = theme.offsetY != null ? theme.offsetY : 20;
+  var ox = theme.offsetX != null ? theme.offsetX : 24;
+  var oy = theme.offsetY != null ? theme.offsetY : 24;
   var freeX =
     theme.leftPercent != null && isFinite(Number(theme.leftPercent))
       ? Math.min(100, Math.max(0, Number(theme.leftPercent)))
@@ -61,14 +80,15 @@
       : null;
   var useFree = freeX != null && freeY != null;
   var z = theme.zIndex || 2147483000;
-  var radius = theme.radius != null ? theme.radius : 18;
-  var deskW = theme.desktopWidth || "min(380px, calc(100vw - 28px))";
-  var deskH = theme.desktopHeight || "min(600px, calc(100vh - 100px))";
-  var mobW = theme.mobileWidth || "calc(100vw - 24px)";
-  var mobH = theme.mobileHeight || "min(70vh, calc(100dvh - 96px))";
+  var radius = theme.radius != null ? theme.radius : 16;
+  var deskW = theme.desktopWidth || "320px";
+  var deskH = theme.desktopHeight || "min(510px, calc(100vh - 130px))";
+  var mobW = theme.mobileWidth || "min(320px, calc(100vw - 24px))";
+  var mobH = theme.mobileHeight || "min(510px, calc(100svh - 164px))";
   var surface = config.surface || "bubble";
   var soundsOn = modules.sounds !== false;
   var streamingOn = modules.streaming !== false;
+  var allowAttach = modules.attachments !== false;
 
   var conversationId = null;
   var lastSeenAt = null;
@@ -77,93 +97,183 @@
   var busy = false;
   var pollTimer = null;
   var seenIds = {};
+  var aiViewActive = false;
+  var leadGatePassed = false;
+  var lastBotText = "";
+  var ttsOn = false;
 
-  // Safe corner CSS first. Free % is applied in placeRoot() after measuring the
-  // launcher — studio percents mean share of (viewport − launcher), not raw CSS %.
   var alignEnd = useFree ? freeX >= 50 : edgeX === "right";
   var stackUp = useFree ? freeY >= 45 : edgeY === "bottom";
   var rootPosCss = edgeY + ":" + oy + "px;" + edgeX + ":" + ox + "px;";
 
+  var CHAT_SVG =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10h.01M12 10h.01M16 10h.01M21 16c0 1.1-.9 2-2 2H7l-4 4V6a2 2 0 012-2h14a2 2 0 012 2v10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
   var style = document.createElement("style");
   style.textContent =
-    ":root{--avx-cep-primary:" + primary + ";--avx-cep-primary-end:" + primaryEnd + ";--avx-cep-soft:" + primarySoft + ";--avx-cep-bot-bg:" + botBubbleBg + ";--avx-cep-header:" + headerBg + ";--avx-cep-text:#2d2d2d;--avx-cep-muted:#9aa3af;--avx-cep-panel-radius:" + radius + "px;--avx-cep-launcher:" + launcherPx + "px;}" +
-    ".avonix-cep-root{position:fixed;z-index:" + z + ";" + rootPosCss + "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:" + (stackUp ? "column-reverse" : "column") + ";align-items:" + (alignEnd ? "flex-end" : "flex-start") + ";gap:12px;max-width:calc(100vw - 16px);}" +
-    ".avonix-cep-root--wizard{position:relative;inset:auto;z-index:1;width:100%;max-width:100%;align-items:stretch;bottom:auto;top:auto;left:auto;right:auto;flex-direction:column;}" +
-    /* Avatar FAB with ring + green online */
-    ".avonix-cep-launcher{cursor:pointer;border:2.5px solid #f5b942;width:var(--avx-cep-launcher);height:var(--avx-cep-launcher);padding:0;border-radius:50%;background:var(--avx-cep-primary);box-shadow:0 8px 22px rgba(15,23,42,.2);position:relative;display:grid;place-items:center;overflow:visible;transition:transform .15s ease;}" +
-    ".avonix-cep-launcher:hover{transform:scale(1.04);}" +
-    ".avonix-cep-launcher__img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;}" +
-    ".avonix-cep-launcher__glyph{width:52%;height:52%;display:block;color:#fff;}" +
-    ".avonix-cep-online{position:absolute;top:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:#22c55e;border:2.5px solid #fff;display:block!important;box-shadow:0 0 0 1px rgba(0,0,0,.06);}" +
-    (theme.pulse
-      ? ".avonix-cep-launcher::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:2px solid #f5b942;opacity:.35;animation:avonix-cep-pulse 1.9s ease infinite;pointer-events:none;}" +
-        "@keyframes avonix-cep-pulse{0%{transform:scale(1);opacity:.35}70%{transform:scale(1.18);opacity:0}100%{opacity:0}}"
-      : "") +
+    ".avonix-cep-root{--avx-primary:" +
+    primary +
+    ";--avx-on-primary:" +
+    onPrimary +
+    ";--avx-head:" +
+    headBg +
+    ";--avx-head-soft:rgba(255,255,255,.09);--avx-head-line:rgba(255,255,255,.16);--avx-bot:" +
+    botBubble +
+    ";--avx-bot-border:" +
+    botBorder +
+    ";--avx-tint:" +
+    primaryTint +
+    ";--avx-ring:" +
+    primaryRing +
+    ";--avx-online:" +
+    onlineDot +
+    ";--avx-surface:" +
+    surfaceBg +
+    ";--avx-canvas:" +
+    canvasBg +
+    ";--avx-border:#e2e8f0;--avx-border-soft:#f1f5f9;--avx-field:#cbd5e1;--avx-ink:#0f172a;--avx-ink-2:#1e293b;--avx-ink-3:#475569;--avx-muted:#94a3b8;--avx-time:10.5px;--avx-bubble-gap:4px;--avx-r:12px;--avx-rl:16px;--avx-rs:8px;--avx-launcher:" +
+    launcherPx +
+    "px;--avx-shadow-lg:0 12px 32px -8px rgba(15,23,42,.18);}" +
+    ".avonix-cep-root{position:fixed;z-index:" +
+    z +
+    ";" +
+    rootPosCss +
+    "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:" +
+    (stackUp ? "column-reverse" : "column") +
+    ";align-items:" +
+    (alignEnd ? "flex-end" : "flex-start") +
+    ";gap:12px;max-width:calc(100vw - 16px);box-sizing:border-box;}" +
+    ".avonix-cep-root--wizard{position:relative;inset:auto;z-index:1;width:100%;max-width:100%;align-items:stretch;flex-direction:column;}" +
+    ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
+    ".avonix-cep-root :where(button[class*=avonix-cep-],input[class*=avonix-cep-],a[class*=avonix-cep-]){margin:0;font-family:inherit;letter-spacing:normal;text-transform:none;-webkit-appearance:none;appearance:none;}" +
+    /* FAB — Nexus style */
+    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:50%;background:var(--avx-primary);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;}" +
+    ".avonix-cep-launcher:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.22);}" +
+    ".avonix-cep-launcher__img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;position:relative;z-index:1;}" +
+    ".avonix-cep-launcher svg{width:40%;height:40%;position:relative;z-index:1;}" +
+    ".avonix-cep-online{position:absolute;z-index:3;width:var(--avx-od);height:var(--avx-od);border-radius:999px;background:var(--avx-online);top:calc(14.645% - (var(--avx-od)/2));right:calc(14.645% - (var(--avx-od)/2));box-shadow:0 0 0 2px rgba(255,255,255,.22),0 0 16px color-mix(in srgb,var(--avx-online),transparent 15%);animation:avonix-cep-blink 1.05s ease-in-out infinite;}" +
+    "@keyframes avonix-cep-blink{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.12);opacity:1;box-shadow:0 0 0 2px rgba(255,255,255,.35),0 0 18px rgba(0,255,106,.95)}}" +
+    "@media (prefers-reduced-motion:reduce){.avonix-cep-online{animation:none}}" +
     /* Panel */
-    ".avonix-cep-panel{display:none;flex-direction:column;width:" + deskW + ";height:" + deskH + ";max-width:min(100%,calc(100vw - 24px));max-height:min(640px,calc(100dvh - 96px));background:#fff;color:var(--avx-cep-text);border-radius:var(--avx-cep-panel-radius);overflow:hidden;box-shadow:0 22px 55px rgba(15,23,42,.22);}" +
+    ".avonix-cep-panel{display:none;flex-direction:column;width:" +
+    deskW +
+    ";height:" +
+    deskH +
+    ";max-width:min(100%,calc(100vw - 24px));max-height:min(510px,calc(100vh - 130px));background:var(--avx-surface);color:var(--avx-ink);border-radius:" +
+    radius +
+    "px;overflow:hidden;box-shadow:0 16px 48px rgba(15,23,42,.18);}" +
+    ".avonix-cep-panel.is-open{display:flex;animation:avonix-cep-pop .22s ease;}" +
+    "@keyframes avonix-cep-pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}" +
     ".avonix-cep-root--wizard .avonix-cep-panel{display:flex;width:100%;height:min(640px,70vh);max-width:100%;box-shadow:none;}" +
     ".avonix-cep-root--wizard .avonix-cep-launcher{display:none;}" +
-    /* Maroon/primary header */
-    ".avonix-cep-header{padding:12px 12px;background:var(--avx-cep-header);display:flex;align-items:center;gap:10px;flex-shrink:0;}" +
-    ".avonix-cep-icon-btn{width:34px;height:34px;border-radius:10px;border:0;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;cursor:pointer;flex-shrink:0;padding:0;}" +
-    ".avonix-cep-icon-btn:hover{background:rgba(255,255,255,.2);}" +
-    ".avonix-cep-icon-btn--ghost{background:rgba(255,255,255,.12);color:#fff;}" +
-    ".avonix-cep-header__actions{display:flex;gap:6px;margin-left:auto;flex-shrink:0;}" +
-    ".avonix-cep-avatar{width:42px;height:42px;border-radius:12px;object-fit:cover;background:rgba(255,255,255,.2);flex-shrink:0;}" +
-    ".avonix-cep-header__meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;}" +
-    ".avonix-cep-header__name{font-size:15px;font-weight:700;line-height:1.15;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
-    ".avonix-cep-header__status{font-size:12px;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:6px;line-height:1.2;font-weight:500;}" +
-    ".avonix-cep-header__status-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;box-shadow:0 0 0 2px rgba(34,197,94,.25);}" +
-    /* Log */
-    ".avonix-cep-log{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px;background:#f5f6f8;}" +
-    ".avonix-cep-day{display:none;}" +
-    ".avonix-cep-row{display:flex;gap:8px;align-items:flex-end;max-width:100%;}" +
-    ".avonix-cep-row--you{flex-direction:row-reverse;}" +
-    ".avonix-cep-row .avonix-cep-avatar{width:28px;height:28px;border-radius:50%;display:block;align-self:flex-end;}" +
-    ".avonix-cep-msg{display:flex;flex-direction:column;gap:4px;max-width:calc(100% - 36px);min-width:0;}" +
-    ".avonix-cep-row--you .avonix-cep-msg{align-items:flex-end;}" +
-    ".avonix-cep-bubble{padding:11px 14px;border-radius:16px;font-size:14px;line-height:1.45;word-break:break-word;}" +
-    ".avonix-cep-bubble--bot{background:var(--avx-cep-bot-bg);color:#333;border-bottom-left-radius:6px;}" +
-    ".avonix-cep-bubble--you{background:var(--avx-cep-primary);color:#fff;border-bottom-right-radius:6px;}" +
-    ".avonix-cep-bubble--system{background:transparent;color:#9aa3af;font-size:12px;text-align:center;padding:6px;}" +
-    ".avonix-cep-meta{font-size:11px;font-weight:500;color:#9aa3af;margin:0 2px;text-transform:none;letter-spacing:0;}" +
-    ".avonix-cep-bubble a{color:inherit;text-decoration:underline;}" +
-    /* TRY ASKING */
-    ".avonix-cep-try{margin-top:4px;display:flex;flex-direction:column;gap:8px;}" +
-    ".avonix-cep-try__label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9aa3af;margin:4px 0 2px;}" +
-    ".avonix-cep-btns{display:flex;flex-direction:column;gap:8px;margin:0;}" +
-    ".avonix-cep-btn{border:1px solid #e5e7eb;background:#fff;color:#333;border-radius:12px;padding:12px 14px;font-size:13.5px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;width:100%;box-shadow:none;}" +
-    ".avonix-cep-btn:hover{border-color:color-mix(in srgb,var(--avx-cep-primary) 35%,#e5e7eb);background:#fafafa;}" +
-    ".avonix-cep-btn__ico{width:18px;height:18px;flex-shrink:0;color:var(--avx-cep-primary);display:grid;place-items:center;}" +
-    ".avonix-cep-lead{margin-top:8px;border-radius:12px;padding:10px;background:#fff;border:1px solid #e5e7eb;max-height:280px;overflow:auto;}" +
-    /* Footer composer */
-    ".avonix-cep-form{display:flex;align-items:center;gap:8px;padding:12px 12px 14px;background:#fff;border-top:1px solid #eef0f3;flex-shrink:0;}" +
-    ".avonix-cep-input-wrap{flex:1;min-width:0;display:flex;align-items:center;gap:2px;background:#fff;border-radius:999px;padding:4px 8px 4px 10px;border:1px solid #e5e7eb;}" +
-    ".avonix-cep-input{flex:1;min-width:0;border:0;background:transparent;padding:10px 4px;font-size:14px;outline:none;color:#333;}" +
-    ".avonix-cep-input::placeholder{color:#b0b0b8;}" +
-    ".avonix-cep-tool{border:0;background:transparent;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#9aa3af;cursor:pointer;padding:0;flex-shrink:0;}" +
-    ".avonix-cep-tool:hover{color:var(--avx-cep-primary);}" +
-    ".avonix-cep-send{border:0;background:#eef1f5;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:#5b6b83;cursor:pointer;padding:0;flex-shrink:0;}" +
-    ".avonix-cep-send:hover{background:var(--avx-cep-primary);color:#fff;}" +
+    /* Home */
+    ".avonix-cep-home{display:flex;flex-direction:column;flex:1;min-height:0;}" +
+    ".avonix-cep-home.is-hidden,.avonix-cep-ai.is-hidden,.avonix-cep-gate.is-hidden{display:none!important;}" +
+    ".avonix-cep-home__head{display:flex;align-items:center;gap:13px;padding:18px 18px 16px;background:var(--avx-head);flex-shrink:0;}" +
+    ".avonix-cep-home__avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;}" +
+    ".avonix-cep-home__avatar img{width:100%;height:100%;object-fit:cover;}" +
+    ".avonix-cep-home__avatar svg{width:22px;height:22px;}" +
+    ".avonix-cep-home__info{flex:1;min-width:0;}" +
+    ".avonix-cep-home__title{font-size:14.5px;font-weight:600;color:#fff;margin:0;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+    ".avonix-cep-home__badge{font-size:11px;font-weight:400;color:#fff;opacity:.8;margin:5px 0 0;line-height:1.2;display:flex;align-items:center;gap:6px;}" +
+    ".avonix-cep-dot{width:9px;height:9px;border-radius:999px;flex-shrink:0;background:var(--avx-online);box-shadow:0 0 0 2px rgba(255,255,255,.22);animation:avonix-cep-blink 1.05s ease-in-out infinite;}" +
+    ".avonix-cep-close{background:var(--avx-head-soft);border:1px solid var(--avx-head-line);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;line-height:1;transition:background .2s,transform .25s cubic-bezier(.34,1.56,.64,1);padding:0;}" +
+    ".avonix-cep-close:hover{background:rgba(255,255,255,.22);transform:rotate(90deg) scale(1.05);}" +
+    ".avonix-cep-home__body{flex:1 1 auto;padding:26px 24px;background:#f8fafc;font-size:14px;color:#475569;line-height:1.65;border-bottom:1px solid #f1f5f9;min-height:96px;overflow-y:auto;scrollbar-width:none;}" +
+    ".avonix-cep-home__body::-webkit-scrollbar{display:none;}" +
+    ".avonix-cep-home__btns{padding:18px 22px 22px;display:flex;flex-direction:column;gap:10px;background:var(--avx-surface);flex-shrink:0;}" +
+    ".avonix-cep-home__start{display:block;width:100%;text-align:center;font-weight:500;font-size:13.5px;cursor:pointer;border:0;border-radius:10px;padding:13px 16px;background:var(--avx-primary);color:var(--avx-on-primary);line-height:1.3;box-shadow:0 1px 2px rgba(15,23,42,.05);transition:transform .18s,filter .18s;}" +
+    ".avonix-cep-home__start:hover{transform:translateY(-2px);filter:brightness(.94);}" +
+    /* Lead gate */
+    ".avonix-cep-gate{display:flex;flex-direction:column;flex:1;min-height:0;background:var(--avx-canvas);}" +
+    ".avonix-cep-gate__body{flex:1;overflow-y:auto;padding:14px 16px 16px;scrollbar-width:none;}" +
+    ".avonix-cep-gate__card{background:var(--avx-surface);border:1px solid var(--avx-border);border-radius:var(--avx-rl);padding:20px 18px 18px;box-shadow:0 1px 2px rgba(15,23,42,.05);}" +
+    ".avonix-cep-gate__title{margin:0 0 6px;font-size:15px;font-weight:600;color:var(--avx-ink);text-align:center;}" +
+    ".avonix-cep-gate__sub{margin:0 0 16px;font-size:13px;color:var(--avx-ink-3);text-align:center;line-height:1.5;}" +
+    ".avonix-cep-gate__fields{display:flex;flex-direction:column;gap:12px;}" +
+    ".avonix-cep-gate__input{width:100%;box-sizing:border-box;background:var(--avx-canvas);border:1px solid var(--avx-field);border-radius:10px;padding:12px 14px;min-height:46px;font-size:14px;color:var(--avx-ink-2);outline:none;}" +
+    ".avonix-cep-gate__input:focus{border-color:var(--avx-primary);box-shadow:0 0 0 3px var(--avx-ring);background:var(--avx-surface);}" +
+    ".avonix-cep-gate__send{width:100%;margin-top:14px;border:0;border-radius:10px;padding:13px 20px;background:var(--avx-primary);color:var(--avx-on-primary);font-size:14px;font-weight:600;cursor:pointer;}" +
+    ".avonix-cep-gate__hint{margin:10px 0 0;font-size:11.5px;color:var(--avx-muted);text-align:center;line-height:1.45;}" +
+    ".avonix-cep-gate__err{display:none;font-size:12px;color:#b91c1c;margin-top:8px;text-align:center;}" +
+    ".avonix-cep-gate__err.is-on{display:block;}" +
+    /* AI view */
+    ".avonix-cep-ai{display:flex;flex-direction:column;flex:1 1 0%;min-height:0;overflow:hidden;}" +
+    ".avonix-cep-ai__head{display:flex;align-items:center;gap:10px;padding:13px 14px;background:var(--avx-head);color:#fff;flex:0 0 auto;}" +
+    ".avonix-cep-icon{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);color:inherit;border-radius:var(--avx-rs);cursor:pointer;padding:0;transition:background .15s;}" +
+    ".avonix-cep-icon:hover{background:rgba(255,255,255,.22);}" +
+    ".avonix-cep-icon svg{width:17px;height:17px;}" +
+    ".avonix-cep-ai__avatar{width:34px;height:34px;border-radius:9px;overflow:hidden;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:#fff;}" +
+    ".avonix-cep-ai__avatar img{width:100%;height:100%;object-fit:cover;}" +
+    ".avonix-cep-ai__avatar svg{width:19px;height:19px;}" +
+    ".avonix-cep-ai__info{min-width:0;flex:1;}" +
+    ".avonix-cep-ai__name{margin:0;font-weight:600;font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+    ".avonix-cep-ai__badge{margin:3px 0 0;font-size:11px;font-weight:400;opacity:.8;display:flex;align-items:center;gap:6px;}" +
+    ".avonix-cep-ai__tools{margin-left:auto;display:flex;align-items:center;gap:6px;}" +
+    ".avonix-cep-tts[hidden]{display:none!important;}" +
+    ".avonix-cep-tts.is-on{background:rgba(255,255,255,.34);}" +
+    ".avonix-cep-tts.is-speaking{animation:avonix-cep-tts 1.2s ease-in-out infinite;}" +
+    "@keyframes avonix-cep-tts{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.45)}50%{box-shadow:0 0 0 5px transparent}}" +
+    ".avonix-cep-tts .on{display:none;}" +
+    ".avonix-cep-tts.is-on .on{display:block;}" +
+    ".avonix-cep-tts.is-on .off{display:none;}" +
+    /* Messages */
+    ".avonix-cep-log{flex:1 1 0%;min-height:0;overflow-x:hidden;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:12px;background:var(--avx-canvas);scrollbar-width:none;}" +
+    ".avonix-cep-log::-webkit-scrollbar{display:none;}" +
+    ".avonix-cep-row{display:flex;gap:8px;max-width:100%;align-items:center;}" +
+    ".avonix-cep-row--you{justify-content:flex-end;}" +
+    ".avonix-cep-bubav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;background:var(--avx-head);color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:calc(var(--avx-time) + var(--avx-bubble-gap));}" +
+    ".avonix-cep-bubav img{width:100%;height:100%;object-fit:cover;}" +
+    ".avonix-cep-bubav svg{width:15px;height:15px;}" +
+    ".avonix-cep-col{display:flex;flex-direction:column;gap:var(--avx-bubble-gap);max-width:80%;min-width:0;}" +
+    ".avonix-cep-row--you .avonix-cep-col{align-items:flex-end;}" +
+    ".avonix-cep-time{font-size:var(--avx-time);color:var(--avx-muted);padding:0 6px;line-height:1;}" +
+    ".avonix-cep-bubble{max-width:100%;padding:11px 15px;border-radius:var(--avx-r);font-size:14px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;}" +
+    ".avonix-cep-bubble--bot{background:var(--avx-bot);color:var(--avx-ink-2);border:1px solid var(--avx-bot-border);border-bottom-left-radius:4px;}" +
+    ".avonix-cep-bubble--you{background:var(--avx-head);color:#fff;border-bottom-right-radius:4px;}" +
+    ".avonix-cep-bubble--system{background:transparent;border:0;color:var(--avx-muted);font-size:12px;text-align:center;padding:6px;}" +
+    ".avonix-cep-bubble--bot a{color:var(--avx-primary);}" +
+    ".avonix-cep-bubble--error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-bottom-left-radius:4px;}" +
+    /* Try asking */
+    ".avonix-cep-try{align-self:stretch;margin:2px 0 2px 6px;}" +
+    ".avonix-cep-try__label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--avx-muted);margin:0 0 8px 2px;}" +
+    ".avonix-cep-btns{display:flex;flex-direction:column;gap:8px;}" +
+    ".avonix-cep-btn{display:flex;width:100%;align-items:center;gap:10px;text-align:left;font-size:13.5px;font-weight:400;line-height:1.35;color:var(--avx-ink-2);background:var(--avx-surface);border:1px solid var(--avx-border);border-radius:10px;padding:11px 14px;cursor:pointer;transition:border-color .15s,background .15s;}" +
+    ".avonix-cep-btn:hover{border-color:var(--avx-primary);background:var(--avx-tint);color:var(--avx-ink-2);}" +
+    ".avonix-cep-btn__ico{flex:0 0 auto;width:18px;height:18px;color:var(--avx-primary);display:flex;align-items:center;justify-content:center;}" +
+    ".avonix-cep-btn__ico svg{width:16px;height:16px;}" +
+    ".avonix-cep-lead{margin-top:8px;border-radius:var(--avx-rl);padding:10px;background:var(--avx-surface);border:1px solid var(--avx-border);max-height:280px;overflow:auto;}" +
+    /* Typing */
+    ".avonix-cep-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:var(--avx-bot);border:1px solid var(--avx-bot-border);border-radius:var(--avx-r);border-bottom-left-radius:4px;}" +
+    ".avonix-cep-typing span{width:7px;height:7px;border-radius:50%;background:var(--avx-muted);animation:avonix-cep-bounce 1.2s infinite ease-in-out;}" +
+    ".avonix-cep-typing span:nth-child(2){animation-delay:.15s;}" +
+    ".avonix-cep-typing span:nth-child(3){animation-delay:.3s;}" +
+    "@keyframes avonix-cep-bounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}" +
+    /* Composer */
+    ".avonix-cep-form{position:relative;z-index:3;margin:0;padding:10px 12px max(32px,calc(20px + env(safe-area-inset-bottom,0px)));border-top:1px solid var(--avx-border);background:var(--avx-surface);flex:0 0 auto;}" +
+    ".avonix-cep-disclaimer{margin:8px 6px 0;font-size:11px;line-height:1.45;color:var(--avx-muted);text-align:center;}" +
+    ".avonix-cep-inputbar{display:flex;align-items:center;gap:4px;background:var(--avx-surface);border:1px solid var(--avx-border);border-radius:999px;padding:5px 6px 5px 12px;transition:border-color .15s,box-shadow .15s;}" +
+    ".avonix-cep-inputbar:focus-within{border-color:var(--avx-primary);box-shadow:inset 0 0 0 2px var(--avx-ring);}" +
+    ".avonix-cep-input{flex:1 1 auto;min-width:0;width:auto!important;background:transparent!important;border:none!important;box-shadow:none!important;outline:none!important;margin:0!important;padding:8px 4px!important;font-size:14px!important;line-height:1.45!important;color:var(--avx-ink-2)!important;}" +
+    ".avonix-cep-input::placeholder{color:var(--avx-muted)!important;}" +
+    ".avonix-cep-tool{flex:0 0 auto;cursor:pointer;width:34px;height:34px;border-radius:var(--avx-rs);display:flex;align-items:center;justify-content:center;color:var(--avx-ink-3);padding:0;border:0;background:transparent;}" +
+    ".avonix-cep-tool:hover{background:var(--avx-border-soft);color:var(--avx-ink);}" +
+    ".avonix-cep-tool svg{width:19px;height:19px;}" +
+    ".avonix-cep-send{flex:0 0 auto;cursor:pointer;background:var(--avx-border);color:var(--avx-ink-3);border:0;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;transition:background .15s,color .15s;}" +
+    ".avonix-cep-send.is-active,.avonix-cep-send.is-active:hover{background:var(--avx-head);color:#fff;}" +
     ".avonix-cep-send svg{width:18px;height:18px;}" +
-    /* Gate kept minimal */
-    ".avonix-cep-gate{display:none;flex-direction:column;flex:1;min-height:0;padding:28px 28px 24px;background:#fff;position:relative;}" +
-    ".avonix-cep-gate.is-on{display:flex;}" +
-    ".avonix-cep-gate__close{position:absolute;top:16px;right:16px;background:transparent;border:0;color:#333;cursor:pointer;padding:4px;line-height:0;}" +
-    ".avonix-cep-gate__hero{display:flex;align-items:center;justify-content:center;min-height:100px;margin:12px 0 28px;color:#222;}" +
-    ".avonix-cep-gate__hero img{max-height:100px;max-width:100%;object-fit:contain;}" +
-    ".avonix-cep-gate__title{margin:0 0 22px;font-size:28px;font-weight:700;color:#111;text-align:left;}" +
-    ".avonix-cep-gate__field{margin:0 0 12px;}" +
-    ".avonix-cep-gate__label{display:none;}" +
-    ".avonix-cep-gate__email{width:100%;border:0;border-bottom:1px solid #c8c8c8;padding:10px 0;font-size:16px;outline:none;background:transparent;color:#111;box-sizing:border-box;}" +
-    ".avonix-cep-gate__privacy{font-size:12px;line-height:1.45;color:#555;margin:0 0 20px;}" +
-    ".avonix-cep-gate__privacy a{color:#1a5cff;font-weight:600;text-decoration:none;}" +
-    ".avonix-cep-gate__check{display:flex;align-items:center;gap:10px;font-size:14px;color:#444;margin:0 0 12px;cursor:pointer;}" +
-    ".avonix-cep-gate__check input{width:16px;height:16px;margin:0;}" +
-    ".avonix-cep-gate__go{margin-top:auto;align-self:flex-start;border:0;background:transparent;padding:8px 0;font-size:15px;font-weight:700;color:var(--avx-cep-primary);cursor:pointer;}" +
-    ".avonix-cep-chat{display:flex;flex-direction:column;flex:1;min-height:0;background:#f5f6f8;}" +
-    ".avonix-cep-chat.is-hidden{display:none;}" +
-    "@media (max-width:640px){.avonix-cep-root:not(.avonix-cep-root--wizard) .avonix-cep-panel{width:" + mobW + ";height:" + mobH + ";border-radius:16px;}}";
+    ".avonix-cep-send:disabled{opacity:.7;cursor:default;}" +
+    ".avonix-cep-emoji-wrap{position:relative;flex:0 0 auto;display:flex;}" +
+    ".avonix-cep-emoji-pop{position:absolute;bottom:calc(100% + 12px);right:0;width:238px;background:var(--avx-surface);border:1px solid var(--avx-border);border-radius:var(--avx-rl);box-shadow:var(--avx-shadow-lg);padding:6px;display:none;z-index:6;}" +
+    ".avonix-cep-emoji-pop.is-open{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;}" +
+    ".avonix-cep-emoji-pop button{border:0;background:transparent;cursor:pointer;font-size:20px;line-height:1;padding:6px;border-radius:var(--avx-rs);}" +
+    ".avonix-cep-emoji-pop button:hover{background:var(--avx-border-soft);}" +
+    "@media (max-width:1023px){.avonix-cep-root:not(.avonix-cep-root--wizard) .avonix-cep-panel{width:" +
+    mobW +
+    ";height:" +
+    mobH +
+    ";border-radius:16px;}.avonix-cep-launcher{--avx-od:8px;}}" +
+    "";
   document.head.appendChild(style);
 
   function playPing() {
@@ -194,33 +304,8 @@
       .replace(/>/g, "&gt;");
     return esc.replace(
       /(https?:\/\/[^\s<]+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
     );
-  }
-
-  function avatarFor(who) {
-    if (who === "you") return null;
-    var url =
-      who === "agent"
-        ? config.agent_avatar_url || config.bot_avatar_url
-        : config.bot_avatar_url || config.agent_avatar_url || theme.bubbleImageUrl;
-    if (url) {
-      var img = document.createElement("img");
-      img.className = "avonix-cep-avatar";
-      img.src = url;
-      img.alt = "";
-      return img;
-    }
-    var fall = document.createElement("div");
-    fall.className = "avonix-cep-avatar";
-    fall.style.display = "grid";
-    fall.style.placeItems = "center";
-    fall.style.fontSize = "11px";
-    fall.style.fontWeight = "800";
-    fall.style.background = primarySoft;
-    fall.style.color = primary;
-    fall.textContent = (agentName || "C").slice(0, 1).toUpperCase();
-    return fall;
   }
 
   function formatTime() {
@@ -231,8 +316,313 @@
     }
   }
 
+  function avatarNode(cls, rounded) {
+    var wrap = document.createElement("div");
+    wrap.className = cls;
+    if (avatarUrl) {
+      var img = document.createElement("img");
+      img.src = avatarUrl;
+      img.alt = "";
+      wrap.appendChild(img);
+    } else {
+      wrap.innerHTML = CHAT_SVG;
+    }
+    return wrap;
+  }
+
+  function suggestionIcon(idx) {
+    var icons = [
+      '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 9.2c.4-1.2 1.4-1.9 2.6-1.9 1.4 0 2.4.9 2.4 2.2 0 1.2-.7 1.8-1.7 2.3-.7.3-1 .7-1 1.5v.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>',
+      '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 10.5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1" fill="currentColor"/></svg>',
+      '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M15.5 7.5c0-1.4-1.6-2.5-3.5-2.5S8.5 6.1 8.5 7.5 10 9.8 12 10.2c2 .4 3.5 1.4 3.5 3s-1.6 2.8-3.5 2.8-3.5-1.1-3.5-2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    ];
+    return icons[idx % icons.length];
+  }
+
+  /* ---- Root / FAB ---- */
+  var root = document.createElement("div");
+  root.className =
+    "avonix-cep-root" + (surface === "wizard" ? " avonix-cep-root--wizard" : "");
+  root.setAttribute("data-avonix", "cep-chat");
+  root.setAttribute("data-surface", surface);
+
+  var button = document.createElement("button");
+  button.type = "button";
+  button.className = "avonix-cep-launcher";
+  button.setAttribute("aria-label", theme.launcherLabel || config.label || "Open chat");
+  button.setAttribute("aria-expanded", "false");
+  if (avatarUrl) {
+    button.innerHTML =
+      '<img class="avonix-cep-launcher__img" src="' +
+      String(avatarUrl).replace(/"/g, "") +
+      '" alt="">';
+  } else {
+    button.innerHTML = CHAT_SVG;
+  }
+  if (theme.onlineIndicator !== false) {
+    var od = document.createElement("span");
+    od.className = "avonix-cep-online";
+    od.setAttribute("aria-hidden", "true");
+    button.appendChild(od);
+  }
+
+  var panel = document.createElement("div");
+  panel.className = "avonix-cep-panel";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-label", agentName);
+
+  /* ---- Home ---- */
+  var home = document.createElement("div");
+  home.className = "avonix-cep-home";
+  var homeHead = document.createElement("div");
+  homeHead.className = "avonix-cep-home__head";
+  homeHead.appendChild(avatarNode("avonix-cep-home__avatar"));
+  var homeInfo = document.createElement("div");
+  homeInfo.className = "avonix-cep-home__info";
+  homeInfo.innerHTML =
+    '<p class="avonix-cep-home__title"></p><p class="avonix-cep-home__badge"><span class="avonix-cep-dot" aria-hidden="true"></span><span></span></p>';
+  homeInfo.querySelector(".avonix-cep-home__title").textContent = agentName;
+  homeInfo.querySelector(".avonix-cep-home__badge span:last-child").textContent = statusText;
+  homeHead.appendChild(homeInfo);
+  var homeClose = document.createElement("button");
+  homeClose.type = "button";
+  homeClose.className = "avonix-cep-close";
+  homeClose.setAttribute("aria-label", "Close");
+  homeClose.innerHTML = "&#x2715;";
+  homeHead.appendChild(homeClose);
+  var homeBody = document.createElement("div");
+  homeBody.className = "avonix-cep-home__body";
+  homeBody.textContent = homeContent;
+  var homeBtns = document.createElement("div");
+  homeBtns.className = "avonix-cep-home__btns";
+  var startBtn = document.createElement("button");
+  startBtn.type = "button";
+  startBtn.className = "avonix-cep-home__start";
+  startBtn.textContent = startConvLabel;
+  homeBtns.appendChild(startBtn);
+  home.appendChild(homeHead);
+  home.appendChild(homeBody);
+  home.appendChild(homeBtns);
+
+  /* ---- Lead gate ---- */
+  var gate = document.createElement("div");
+  gate.className = "avonix-cep-gate is-hidden";
+  var gateHead = homeHead.cloneNode(true);
+  gateHead.querySelector(".avonix-cep-close").classList.add("avonix-cep-gate-close");
+  var gateBody = document.createElement("div");
+  gateBody.className = "avonix-cep-gate__body";
+  gateBody.innerHTML =
+    '<div class="avonix-cep-gate__card">' +
+    '<p class="avonix-cep-gate__title"></p>' +
+    '<p class="avonix-cep-gate__sub">Share your details below and we will connect you with our team right away.</p>' +
+    '<div class="avonix-cep-gate__fields">' +
+    '<input type="text" class="avonix-cep-gate__input" id="avonix-cep-name" placeholder="Your name" autocomplete="name"/>' +
+    '<input type="tel" class="avonix-cep-gate__input" id="avonix-cep-phone" placeholder="Phone" autocomplete="tel"/>' +
+    '<input type="email" class="avonix-cep-gate__input" id="avonix-cep-email" placeholder="Email" autocomplete="email"/>' +
+    "</div>" +
+    '<div class="avonix-cep-gate__err" id="avonix-cep-gate-err"></div>' +
+    '<button type="button" class="avonix-cep-gate__send" id="avonix-cep-gate-send">Send</button>' +
+    '<p class="avonix-cep-gate__hint">We typically reply within a few minutes during business hours.</p>' +
+    "</div>";
+  gateBody.querySelector(".avonix-cep-gate__title").textContent =
+    theme.startTitle || "Leave your contact";
+  gate.appendChild(gateHead);
+  gate.appendChild(gateBody);
+
+  /* ---- AI ---- */
+  var ai = document.createElement("div");
+  ai.className = "avonix-cep-ai is-hidden";
+  var aiHead = document.createElement("div");
+  aiHead.className = "avonix-cep-ai__head";
+  var backBtn = document.createElement("button");
+  backBtn.type = "button";
+  backBtn.className = "avonix-cep-icon";
+  backBtn.setAttribute("aria-label", "Back");
+  backBtn.innerHTML = "&#8592;";
+  aiHead.appendChild(backBtn);
+  aiHead.appendChild(avatarNode("avonix-cep-ai__avatar"));
+  var aiInfo = document.createElement("div");
+  aiInfo.className = "avonix-cep-ai__info";
+  aiInfo.innerHTML =
+    '<p class="avonix-cep-ai__name"></p><p class="avonix-cep-ai__badge"><span class="avonix-cep-dot" aria-hidden="true"></span><span></span></p>';
+  aiInfo.querySelector(".avonix-cep-ai__name").textContent = agentName;
+  aiInfo.querySelector(".avonix-cep-ai__badge span:last-child").textContent = statusText;
+  aiHead.appendChild(aiInfo);
+  var tools = document.createElement("span");
+  tools.className = "avonix-cep-ai__tools";
+  var ttsBtn = document.createElement("button");
+  ttsBtn.type = "button";
+  ttsBtn.className = "avonix-cep-icon avonix-cep-tts";
+  ttsBtn.hidden = true;
+  ttsBtn.setAttribute("aria-pressed", "false");
+  ttsBtn.setAttribute("aria-label", "Read replies aloud");
+  ttsBtn.innerHTML =
+    '<svg class="off" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M22 9l-6 6M16 9l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' +
+    '<svg class="on" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.7 5.3a9 9 0 0 1 0 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  var resetBtn = document.createElement("button");
+  resetBtn.type = "button";
+  resetBtn.className = "avonix-cep-icon";
+  resetBtn.setAttribute("aria-label", "Start a new chat");
+  resetBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  tools.appendChild(ttsBtn);
+  tools.appendChild(resetBtn);
+  aiHead.appendChild(tools);
+
+  var log = document.createElement("div");
+  log.className = "avonix-cep-log";
+  log.setAttribute("role", "log");
+  log.setAttribute("aria-live", "polite");
+
+  var form = document.createElement("form");
+  form.className = "avonix-cep-form";
+  var inputBar = document.createElement("div");
+  inputBar.className = "avonix-cep-inputbar";
+  var fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.hidden = true;
+  fileInput.accept = "image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain,text/csv";
+  var clipBtn = document.createElement("button");
+  clipBtn.type = "button";
+  clipBtn.className = "avonix-cep-tool";
+  clipBtn.setAttribute("aria-label", "Attach");
+  clipBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none"><path d="M21.4 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  if (!allowAttach) clipBtn.style.display = "none";
+  var input = document.createElement("input");
+  input.type = "text";
+  input.className = "avonix-cep-input";
+  input.placeholder = config.placeholder || theme.placeholder || "Write a message...";
+  input.setAttribute("aria-label", "Message");
+  input.maxLength = 2000;
+  input.autocomplete = "off";
+  var emojiWrap = document.createElement("span");
+  emojiWrap.className = "avonix-cep-emoji-wrap";
+  var emojiBtn = document.createElement("button");
+  emojiBtn.type = "button";
+  emojiBtn.className = "avonix-cep-tool";
+  emojiBtn.setAttribute("aria-label", "Emoji");
+  emojiBtn.setAttribute("aria-haspopup", "true");
+  emojiBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 14a4 4 0 007 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 9.5h.01M15 9.5h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  var emojiPop = document.createElement("span");
+  emojiPop.className = "avonix-cep-emoji-pop";
+  emojiPop.setAttribute("role", "menu");
+  var EMOJIS = [
+    "😀","😃","😄","😁","😊","🙂","😉","😍","😘","😎","🤩","🤔",
+    "🙌","👍","👎","👏","🙏","💪","🔥","✨","🎉","❤️","💯","✅",
+    "❓","⚠️","😅","😢","😮","🥳","🚀","📎",
+  ];
+  EMOJIS.forEach(function (em) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = em;
+    b.addEventListener("click", function () {
+      input.value += em;
+      updateSendState();
+      input.focus();
+      emojiPop.classList.remove("is-open");
+    });
+    emojiPop.appendChild(b);
+  });
+  emojiWrap.appendChild(emojiBtn);
+  emojiWrap.appendChild(emojiPop);
+  var send = document.createElement("button");
+  send.type = "submit";
+  send.className = "avonix-cep-send";
+  send.setAttribute("aria-label", "Send");
+  send.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  if (allowAttach) inputBar.appendChild(clipBtn);
+  inputBar.appendChild(input);
+  inputBar.appendChild(emojiWrap);
+  inputBar.appendChild(send);
+  form.appendChild(fileInput);
+  form.appendChild(inputBar);
+  if (disclaimer) {
+    var disc = document.createElement("p");
+    disc.className = "avonix-cep-disclaimer";
+    disc.textContent = disclaimer;
+    form.appendChild(disc);
+  }
+
+  ai.appendChild(aiHead);
+  ai.appendChild(log);
+  ai.appendChild(form);
+
+  panel.appendChild(home);
+  panel.appendChild(gate);
+  panel.appendChild(ai);
+  root.appendChild(panel);
+  root.appendChild(button);
+
+  /* ---- TTS ---- */
+  var speech =
+    window.speechSynthesis && typeof window.SpeechSynthesisUtterance === "function"
+      ? window.speechSynthesis
+      : null;
+  var ttsLang = (document.documentElement.getAttribute("lang") || "en-US").replace("_", "-");
+
+  function stopSpeech() {
+    if (!speech) return;
+    try {
+      speech.cancel();
+    } catch (e) {}
+    ttsBtn.classList.remove("is-speaking");
+  }
+  function speakable(text) {
+    return String(text || "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/[*_`#>]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function speak(text) {
+    if (!speech || !ttsOn) return;
+    var say = speakable(text);
+    if (!say) return;
+    stopSpeech();
+    try {
+      var u = new window.SpeechSynthesisUtterance(say);
+      u.lang = ttsLang;
+      u.onstart = function () {
+        ttsBtn.classList.add("is-speaking");
+      };
+      u.onend = function () {
+        ttsBtn.classList.remove("is-speaking");
+      };
+      u.onerror = u.onend;
+      speech.speak(u);
+    } catch (e) {}
+  }
+  function botSaid(text) {
+    lastBotText = String(text || "");
+    speak(lastBotText);
+  }
+  if (speech) {
+    ttsBtn.hidden = false;
+    ttsBtn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ttsOn = !ttsOn;
+      ttsBtn.classList.toggle("is-on", ttsOn);
+      ttsBtn.setAttribute("aria-pressed", ttsOn ? "true" : "false");
+      if (ttsOn) speak(lastBotText);
+      else stopSpeech();
+    });
+  }
+  window.addEventListener("pagehide", stopSpeech);
+
+  function updateSendState() {
+    if ((input.value || "").trim()) send.classList.add("is-active");
+    else send.classList.remove("is-active");
+  }
+  input.addEventListener("input", updateSendState);
+
   function handleButton(btn) {
-    if (btn.action === "open_url" && btn.value) {
+    if (!btn) return;
+    if (btn.action === "url" && btn.value) {
       window.open(btn.value, "_blank", "noopener");
       return;
     }
@@ -250,19 +640,18 @@
 
   function renderBlocks(blocks, who, opts) {
     opts = opts || {};
-    var row = document.createElement("div");
-    row.className =
-      "avonix-cep-row" + (who === "you" ? " avonix-cep-row--you" : "");
     var isSys = (blocks || []).some(function (b) {
       return b && b.type === "system";
     });
+    var row = document.createElement("div");
+    row.className = "avonix-cep-row" + (who === "you" ? " avonix-cep-row--you" : "");
+
     if (who !== "you" && !isSys) {
-      var av = avatarFor(who);
-      if (av) row.appendChild(av);
+      row.appendChild(avatarNode("avonix-cep-bubav"));
     }
 
-    var msg = document.createElement("div");
-    msg.className = "avonix-cep-msg";
+    var col = document.createElement("div");
+    col.className = "avonix-cep-col";
     var wrap = document.createElement("div");
     wrap.className =
       "avonix-cep-bubble " +
@@ -272,14 +661,15 @@
           ? "avonix-cep-bubble--system"
           : "avonix-cep-bubble--bot");
 
+    var plainBits = [];
     (blocks || []).forEach(function (b) {
       if (!b || !b.type) return;
       if (b.type === "plain_text" || b.type === "markdown" || b.type === "system") {
         var p = document.createElement("div");
         p.innerHTML = linkify(b.text || "");
         wrap.appendChild(p);
-      } else if (b.type === "buttons" && b.buttons) {
-        // Mid-chat buttons use TRY ASKING card style outside bubble
+        plainBits.push(b.text || "");
+      } else if (b.type === "buttons") {
         return;
       } else if (b.type === "lead_form") {
         var box = document.createElement("div");
@@ -297,9 +687,8 @@
           (config.lead_form && config.lead_form.form_id === b.formId
             ? config.lead_form.html
             : "");
-        if (html) {
-          box.innerHTML = (b.title ? box.innerHTML : "") + html;
-        } else {
+        if (html) box.innerHTML = (b.title ? box.innerHTML : "") + html;
+        else {
           var miss = document.createElement("div");
           miss.textContent = "Form unavailable.";
           box.appendChild(miss);
@@ -309,44 +698,21 @@
     });
 
     if (wrap.childNodes.length) {
-      msg.appendChild(wrap);
+      col.appendChild(wrap);
       if (!isSys) {
         var meta = document.createElement("div");
-        meta.className = "avonix-cep-meta";
+        meta.className = "avonix-cep-time";
         meta.textContent = formatTime();
-        msg.appendChild(meta);
+        col.appendChild(meta);
       }
-      row.appendChild(msg);
+      row.appendChild(col);
       log.appendChild(row);
+      if (who !== "you" && !isSys) botSaid(plainBits.join(" "));
     }
 
-    // Button suggestions as TRY ASKING list
     (blocks || []).forEach(function (b) {
       if (!b || b.type !== "buttons" || !b.buttons || !b.buttons.length) return;
-      var tryBox = document.createElement("div");
-      tryBox.className = "avonix-cep-try";
-      var lab = document.createElement("div");
-      lab.className = "avonix-cep-try__label";
-      lab.textContent = "Try asking";
-      tryBox.appendChild(lab);
-      var btns = document.createElement("div");
-      btns.className = "avonix-cep-btns";
-      b.buttons.forEach(function (btn, idx) {
-        var el = document.createElement("button");
-        el.type = "button";
-        el.className = "avonix-cep-btn";
-        el.innerHTML =
-          '<span class="avonix-cep-btn__ico">' +
-          suggestionIcon(idx) +
-          "</span><span></span>";
-        el.lastChild.textContent = btn.label || "OK";
-        el.addEventListener("click", function () {
-          handleButton(btn);
-        });
-        btns.appendChild(el);
-      });
-      tryBox.appendChild(btns);
-      log.appendChild(tryBox);
+      appendTryAsking(b.buttons);
     });
 
     log.scrollTop = log.scrollHeight;
@@ -357,310 +723,126 @@
     renderBlocks([{ type: "plain_text", text: text }], who, opts);
   }
 
+  function appendTryAsking(buttons) {
+    var tryBox = document.createElement("div");
+    tryBox.className = "avonix-cep-try";
+    var lab = document.createElement("div");
+    lab.className = "avonix-cep-try__label";
+    lab.textContent = "Try asking";
+    tryBox.appendChild(lab);
+    var btns = document.createElement("div");
+    btns.className = "avonix-cep-btns";
+    (buttons || []).forEach(function (btn, idx) {
+      var el = document.createElement("button");
+      el.type = "button";
+      el.className = "avonix-cep-btn";
+      el.innerHTML =
+        '<span class="avonix-cep-btn__ico">' +
+        suggestionIcon(idx) +
+        "</span><span></span>";
+      el.lastChild.textContent = btn.label || "OK";
+      el.addEventListener("click", function () {
+        handleButton(btn);
+      });
+      btns.appendChild(el);
+    });
+    tryBox.appendChild(btns);
+    log.appendChild(tryBox);
+  }
+
   function appendStreamingBubble() {
     var row = document.createElement("div");
     row.className = "avonix-cep-row";
-    var av = avatarFor("bot");
-    if (av) row.appendChild(av);
-    var msg = document.createElement("div");
-    msg.className = "avonix-cep-msg";
+    row.appendChild(avatarNode("avonix-cep-bubav"));
+    var col = document.createElement("div");
+    col.className = "avonix-cep-col";
     var wrap = document.createElement("div");
     wrap.className = "avonix-cep-bubble avonix-cep-bubble--bot";
     var p = document.createElement("div");
     wrap.appendChild(p);
-    msg.appendChild(wrap);
-    row.appendChild(msg);
+    col.appendChild(wrap);
+    row.appendChild(col);
     log.appendChild(row);
     return { row: row, textEl: p };
   }
 
-  var root = document.createElement("div");
-  root.className =
-    "avonix-cep-root" + (surface === "wizard" ? " avonix-cep-root--wizard" : "");
-  root.setAttribute("data-avonix", "cep-chat");
-  root.setAttribute("data-surface", surface);
+  function showTyping() {
+    var el = document.createElement("div");
+    el.className = "avonix-cep-typing";
+    el.innerHTML = "<span></span><span></span><span></span>";
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el;
+  }
 
-  function launcherGlyphSvg() {
-    // White bubble + cutout (currentColor = primary shows through)
-    var bubble = '<path fill="#fff" d="M9 11.5c0-2.5 2-4.5 4.5-4.5h21c2.5 0 4.5 2 4.5 4.5v15c0 2.5-2 4.5-4.5 4.5H22.2L14 38v-7H13.5C11 31 9 29 9 26.5v-15z"/>';
-    if (launcherIcon === "dots") {
-      return '<svg class="avonix-cep-launcher__glyph" viewBox="0 0 48 48" aria-hidden="true">' + bubble +
-        '<circle cx="18.5" cy="19.5" r="2.6" fill="currentColor"/><circle cx="24" cy="19.5" r="2.6" fill="currentColor"/><circle cx="29.5" cy="19.5" r="2.6" fill="currentColor"/></svg>';
+  function showGreeting() {
+    if (log.childNodes.length) return;
+    var greet =
+      config.greeting ||
+      "Hi! Ask me anything about our site and I'll help right away.";
+    bubble(greet, "bot");
+    var qr = config.quick_replies || [];
+    if (qr.length) appendTryAsking(qr);
+  }
+
+  function showHome() {
+    aiViewActive = false;
+    home.classList.remove("is-hidden");
+    gate.classList.add("is-hidden");
+    ai.classList.add("is-hidden");
+  }
+
+  function showGate() {
+    home.classList.add("is-hidden");
+    gate.classList.remove("is-hidden");
+    ai.classList.add("is-hidden");
+  }
+
+  function showAi() {
+    aiViewActive = true;
+    home.classList.add("is-hidden");
+    gate.classList.add("is-hidden");
+    ai.classList.remove("is-hidden");
+    showGreeting();
+    setTimeout(function () {
+      input.focus();
+    }, 40);
+    startPoll();
+  }
+
+  function enterFromGate() {
+    var name = (document.getElementById("avonix-cep-name").value || "").trim();
+    var phone = (document.getElementById("avonix-cep-phone").value || "").trim();
+    var email = (document.getElementById("avonix-cep-email").value || "").trim();
+    var err = document.getElementById("avonix-cep-gate-err");
+    if (!email && !phone) {
+      err.textContent = "Please add an email or phone.";
+      err.classList.add("is-on");
+      return;
     }
-    // compose / pencil (default — matches first reference)
-    return '<svg class="avonix-cep-launcher__glyph" viewBox="0 0 48 48" aria-hidden="true">' + bubble +
-      '<g fill="currentColor" transform="translate(24 19.5) rotate(-45) translate(-24 -19.5)"><rect x="21.2" y="11" width="5.6" height="14" rx="1.2"/><path d="M21.2 25.2L24 31.2l2.8-6z"/></g></svg>';
+    err.classList.remove("is-on");
+    leadGatePassed = true;
+    try {
+      sessionStorage.setItem("avonix-cep-started", "1");
+      if (email) sessionStorage.setItem("avonix-cep-email", email);
+      if (name) sessionStorage.setItem("avonix-cep-name", name);
+      if (phone) sessionStorage.setItem("avonix-cep-phone", phone);
+    } catch (e) {}
+    showAi();
   }
-
-  function defaultHeroSvg() {
-    return '<svg width="200" height="110" viewBox="0 0 200 110" fill="none" aria-hidden="true">' +
-      '<path d="M22 70l34-22 8 8-14 26-10-6 8-12-26 6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
-      '<path d="M58 48c22-16 48-22 70-12" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.5 4" fill="none"/>' +
-      '<path d="M34 52h10M40 44v8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>' +
-      '<path d="M128 34h36v40H146l-12 12V34z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
-      '<path d="M138 34v-8h16v8" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
-      '<rect x="142" y="48" width="14" height="10" rx="1" stroke="currentColor" stroke-width="1.4"/>' +
-      '<path d="M170 52h8M174 46v10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>' +
-      '</svg>';
-  }
-
-  var launcherAvatar = config.bot_avatar_url || config.agent_avatar_url || theme.bubbleImageUrl || "";
-  var button = document.createElement("button");
-  button.type = "button";
-  button.className = "avonix-cep-launcher";
-  button.setAttribute("aria-label", theme.launcherLabel || config.label || "Open live chat");
-  if (launcherAvatar) {
-    button.innerHTML = '<img class="avonix-cep-launcher__img" src="' + String(launcherAvatar).replace(/"/g, "") + '" alt="">';
-  } else {
-    button.style.color = "#fff";
-    button.innerHTML = launcherGlyphSvg();
-  }
-  if (theme.onlineIndicator !== false) {
-    var online = document.createElement("span");
-    online.className = "avonix-cep-online";
-    online.setAttribute("aria-hidden", "true");
-    button.appendChild(online);
-  }
-
-  var panel = document.createElement("div");
-  panel.className = "avonix-cep-panel";
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", config.title || "Chat");
-
-  /* ---- Start chat gate ---- */
-  var gate = document.createElement("div");
-  gate.className = "avonix-cep-gate";
-  var gateClose = document.createElement("button");
-  gateClose.type = "button";
-  gateClose.className = "avonix-cep-gate__close";
-  gateClose.setAttribute("aria-label", "Close");
-  gateClose.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-  var gateHero = document.createElement("div");
-  gateHero.className = "avonix-cep-gate__hero";
-  if (startHero) {
-    var heroImg = document.createElement("img");
-    heroImg.src = startHero;
-    heroImg.alt = "";
-    gateHero.appendChild(heroImg);
-  } else {
-    gateHero.innerHTML = defaultHeroSvg();
-  }
-  var gateTitle = document.createElement("h2");
-  gateTitle.className = "avonix-cep-gate__title";
-  gateTitle.textContent = theme.startTitle || "Start chat";
-  var gateField = document.createElement("div");
-  gateField.className = "avonix-cep-gate__field";
-  gateField.innerHTML = '<label class="avonix-cep-gate__label" for="avonix-cep-email">Email</label>';
-  var gateEmail = document.createElement("input");
-  gateEmail.type = "email";
-  gateEmail.id = "avonix-cep-email";
-  gateEmail.className = "avonix-cep-gate__email";
-  gateEmail.placeholder = "Email";
-  gateEmail.autocomplete = "email";
-  gateField.appendChild(gateEmail);
-  var gatePrivacy = document.createElement("p");
-  gatePrivacy.className = "avonix-cep-gate__privacy";
-  var pUrl = privacyUrl || "#";
-  gatePrivacy.innerHTML = 'We need to process your personal data in line with our <a href="' + String(pUrl).replace(/"/g, "") + '"' + (privacyUrl ? ' target="_blank" rel="noopener"' : '') + '>Privacy Policy</a>.';
-  var gateAgree = document.createElement("label");
-  gateAgree.className = "avonix-cep-gate__check";
-  gateAgree.innerHTML = '<input type="checkbox" id="avonix-cep-agree"> <span>I agree</span>';
-  var gateRemember = document.createElement("label");
-  gateRemember.className = "avonix-cep-gate__check";
-  gateRemember.innerHTML = '<input type="checkbox" id="avonix-cep-remember" checked> <span>This is a private computer, remember me</span>';
-  var gateGo = document.createElement("button");
-  gateGo.type = "button";
-  gateGo.className = "avonix-cep-gate__go";
-  gateGo.textContent = theme.startButtonLabel || "Continue →";
-  gate.appendChild(gateClose);
-  gate.appendChild(gateHero);
-  gate.appendChild(gateTitle);
-  gate.appendChild(gateField);
-  gate.appendChild(gatePrivacy);
-  gate.appendChild(gateAgree);
-  gate.appendChild(gateRemember);
-  gate.appendChild(gateGo);
-
-  /* ---- Chat surface ---- */
-  var chatSurface = document.createElement("div");
-  chatSurface.className = "avonix-cep-chat is-hidden";
-
-  var header = document.createElement("div");
-  header.className = "avonix-cep-header";
-  var backBtn = document.createElement("button");
-  backBtn.type = "button";
-  backBtn.className = "avonix-cep-icon-btn";
-  backBtn.setAttribute("aria-label", "Minimize chat");
-  backBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  header.appendChild(backBtn);
-  var avatarUrl = config.bot_avatar_url || config.agent_avatar_url || theme.bubbleImageUrl || "";
-  if (avatarUrl) {
-    var hav = document.createElement("img");
-    hav.className = "avonix-cep-avatar";
-    hav.src = avatarUrl;
-    hav.alt = "";
-    header.appendChild(hav);
-  } else {
-    var avFallback = document.createElement("div");
-    avFallback.className = "avonix-cep-avatar";
-    avFallback.style.display = "grid";
-    avFallback.style.placeItems = "center";
-    avFallback.style.fontWeight = "800";
-    avFallback.style.color = "#fff";
-    avFallback.style.background = "rgba(255,255,255,.18)";
-    avFallback.textContent = (agentName || "C").slice(0, 1).toUpperCase();
-    header.appendChild(avFallback);
-  }
-  var meta = document.createElement("div");
-  meta.className = "avonix-cep-header__meta";
-  var nameEl = document.createElement("div");
-  nameEl.className = "avonix-cep-header__name";
-  nameEl.textContent = agentName;
-  var statusEl = document.createElement("div");
-  statusEl.className = "avonix-cep-header__status";
-  statusEl.innerHTML = '<span class="avonix-cep-header__status-dot" aria-hidden="true"></span><span></span>';
-  statusEl.lastChild.textContent = statusText;
-  meta.appendChild(nameEl);
-  meta.appendChild(statusEl);
-  header.appendChild(meta);
-  var actions = document.createElement("div");
-  actions.className = "avonix-cep-header__actions";
-  var soundBtn = document.createElement("button");
-  soundBtn.type = "button";
-  soundBtn.className = "avonix-cep-icon-btn avonix-cep-icon-btn--ghost";
-  soundBtn.setAttribute("aria-label", "Sound");
-  soundBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 10v4h3l4 3V7L7 10H4z" fill="#fff"/><path d="M16 9c1.2 1 1.8 2.3 1.8 3.5S17.2 15 16 16" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>';
-  var menuBtn = document.createElement("button");
-  menuBtn.type = "button";
-  menuBtn.className = "avonix-cep-icon-btn avonix-cep-icon-btn--ghost";
-  menuBtn.setAttribute("aria-label", "Refresh");
-  menuBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19.5 12a7.5 7.5 0 1 1-2.1-5.2" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/><path d="M19.5 5v5h-5" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  actions.appendChild(soundBtn);
-  actions.appendChild(menuBtn);
-  header.appendChild(actions);
-
-  var log = document.createElement("div");
-  log.className = "avonix-cep-log";
-  log.setAttribute("role", "log");
-  log.setAttribute("aria-live", "polite");
-
-  var form = document.createElement("form");
-  form.className = "avonix-cep-form";
-  var inputWrap = document.createElement("div");
-  inputWrap.className = "avonix-cep-input-wrap";
-  var clipBtn = document.createElement("button");
-  clipBtn.type = "button";
-  clipBtn.className = "avonix-cep-tool";
-  clipBtn.setAttribute("aria-label", "Attach");
-  clipBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16.5 7.5l-7.2 7.2a2.5 2.5 0 1 1-3.5-3.5l7.8-7.8a4 4 0 0 1 5.7 5.7l-8.5 8.5a5.5 5.5 0 1 1-7.8-7.8L10.8 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  var input = document.createElement("input");
-  input.type = "text";
-  input.className = "avonix-cep-input";
-  input.placeholder = config.placeholder || theme.placeholder || "Write a message...";
-  input.setAttribute("aria-label", "Your message");
-  var emojiBtn = document.createElement("button");
-  emojiBtn.type = "button";
-  emojiBtn.className = "avonix-cep-tool";
-  emojiBtn.setAttribute("aria-label", "Emoji");
-  emojiBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.1" fill="currentColor"/><circle cx="15" cy="10" r="1.1" fill="currentColor"/><path d="M8.5 14.5c1.2 1.3 2.7 1.9 3.5 1.9s2.3-.6 3.5-1.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
-  inputWrap.appendChild(clipBtn);
-  inputWrap.appendChild(input);
-  inputWrap.appendChild(emojiBtn);
-  var send = document.createElement("button");
-  send.type = "submit";
-  send.className = "avonix-cep-send";
-  send.setAttribute("aria-label", "Send");
-  send.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  form.appendChild(inputWrap);
-  form.appendChild(send);
-
-  chatSurface.appendChild(header);
-  chatSurface.appendChild(log);
-  chatSurface.appendChild(form);
-  panel.appendChild(gate);
-  panel.appendChild(chatSurface);
-  root.appendChild(panel);
-  root.appendChild(button);
-
-  var visitorEmail = "";
-  try {
-    visitorEmail = sessionStorage.getItem("avonix-cep-email") || "";
-  } catch (e) {}
 
   function hasStarted() {
     if (!preChatOn) return true;
     try {
       return sessionStorage.getItem("avonix-cep-started") === "1";
-    } catch (e2) {
+    } catch (e) {
       return false;
     }
   }
 
-  function showGate() {
-    gate.classList.add("is-on");
-    chatSurface.classList.add("is-hidden");
-    if (visitorEmail) gateEmail.value = visitorEmail;
-  }
-
-  function showChat() {
-    gate.classList.remove("is-on");
-    chatSurface.classList.remove("is-hidden");
-    showGreeting();
-    setTimeout(function () { input.focus(); }, 40);
-    startPoll();
-  }
-
-  function enterChatFromGate() {
-    var agree = gate.querySelector("#avonix-cep-agree");
-    if (agree && !agree.checked) {
-      agree.focus();
-      return;
-    }
-    visitorEmail = (gateEmail.value || "").trim();
-    try {
-      sessionStorage.setItem("avonix-cep-started", "1");
-      if (gate.querySelector("#avonix-cep-remember") && gate.querySelector("#avonix-cep-remember").checked && visitorEmail) {
-        sessionStorage.setItem("avonix-cep-email", visitorEmail);
-      }
-    } catch (e3) {}
-    showChat();
-  }
-
-  function suggestionIcon(idx) {
-    var icons = [
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 9.2c.4-1.2 1.4-1.9 2.6-1.9 1.4 0 2.4.9 2.4 2.2 0 1.2-.7 1.8-1.7 2.3-.7.3-1 .7-1 1.5v.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>',
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 10.5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1" fill="currentColor"/></svg>',
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M15.5 7.5c0-1.4-1.6-2.5-3.5-2.5S8.5 6.1 8.5 7.5 10 9.8 12 10.2c2 .4 3.5 1.4 3.5 3s-1.6 2.8-3.5 2.8-3.5-1.1-3.5-2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
-    ];
-    return icons[idx % icons.length];
-  }
-
-  function showGreeting() {
-    if (log.childNodes.length) return;
-    if (config.greeting) bubble(config.greeting, "bot");
-    var qr = config.quick_replies || [];
-    if (qr.length) {
-      var tryBox = document.createElement("div");
-      tryBox.className = "avonix-cep-try";
-      var lab = document.createElement("div");
-      lab.className = "avonix-cep-try__label";
-      lab.textContent = "Try asking";
-      tryBox.appendChild(lab);
-      var btns = document.createElement("div");
-      btns.className = "avonix-cep-btns";
-      qr.forEach(function (b, idx) {
-        var el = document.createElement("button");
-        el.type = "button";
-        el.className = "avonix-cep-btn";
-        el.innerHTML = '<span class="avonix-cep-btn__ico">' + suggestionIcon(idx) + '</span><span></span>';
-        el.lastChild.textContent = b.label || "";
-        el.addEventListener("click", function () { handleButton(b); });
-        btns.appendChild(el);
-      });
-      tryBox.appendChild(btns);
-      log.appendChild(tryBox);
-    }
+  function openAiFlow() {
+    if (preChatOn && !hasStarted() && !leadGatePassed) showGate();
+    else showAi();
   }
 
   function startPoll() {
@@ -675,7 +857,6 @@
     body.append("nonce", config.nonce || "");
     body.append("conversation_id", conversationId);
     if (lastSeenAt) body.append("after", lastSeenAt);
-
     fetch(proxy, { method: "POST", body: body, credentials: "same-origin" })
       .then(function (r) {
         return r.json();
@@ -688,11 +869,8 @@
           seenIds[m.id] = true;
           if (m.created_at) lastSeenAt = m.created_at;
           var who = m.author === "agent" ? "agent" : "bot";
-          if (m.blocks && m.blocks.length) {
-            renderBlocks(m.blocks, who, { sound: true });
-          } else {
-            bubble(m.body || "", who, { sound: true });
-          }
+          if (m.blocks && m.blocks.length) renderBlocks(m.blocks, who, { sound: true });
+          else bubble(m.body || "", who, { sound: true });
         });
       })
       .catch(function () {});
@@ -701,7 +879,6 @@
   function applyDone(data) {
     if (data && data.conversation_id) conversationId = data.conversation_id;
     if (data && data.handoff_status) handoffStatus = data.handoff_status;
-    // Avoid replaying AI/system messages we already rendered from this turn.
     lastSeenAt = new Date().toISOString();
     if (data && data.blocks && data.blocks.length) {
       renderBlocks(data.blocks, "bot", { sound: true });
@@ -709,7 +886,7 @@
       bubble(
         (data && (data.reply || data.message)) || "Sorry — try again.",
         "bot",
-        { sound: true },
+        { sound: true }
       );
     }
     startPoll();
@@ -733,11 +910,7 @@
       streamBody.append("surface", surface);
 
       var live = appendStreamingBubble();
-      fetch(proxy, {
-        method: "POST",
-        body: streamBody,
-        credentials: "same-origin",
-      })
+      fetch(proxy, { method: "POST", body: streamBody, credentials: "same-origin" })
         .then(function (r) {
           if (!r.ok || !r.body || !r.body.getReader) {
             return r.json().then(function (data) {
@@ -803,6 +976,7 @@
         .finally(function () {
           busy = false;
           send.disabled = false;
+          updateSendState();
           input.focus();
         });
       return;
@@ -830,8 +1004,19 @@
       .finally(function () {
         busy = false;
         send.disabled = false;
+        updateSendState();
         input.focus();
       });
+  }
+
+  function resetChat() {
+    stopSpeech();
+    conversationId = null;
+    lastSeenAt = null;
+    seenIds = {};
+    lastBotText = "";
+    log.innerHTML = "";
+    showGreeting();
   }
 
   function ctaBottomClearance() {
@@ -847,10 +1032,6 @@
     return pad;
   }
 
-  /**
-   * Place the launcher using studio semantics: percent of remaining space
-   * (viewport − launcher), so 100% stays fully on-screen. Matches Languages.
-   */
   function placeRoot() {
     if (surface === "wizard") return;
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
@@ -872,14 +1053,11 @@
       var y = Math.round((freeY / 100) * maxY) + margin;
       x = Math.min(vw - bw - margin, Math.max(margin, x));
       y = Math.min(vh - bh - bottomClear, Math.max(margin, y));
-
       var openUp = freeY >= 45;
       var openLeft = freeX >= 50;
       root.style.flexDirection = openUp ? "column-reverse" : "column";
       root.style.alignItems = openLeft ? "flex-end" : "flex-start";
-
       if (openUp) {
-        // Pin launcher bottom edge so the panel grows upward when opened.
         root.style.left = x + "px";
         root.style.bottom = Math.max(bottomClear, vh - (y + bh)) + "px";
       } else {
@@ -898,27 +1076,53 @@
 
   function setOpen(next) {
     open = !!next;
-    panel.style.display = open ? "flex" : "none";
+    if (open) panel.classList.add("is-open");
+    else panel.classList.remove("is-open");
     button.setAttribute("aria-expanded", open ? "true" : "false");
     placeRoot();
     if (open) {
-      if (hasStarted()) showChat();
-      else showGate();
+      if (openOnLaunch || surface === "wizard") openAiFlow();
+      else showHome();
+    } else {
+      showHome();
+      stopSpeech();
     }
   }
 
   button.addEventListener("click", function () {
     setOpen(!open);
   });
-  gateClose.addEventListener("click", function () { setOpen(false); });
-  backBtn.addEventListener("click", function () { setOpen(false); });
-  menuBtn.addEventListener("click", function () { setOpen(false); });
-  gateGo.addEventListener("click", enterChatFromGate);
-  gateEmail.addEventListener("keydown", function (ev) {
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      enterChatFromGate();
+  homeClose.addEventListener("click", function () {
+    setOpen(false);
+  });
+  gateHead.querySelector(".avonix-cep-close").addEventListener("click", function () {
+    setOpen(false);
+  });
+  startBtn.addEventListener("click", openAiFlow);
+  backBtn.addEventListener("click", function () {
+    if (surface === "wizard") return;
+    showHome();
+  });
+  resetBtn.addEventListener("click", resetChat);
+  document.getElementById("avonix-cep-gate-send").addEventListener("click", enterFromGate);
+  emojiBtn.addEventListener("click", function (ev) {
+    ev.preventDefault();
+    emojiPop.classList.toggle("is-open");
+  });
+  document.addEventListener("click", function (ev) {
+    if (!emojiWrap.contains(ev.target)) emojiPop.classList.remove("is-open");
+  });
+  clipBtn.addEventListener("click", function () {
+    fileInput.click();
+  });
+  fileInput.addEventListener("change", function () {
+    /* Preview only for now — upload pipeline can be wired later */
+    if (fileInput.files && fileInput.files[0]) {
+      clipBtn.classList.add("is-armed");
     }
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && open) setOpen(false);
   });
 
   form.addEventListener("submit", function (ev) {
@@ -926,6 +1130,8 @@
     var text = (input.value || "").trim();
     if (!text) return;
     input.value = "";
+    updateSendState();
+    emojiPop.classList.remove("is-open");
     sendMessage(text, null);
   });
 
@@ -933,8 +1139,8 @@
     if (surface === "wizard") {
       target.appendChild(root);
       open = true;
-      panel.style.display = "flex";
-      showChat();
+      panel.classList.add("is-open");
+      openAiFlow();
       return;
     }
     document.body.appendChild(root);
@@ -970,14 +1176,7 @@
     boot();
   }
 
-  // Allow a second wizard instance via shortcode without bubble
   window.AvonixCep = window.AvonixCep || {};
-  window.AvonixCep.mountWizard = function (el, override) {
-    var cfg = Object.assign({}, config, override || {}, { surface: "wizard" });
-    window.AVONIX_CHAT = cfg;
-    // Reload script path is already executed; clone by re-bootstrapping is hard.
-    // Shortcode injects its own config before this script when surface=wizard.
-  };
   window.AvonixCep.open = function () {
     setOpen(true);
   };

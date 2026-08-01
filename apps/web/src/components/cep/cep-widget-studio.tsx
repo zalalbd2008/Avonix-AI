@@ -481,6 +481,36 @@ export function CepWidgetStudio({
                     }
                   />
                 </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[12px] font-medium">Home panel message</span>
+                  <textarea
+                    className={`${input} mt-1 min-h-[72px]`}
+                    value={theme.homeContent ?? ""}
+                    placeholder="Hi! Ask me anything about our site…"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: { ...p.theme, homeContent: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[12px] font-medium">
+                    Start Conversation button
+                  </span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.startButtonLabel ?? ""}
+                    placeholder="Start Conversation"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: { ...p.theme, startButtonLabel: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
                 <div className="sm:col-span-2">
                   <span className="mb-2 block text-[12px] font-medium">
                     Button size
@@ -633,7 +663,7 @@ export function CepWidgetStudio({
                 <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
                   <input
                     type="checkbox"
-                    checked={theme.preChatEnabled !== false}
+                    checked={theme.preChatEnabled === true}
                     onChange={(e) =>
                       setPayload((p) => ({
                         ...p,
@@ -641,12 +671,25 @@ export function CepWidgetStudio({
                       }))
                     }
                   />
-                  Show “Start chat” email / consent screen first
+                  Show contact lead gate (name / phone / email) before chat
                 </label>
                 <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
                   <input
                     type="checkbox"
-                    checked={theme.pulse !== false}
+                    checked={theme.openOnLaunch === true}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: { ...p.theme, openOnLaunch: e.target.checked },
+                      }))
+                    }
+                  />
+                  Skip home panel — open AI chat immediately
+                </label>
+                <label className="flex items-center gap-2 text-[12px] font-medium sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={theme.pulse === true}
                     onChange={(e) =>
                       setPayload((p) => ({
                         ...p,

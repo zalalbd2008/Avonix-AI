@@ -84,13 +84,23 @@ export type CepWidgetTheme = {
   agentName?: string;
   /** Status line under the name. */
   statusText?: string;
-  /** Show email / consent gate before chat. Default true. */
+  /** Show contact lead gate before AI chat. Default false (Nexus parity). */
   preChatEnabled?: boolean;
+  /** Skip home panel and open AI (or lead gate) immediately. */
+  openOnLaunch?: boolean;
+  /** Home panel body copy (before Start Conversation). */
+  homeContent?: string;
   startTitle?: string;
   startButtonLabel?: string;
   startHeroImageUrl?: string;
   privacyUrl?: string;
   placeholder?: string;
+  /** Online-status blink color on FAB / badge. */
+  onlineDotColor?: string;
+  /** Soft bot bubble fill. */
+  botBubbleColor?: string;
+  /** Footer disclaimer under the composer. */
+  disclaimer?: string;
 };
 
 export type CepWidgetTriggers = {
@@ -195,34 +205,37 @@ export function defaultCepWidgetPayload(
     greeting: "Hi! Ask me anything about our site and I'll help right away.",
     placeholder: "Write a message...",
     theme: {
-      primaryColor: "#4A152C",
-      primaryColorEnd: "#6B2A45",
+      primaryColor: "#2563eb",
+      primaryColorEnd: "#3b82f6",
       backgroundColor: "#ffffff",
-      textColor: "#2d2d2d",
-      headerColor: "#4A152C",
-      radius: 18,
+      textColor: "#0f172a",
+      radius: 16,
       bubbleShape: "circle",
       position: "bottom_right",
       leftPercent: 88,
       topPercent: 82,
-      offsetX: 20,
-      offsetY: 20,
-      desktopWidth: "min(380px, calc(100vw - 28px))",
-      desktopHeight: "min(600px, calc(100vh - 100px))",
-      mobileWidth: "calc(100vw - 24px)",
-      mobileHeight: "min(70vh, calc(100dvh - 96px))",
+      offsetX: 24,
+      offsetY: 24,
+      desktopWidth: "320px",
+      desktopHeight: "min(510px, calc(100vh - 130px))",
+      mobileWidth: "min(320px, calc(100vw - 24px))",
+      mobileHeight: "min(510px, calc(100svh - 164px))",
       zIndex: 2147483000,
       launcherLabel: "Live chat",
       launcherIcon: "compose",
-      launcherIconSize: 24,
-      launcherPadding: 16,
+      launcherIconSize: 26,
+      launcherPadding: 20,
       onlineIndicator: true,
-      pulse: true,
+      pulse: false,
+      onlineDotColor: "#00ff6a",
       agentName: "Customer Support",
       statusText: "Online",
+      homeContent:
+        "Hi! Ask me anything about our site and I'll help right away.",
+      openOnLaunch: false,
       preChatEnabled: false,
-      startTitle: "Start chat",
-      startButtonLabel: "Continue →",
+      startTitle: "Leave your contact",
+      startButtonLabel: "Start Conversation",
     },
     triggers: {
       delayMs: 0,

@@ -38,6 +38,58 @@ body {
   }
 }
 
+/* Floating launcher tip — icon only until hover/focus */
+.avonix-launcher-with-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.avonix-launcher-tip {
+  position: absolute;
+  top: 50%;
+  z-index: 0;
+  max-width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  border-radius: 6px;
+  background: #fff;
+  color: #2a2f38;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition:
+    opacity 0.15s ease,
+    max-width 0.18s ease,
+    padding 0.18s ease,
+    transform 0.15s ease;
+}
+.avonix-launcher-tip.is-end {
+  left: 100%;
+  transform: translateY(-50%) translateX(-4px);
+}
+.avonix-launcher-tip.is-start {
+  right: 100%;
+  transform: translateY(-50%) translateX(4px);
+}
+.avonix-launcher-with-tip:hover .avonix-launcher-tip,
+.avonix-launcher-with-tip:focus-within .avonix-launcher-tip {
+  max-width: 200px;
+  opacity: 1;
+  padding: 6px 10px;
+}
+.avonix-launcher-with-tip:hover .avonix-launcher-tip.is-end,
+.avonix-launcher-with-tip:focus-within .avonix-launcher-tip.is-end {
+  transform: translateY(-50%) translateX(8px);
+}
+.avonix-launcher-with-tip:hover .avonix-launcher-tip.is-start,
+.avonix-launcher-with-tip:focus-within .avonix-launcher-tip.is-start {
+  transform: translateY(-50%) translateX(-8px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .avonix-launcher-online-dot {
     animation: none !important;

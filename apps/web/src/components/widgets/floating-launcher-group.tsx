@@ -299,7 +299,7 @@ export function FloatingLauncherButton({
 
   return (
     <div
-      className={`group/launcher flex items-center gap-2 ${
+      className={`avonix-launcher-with-tip relative inline-flex items-center ${
         labelOnStart ? "flex-row-reverse" : "flex-row"
       }`}
     >
@@ -307,9 +307,8 @@ export function FloatingLauncherButton({
         type="button"
         data-no-drag
         aria-label={label}
-        title={label}
         onClick={onClick}
-        className={`relative grid shrink-0 place-items-center text-white transition hover:brightness-105 [&_img]:size-[1em] [&_svg]:size-[1em] ${
+        className={`relative z-[1] grid shrink-0 place-items-center text-white transition hover:brightness-105 [&_img]:size-[1em] [&_svg]:size-[1em] ${
           shape === "circle" ? "overflow-visible" : "overflow-hidden"
         }`}
         style={{ ...tileStyle, fontSize: m.iconSize }}
@@ -326,7 +325,7 @@ export function FloatingLauncherButton({
             className={
               shape === "circle" ? "avonix-launcher-online-dot" : undefined
             }
-              style={
+            style={
               shape === "circle"
                 ? {
                     position: "absolute",
@@ -362,7 +361,12 @@ export function FloatingLauncherButton({
         ) : null}
       </button>
       {showLabel ? (
-        <span className="pointer-events-none max-w-0 overflow-hidden whitespace-nowrap rounded-md bg-[#e9e9e9] text-[12px] font-medium text-[#2a2f38] opacity-0 shadow-sm transition-all duration-150 group-hover/launcher:max-w-[160px] group-hover/launcher:px-2.5 group-hover/launcher:py-1.5 group-hover/launcher:opacity-100">
+        <span
+          aria-hidden
+          className={`avonix-launcher-tip ${
+            labelOnStart ? "is-start" : "is-end"
+          }`}
+        >
           {label}
         </span>
       ) : null}

@@ -1429,7 +1429,7 @@ function SwitcherPreview({
           <FloatingLauncherButton
             label="Language"
             color={settings.switcher.primaryColor || LAUNCHER_ORANGE}
-            shape="circle"
+            shape="tile"
             online={false}
             metrics={{
               iconSize: settings.switcher.iconSize,

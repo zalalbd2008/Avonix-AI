@@ -104,6 +104,7 @@ class Avonix_Languages
   width: var(--avonix-lang-size, 44px);
   height: var(--avonix-lang-size, 44px);
   pointer-events: auto;
+  overflow: visible;
 }
 #avonix-lang-root .avonix-lang-panel {
   position: absolute;
@@ -152,7 +153,7 @@ class Avonix_Languages
   width: var(--avonix-lang-size, 44px);
   height: var(--avonix-lang-size, 44px);
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--avonix-lang-radius, 50%);
   cursor: pointer;
   color: #fff;
   background: var(--avonix-lang-primary, #e15d1a);
@@ -164,6 +165,50 @@ class Avonix_Languages
 #avonix-lang-root .avonix-lang-btn:focus-visible {
   outline: 2px solid #0b1e3a;
   outline-offset: 2px;
+}
+#avonix-lang-root .avonix-lang-tip {
+  position: absolute;
+  top: 50%;
+  z-index: 0;
+  max-width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  border-radius: 6px;
+  background: #fff;
+  color: #2a2f38;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.15s ease, max-width 0.18s ease, padding 0.18s ease, transform 0.15s ease;
+}
+#avonix-lang-root .avonix-lang-stack.is-start .avonix-lang-tip {
+  left: 100%;
+  transform: translateY(-50%) translateX(-4px);
+}
+#avonix-lang-root .avonix-lang-stack.is-end .avonix-lang-tip {
+  right: 100%;
+  transform: translateY(-50%) translateX(4px);
+}
+#avonix-lang-root .avonix-lang-stack:hover .avonix-lang-tip,
+#avonix-lang-root .avonix-lang-stack:focus-within .avonix-lang-tip {
+  max-width: 200px;
+  opacity: 1;
+  padding: 6px 10px;
+}
+#avonix-lang-root .avonix-lang-stack.is-start:hover .avonix-lang-tip,
+#avonix-lang-root .avonix-lang-stack.is-start:focus-within .avonix-lang-tip {
+  transform: translateY(-50%) translateX(8px);
+}
+#avonix-lang-root .avonix-lang-stack.is-end:hover .avonix-lang-tip,
+#avonix-lang-root .avonix-lang-stack.is-end:focus-within .avonix-lang-tip {
+  transform: translateY(-50%) translateX(-8px);
+}
+#avonix-lang-root .avonix-lang-btn[aria-expanded="true"] ~ .avonix-lang-tip {
+  display: none !important;
 }
 #avonix-lang-root .avonix-lang-glyph {
   font-weight: 800;
@@ -337,6 +382,13 @@ CSS;
   var stack = document.createElement("div");
   stack.className =
     "avonix-lang-stack is-" + align + (yPct < 28 ? " is-below" : "");
+  var corner = Math.max(6, Math.round(outer * 0.22));
+  root.style.setProperty(
+    "--avonix-lang-radius",
+    align === "end"
+      ? corner + "px 0 0 " + corner + "px"
+      : "0 " + corner + "px " + corner + "px 0"
+  );
 
   var panel = document.createElement("div");
   panel.className = "avonix-lang-panel";
@@ -362,15 +414,21 @@ CSS;
   var btn = document.createElement("button");
   btn.type = "button";
   btn.className = "avonix-lang-btn";
-  btn.setAttribute("aria-label", "Languages");
+  btn.setAttribute("aria-label", "Language");
   btn.setAttribute("aria-expanded", "false");
   btn.innerHTML =
     '<span class="avonix-lang-glyph" style="font-size:' +
     iconSize +
     'px">A文</span>';
 
+  var tip = document.createElement("span");
+  tip.className = "avonix-lang-tip";
+  tip.setAttribute("aria-hidden", "true");
+  tip.textContent = "Language";
+
   stack.appendChild(panel);
   stack.appendChild(btn);
+  stack.appendChild(tip);
   root.appendChild(stack);
 
   var gtHost = document.createElement("div");

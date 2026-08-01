@@ -574,7 +574,7 @@ export function CepWidgetStudio({
                       panel={null}
                       launcher={
                         <FloatingLauncherButton
-                          label={theme.launcherLabel || "Live chat"}
+                          label={theme.launcherLabel || "Live Chat"}
                           color={primary}
                           colorEnd={theme.primaryColorEnd}
                           metrics={chatMetrics}

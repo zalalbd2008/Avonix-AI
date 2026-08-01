@@ -1111,9 +1111,9 @@ function WidgetPreview({
         }
         launcher={
           <FloatingLauncherButton
-            label={settings.label}
+            label={settings.label || "Accessibility"}
             color={settings.primaryColor}
-            shape="circle"
+            shape="tile"
             online={false}
             metrics={{
               iconSize: settings.iconSize,

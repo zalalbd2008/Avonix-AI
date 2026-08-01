@@ -12,6 +12,10 @@ import {
   mergeLanguageSettings,
   type LanguageSettings,
 } from "@/lib/languages/types";
+import {
+  mergeFloatingFabGroup,
+  toConnectorFabGroup,
+} from "@/lib/widgets/fab-group";
 
 export type ConnectorLanguagesConfig = {
   enabled: boolean;
@@ -42,6 +46,7 @@ export type ConnectorLanguagesConfig = {
   never_translate: string[];
   exclude_paths: string[];
   page_target: LanguageSettings["pageTarget"];
+  fab_group: ReturnType<typeof toConnectorFabGroup>;
 };
 
 function lines(raw: string): string[] {
@@ -103,5 +108,8 @@ export async function getConnectorLanguagesConfig(
     never_translate: lines(settings.neverTranslate),
     exclude_paths: settings.pageTarget.excludePaths ?? lines(settings.excludePaths),
     page_target: settings.pageTarget,
+    fab_group: toConnectorFabGroup(
+      mergeFloatingFabGroup(row.settings?.floatingFabGroup),
+    ),
   };
 }

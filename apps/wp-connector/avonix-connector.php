@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Avonix AI Connector
  * Description:       Sends this site's form submissions and chat leads to Avonix AI.
- * Version:           1.3.63
+ * Version:           1.3.64
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AVONIX_VERSION', '1.3.63');
+define('AVONIX_VERSION', '1.3.64');
 define('AVONIX_PLUGIN_FILE', __FILE__);
 define('AVONIX_OPT_KEY', 'avonix_connector_key');
 define('AVONIX_OPT_ENDPOINT', 'avonix_endpoint');
@@ -156,6 +156,36 @@ add_action('init', function () {
         update_option('avonix_reported_version', AVONIX_VERSION, false);
     }
 }, 5);
+
+/**
+ * Shared FAB stack script — Live Chat / Accessibility / Languages column.
+ */
+function avonix_enqueue_fab_stack($fab_group = null)
+{
+    static $done = false;
+    if ($fab_group && is_array($fab_group)) {
+        $inline = 'window.AVONIX_FAB_GROUP=window.AVONIX_FAB_GROUP||' . wp_json_encode($fab_group) . ';';
+        if (!$done) {
+            $src = plugins_url('assets/js/fab-stack.js', AVONIX_PLUGIN_FILE);
+            $path = dirname(AVONIX_PLUGIN_FILE) . '/assets/js/fab-stack.js';
+            $ver = is_readable($path) ? (string) filemtime($path) : AVONIX_VERSION;
+            wp_enqueue_script('avonix-fab-stack', $src, [], $ver, true);
+            wp_add_inline_script('avonix-fab-stack', $inline, 'before');
+            $done = true;
+        } else {
+            wp_add_inline_script('avonix-fab-stack', $inline, 'before');
+        }
+        return;
+    }
+    if ($done) {
+        return;
+    }
+    $src = plugins_url('assets/js/fab-stack.js', AVONIX_PLUGIN_FILE);
+    $path = dirname(AVONIX_PLUGIN_FILE) . '/assets/js/fab-stack.js';
+    $ver = is_readable($path) ? (string) filemtime($path) : AVONIX_VERSION;
+    wp_enqueue_script('avonix-fab-stack', $src, [], $ver, true);
+    $done = true;
+}
 
 /**
  * Faster uninstall check while an admin is in wp-admin (throttled).

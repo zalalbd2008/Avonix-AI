@@ -138,6 +138,10 @@ class Avonix_Chat
             $payload['wp_surface']
         );
 
+        if (!empty($cloud['fab_group']) && is_array($cloud['fab_group'])) {
+            $payload['fab_group'] = $cloud['fab_group'];
+        }
+
         return $payload;
     }
 
@@ -210,6 +214,12 @@ class Avonix_Chat
             'window.AVONIX_CHAT = ' . wp_json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ';',
             'before'
         );
+
+        if (!empty($payload['fab_group']) && is_array($payload['fab_group'])) {
+            avonix_enqueue_fab_stack($payload['fab_group']);
+        } else {
+            avonix_enqueue_fab_stack();
+        }
     }
 
     /**

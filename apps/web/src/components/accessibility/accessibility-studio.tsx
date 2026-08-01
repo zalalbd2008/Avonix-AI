@@ -13,6 +13,7 @@ import {
 } from "@/components/widgets/floating-launcher-group";
 import { actionSaveAccessibility } from "@/lib/accessibility/actions";
 import { PageDisplayConditions } from "@/components/widgets/page-display-conditions";
+import { FabGroupControls } from "@/components/widgets/fab-group-controls";
 import {
   accessibilityScore,
   countEnabledFeatures,
@@ -22,6 +23,12 @@ import {
   type AccessibilitySettings,
   type AccessibilityTargetLevel,
 } from "@/lib/accessibility/types";
+import {
+  isFabLinked,
+  mergeFloatingFabGroup,
+  type FloatingFabGroupSettings,
+} from "@/lib/widgets/fab-group";
+import { actionSaveFloatingFabGroup } from "@/lib/widgets/fab-group-actions";
 import {
   cornerFromPlacement,
   normalizeScreenPlacement,
@@ -69,15 +76,20 @@ export function AccessibilityStudio({
   websiteName,
   websiteUrl,
   initial,
+  initialFabGroup,
 }: {
   clientId: string;
   websiteId: string;
   websiteName: string;
   websiteUrl: string;
   initial?: Partial<AccessibilitySettings> | null;
+  initialFabGroup?: Partial<FloatingFabGroupSettings> | null;
 }) {
   const [settings, setSettings] = useState(() =>
     mergeAccessibilitySettings(initial),
+  );
+  const [fabGroup, setFabGroup] = useState(() =>
+    mergeFloatingFabGroup(initialFabGroup),
   );
   const [tab, setTab] = useState<TabId>("overview");
   const [previewTool, setPreviewTool] = useState<string | null>(null);
@@ -89,6 +101,7 @@ export function AccessibilityStudio({
   const featureCount = countEnabledFeatures(settings);
   const profileCount = countEnabledProfiles(settings);
   const totalFeatures = Object.keys(settings.features).length;
+  const stacked = isFabLinked(fabGroup, "accessibility");
 
   function patch(partial: Partial<AccessibilitySettings>) {
     setSettings((s) => ({ ...s, ...partial }));
@@ -96,6 +109,9 @@ export function AccessibilityStudio({
 
   function setPlacement(placement: ScreenPlacement) {
     const next = normalizeScreenPlacement(placement);
+    if (isFabLinked(fabGroup, "accessibility")) {
+      setFabGroup((g) => mergeFloatingFabGroup({ ...g, placement: next }));
+    }
     setSettings((s) => ({
       ...s,
       placement: next,
@@ -145,13 +161,24 @@ export function AccessibilityStudio({
   function save() {
     setError(null);
     startTransition(async () => {
-      const res = await actionSaveAccessibility({
-        clientId,
-        websiteId,
-        settings,
-      });
+      const [res, fabRes] = await Promise.all([
+        actionSaveAccessibility({
+          clientId,
+          websiteId,
+          settings,
+        }),
+        actionSaveFloatingFabGroup({
+          clientId,
+          websiteId,
+          group: fabGroup,
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
+        return;
+      }
+      if (!fabRes.ok) {
+        setError(fabRes.error);
         return;
       }
       setSaved(true);
@@ -449,10 +476,15 @@ export function AccessibilityStudio({
                   </Field>
                   <Field label="Placement">
                     <p className="mb-2 text-[12px] text-muted">
-                      Move the Accessibility group in the live preview with your
-                      cursor — no values to type. Independent from Languages and
-                      Live Chat.
+                      {stacked
+                        ? "Drag moves the shared stack (1px gap). Unlink below to place Accessibility alone."
+                        : "Drag places Accessibility alone. Turn Stack on to group with Languages and Live Chat."}
                     </p>
+                    <FabGroupControls
+                      value={fabGroup}
+                      onChange={setFabGroup}
+                      currentId="accessibility"
+                    />
                   </Field>
                 </Section>
 
@@ -757,11 +789,16 @@ export function AccessibilityStudio({
                   Live preview
                 </p>
                 <span className="text-[11px] text-faint">
-                  {placementLabel(settings.placement)}
+                  {placementLabel(
+                    stacked ? fabGroup.placement : settings.placement,
+                  )}
                 </span>
               </div>
               <WidgetPreview
                 settings={settings}
+                placement={
+                  stacked ? fabGroup.placement : settings.placement
+                }
                 activeTool={previewTool}
                 onTool={setPreviewTool}
                 onPlacementChange={setPlacement}
@@ -1036,16 +1073,19 @@ function CheckItem({ label }: { label: string }) {
 
 function WidgetPreview({
   settings,
+  placement,
   activeTool,
   onTool,
   onPlacementChange,
 }: {
   settings: AccessibilitySettings;
+  placement?: ScreenPlacement;
   activeTool: string | null;
   onTool: (id: string | null) => void;
   onPlacementChange: (p: ScreenPlacement) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const place = placement ?? settings.placement;
 
   const tools = (
     [
@@ -1074,11 +1114,11 @@ function WidgetPreview({
   return (
     <DraggablePlacementCanvas
       label="Accessibility group"
-      placement={settings.placement}
+      placement={place}
       onChange={onPlacementChange}
     >
       <FloatingLauncherGroup
-        placement={settings.placement}
+        placement={place}
         open={open}
         panel={
           <>
@@ -1119,7 +1159,7 @@ function WidgetPreview({
               iconSize: settings.iconSize,
               buttonPadding: settings.buttonPadding,
             }}
-            align={placementHorizontalAlign(settings.placement)}
+            align={placementHorizontalAlign(place)}
             onClick={() => setOpen((o) => !o)}
           >
             {settings.iconStyle === "minimal" ? (

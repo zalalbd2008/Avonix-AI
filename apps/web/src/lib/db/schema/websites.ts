@@ -39,6 +39,7 @@ import type { UpdatesSettings } from "@/lib/updates/types";
 import type { UptimeSettings } from "@/lib/uptime/types";
 import type { WebsiteEmailSettings } from "@/lib/website-email/types";
 import type { PageSpeedCache } from "@/lib/pagespeed/client";
+import type { FloatingFabGroupSettings } from "@/lib/widgets/fab-group";
 
 export type WebsiteSettings = {
   fonts?: WebsiteFontSettings;
@@ -46,6 +47,11 @@ export type WebsiteSettings = {
   accessibility?: AccessibilitySettings;
   /** Multilingual / translation settings (see lib/languages). */
   languages?: LanguageSettings;
+  /**
+   * Shared floating launcher stack (Live Chat + Accessibility + Languages).
+   * Linked members share X and stack with a 1px gap; unlinked keep solo placement.
+   */
+  floatingFabGroup?: FloatingFabGroupSettings;
   /** Availability monitor configuration (see lib/uptime). */
   uptime?: UptimeSettings;
   /** WordPress update watching preferences (see lib/updates). */

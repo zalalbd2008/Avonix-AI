@@ -39,6 +39,13 @@ import {
   sanitizeAgreementHtml,
 } from "@/components/ui/classic-html-editor";
 import { IndustryPresetPanel } from "@/components/cep/industry-preset-panel";
+import { FabGroupControls } from "@/components/widgets/fab-group-controls";
+import {
+  isFabLinked,
+  mergeFloatingFabGroup,
+  type FloatingFabGroupSettings,
+} from "@/lib/widgets/fab-group";
+import { actionSaveFloatingFabGroup } from "@/lib/widgets/fab-group-actions";
 
 const input =
   "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/15";
@@ -83,6 +90,7 @@ export function CepWidgetStudio({
   configuredProviders,
   forms,
   health,
+  initialFabGroup,
 }: {
   clientId: string;
   websiteId: string;
@@ -91,6 +99,7 @@ export function CepWidgetStudio({
   configuredProviders: CepAiProvider[];
   forms: Array<{ id: string; name: string; formNumber: number | null }>;
   health: CepStudioHealth;
+  initialFabGroup?: Partial<FloatingFabGroupSettings> | null;
 }) {
   const defaults = defaultCepWidgetPayload(initial.surface ?? "bubble");
   const [name, setName] = useState(initial.name);
@@ -98,6 +107,9 @@ export function CepWidgetStudio({
   const [enabled, setEnabled] = useState(initial.isEnabled);
   const [surface, setSurface] = useState<CepWidgetSurface>(
     initial.surface ?? "bubble",
+  );
+  const [fabGroup, setFabGroup] = useState(() =>
+    mergeFloatingFabGroup(initialFabGroup),
   );
   const [tab, setTab] = useState<StudioTab>("presets");
   const [payload, setPayload] = useState<CepWidgetPayload>(() => ({
@@ -133,18 +145,29 @@ export function CepWidgetStudio({
   function save() {
     setError(null);
     startTransition(async () => {
-      const res = await actionSaveCepWidget({
-        id: initial.id,
-        clientId,
-        websiteId,
-        name,
-        status,
-        surface,
-        isEnabled: enabled,
-        payload: { ...payload, surface },
-      });
+      const [res, fabRes] = await Promise.all([
+        actionSaveCepWidget({
+          id: initial.id,
+          clientId,
+          websiteId,
+          name,
+          status,
+          surface,
+          isEnabled: enabled,
+          payload: { ...payload, surface },
+        }),
+        actionSaveFloatingFabGroup({
+          clientId,
+          websiteId,
+          group: fabGroup,
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
+        return;
+      }
+      if (!fabRes.ok) {
+        setError(fabRes.error);
         return;
       }
       setSaved(true);
@@ -158,11 +181,13 @@ export function CepWidgetStudio({
   const modules = payload.modules ?? {};
   const shortcode = "[avonix_chat]";
   const primary = theme.primaryColor ?? LAUNCHER_ORANGE;
-  const chatPlacement = normalizeScreenPlacement(
+  const stacked = isFabLinked(fabGroup, "chat");
+  const soloChatPlacement = normalizeScreenPlacement(
     theme.leftPercent != null && theme.topPercent != null
       ? { xPercent: theme.leftPercent, yPercent: theme.topPercent }
       : placementFromCorner(theme.position, theme.offsetX, theme.offsetY),
   );
+  const chatPlacement = stacked ? fabGroup.placement : soloChatPlacement;
   const chatAvatar = payload.agentAvatarUrl || payload.botAvatarUrl || null;
   const chatMetrics = normalizeLauncherMetrics(
     theme.launcherIconSize != null || theme.launcherPadding != null
@@ -558,14 +583,27 @@ export function CepWidgetStudio({
                     Live Chat placement
                   </span>
                   <p className="mb-2 text-[12px] text-muted">
-                    Drag with your cursor in the live view — no values to type.
-                    Independent from Languages and Accessibility.
+                    {stacked
+                      ? "Drag moves the shared stack (1px gap). Unlink below to place Live Chat alone."
+                      : "Drag places Live Chat alone. Turn Stack on to group with Accessibility and Languages."}
                   </p>
+                  <div className="mb-3">
+                    <FabGroupControls
+                      value={fabGroup}
+                      onChange={setFabGroup}
+                      currentId="chat"
+                    />
+                  </div>
                   <DraggablePlacementCanvas
                     label="Live Chat group"
                     placement={chatPlacement}
                     onChange={(next) => {
                       const n = normalizeScreenPlacement(next);
+                      if (isFabLinked(fabGroup, "chat")) {
+                        setFabGroup((g) =>
+                          mergeFloatingFabGroup({ ...g, placement: n }),
+                        );
+                      }
                       setPayload((p) => ({
                         ...p,
                         theme: {

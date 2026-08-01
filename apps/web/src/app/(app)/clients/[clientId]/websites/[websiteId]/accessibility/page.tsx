@@ -41,6 +41,7 @@ export default async function AccessibilityPage({
       websiteName={site.name}
       websiteUrl={site.url}
       initial={site.settings?.accessibility}
+      initialFabGroup={site.settings?.floatingFabGroup}
     />
   );
 }

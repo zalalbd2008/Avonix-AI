@@ -4,6 +4,13 @@ import {
   getPublishedWidgetConfig,
 } from "@/lib/cep/cep-service";
 import type { CepWidgetPayload } from "@/lib/db/schema";
+import { withAgency } from "@/lib/db";
+import { websites } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import {
+  mergeFloatingFabGroup,
+  toConnectorFabGroup,
+} from "@/lib/widgets/fab-group";
 
 /**
  * GET /api/v1/connector/chat/config
@@ -16,10 +23,22 @@ export async function GET(request: Request) {
     return connectorError("unauthorized", 401, "Invalid connector key.");
   }
 
-  const [bubble, wizard] = await Promise.all([
+  const [bubble, wizard, siteRow] = await Promise.all([
     getPublishedWidgetConfig(identity.agencyId, identity.websiteId, "bubble"),
     getPublishedWidgetConfig(identity.agencyId, identity.websiteId, "wizard"),
+    withAgency(identity.agencyId, async (tx) => {
+      const [found] = await tx
+        .select({ settings: websites.settings })
+        .from(websites)
+        .where(eq(websites.id, identity.websiteId))
+        .limit(1);
+      return found ?? null;
+    }),
   ]);
+
+  const fab_group = toConnectorFabGroup(
+    mergeFloatingFabGroup(siteRow?.settings?.floatingFabGroup),
+  );
 
   const widget = bubble;
   if (!widget) {
@@ -27,6 +46,7 @@ export async function GET(request: Request) {
       status: "ok",
       widget: null,
       wizard: null,
+      fab_group,
     });
   }
 
@@ -50,6 +70,7 @@ export async function GET(request: Request) {
           leadForm,
         )
       : null,
+    fab_group,
   });
 }
 

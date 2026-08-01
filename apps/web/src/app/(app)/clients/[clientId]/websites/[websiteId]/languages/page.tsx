@@ -41,6 +41,7 @@ export default async function LanguagesPage({
       websiteName={site.name}
       websiteUrl={site.url}
       initial={site.settings?.languages}
+      initialFabGroup={site.settings?.floatingFabGroup}
     />
   );
 }

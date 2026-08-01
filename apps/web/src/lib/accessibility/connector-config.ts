@@ -9,6 +9,10 @@ import {
   mergeAccessibilitySettings,
   type AccessibilitySettings,
 } from "@/lib/accessibility/types";
+import {
+  mergeFloatingFabGroup,
+  toConnectorFabGroup,
+} from "@/lib/widgets/fab-group";
 
 export type ConnectorAccessibilityConfig = {
   enabled: boolean;
@@ -27,6 +31,7 @@ export type ConnectorAccessibilityConfig = {
   statement: AccessibilitySettings["statement"];
   announce_changes: boolean;
   persist_visitor_prefs: boolean;
+  fab_group: ReturnType<typeof toConnectorFabGroup>;
 };
 
 function lines(raw: string): string[] {
@@ -70,5 +75,8 @@ export async function getConnectorAccessibilityConfig(
     statement: s.statement,
     announce_changes: s.announceChanges,
     persist_visitor_prefs: s.persistVisitorPrefs,
+    fab_group: toConnectorFabGroup(
+      mergeFloatingFabGroup(row.settings?.floatingFabGroup),
+    ),
   };
 }

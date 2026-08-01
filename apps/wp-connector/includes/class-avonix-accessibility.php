@@ -66,6 +66,7 @@ class Avonix_Accessibility
             'statement'            => $config['statement'] ?? [],
             'announceChanges'      => !empty($config['announce_changes']),
             'persistVisitorPrefs'  => !array_key_exists('persist_visitor_prefs', $config) || !empty($config['persist_visitor_prefs']),
+            'fab_group'            => isset($config['fab_group']) && is_array($config['fab_group']) ? $config['fab_group'] : null,
         ];
 
         wp_add_inline_script(
@@ -73,6 +74,12 @@ class Avonix_Accessibility
             'window.AVONIX_A11Y = ' . wp_json_encode($payload) . ';' . "\n" . $this->runtime_js(),
             'after'
         );
+
+        if (!empty($payload['fab_group'])) {
+            avonix_enqueue_fab_stack($payload['fab_group']);
+        } else {
+            avonix_enqueue_fab_stack();
+        }
 
         wp_register_style($handle, false, [], AVONIX_VERSION);
         wp_enqueue_style($handle);

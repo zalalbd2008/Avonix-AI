@@ -68,6 +68,7 @@ class Avonix_Languages
             'neverTranslate'    => $config['never_translate'] ?? [],
             'path'              => $path,
             'iconUrl'           => plugins_url('assets/img/icon-lang.png', AVONIX_PLUGIN_FILE),
+            'fab_group'         => isset($config['fab_group']) && is_array($config['fab_group']) ? $config['fab_group'] : null,
         ];
 
         wp_add_inline_script(
@@ -75,6 +76,12 @@ class Avonix_Languages
             'window.AVONIX_LANG = ' . wp_json_encode($payload) . ';' . "\n" . $this->runtime_js(),
             'after'
         );
+
+        if (!empty($payload['fab_group'])) {
+            avonix_enqueue_fab_stack($payload['fab_group']);
+        } else {
+            avonix_enqueue_fab_stack();
+        }
 
         wp_register_style($handle, false, [], AVONIX_VERSION);
         wp_enqueue_style($handle);

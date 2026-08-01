@@ -14,6 +14,7 @@ import {
 } from "@/components/widgets/floating-launcher-group";
 import { actionSaveLanguages } from "@/lib/languages/actions";
 import { PageDisplayConditions } from "@/components/widgets/page-display-conditions";
+import { FabGroupControls } from "@/components/widgets/fab-group-controls";
 import {
   SITE_LANGUAGE_CATALOG,
   averageCoverage,
@@ -30,6 +31,12 @@ import {
   type SiteLocale,
   type TranslationEngine,
 } from "@/lib/languages/types";
+import {
+  isFabLinked,
+  mergeFloatingFabGroup,
+  type FloatingFabGroupSettings,
+} from "@/lib/widgets/fab-group";
+import { actionSaveFloatingFabGroup } from "@/lib/widgets/fab-group-actions";
 import {
   cornerFromPlacement,
   normalizeScreenPlacement,
@@ -91,15 +98,20 @@ export function LanguagesStudio({
   websiteName,
   websiteUrl,
   initial,
+  initialFabGroup,
 }: {
   clientId: string;
   websiteId: string;
   websiteName: string;
   websiteUrl: string;
   initial?: Partial<LanguageSettings> | null;
+  initialFabGroup?: Partial<FloatingFabGroupSettings> | null;
 }) {
   const [settings, setSettings] = useState(() =>
     mergeLanguageSettings(initial),
+  );
+  const [fabGroup, setFabGroup] = useState(() =>
+    mergeFloatingFabGroup(initialFabGroup),
   );
   const [tab, setTab] = useState<TabId>("overview");
   const [addCode, setAddCode] = useState("");
@@ -114,6 +126,7 @@ export function LanguagesStudio({
   const active = useMemo(() => enabledLocales(settings), [settings]);
   const coverage = useMemo(() => averageCoverage(settings), [settings]);
   const surfacesOn = Object.values(settings.surfaces).filter(Boolean).length;
+  const stacked = isFabLinked(fabGroup, "languages");
 
   const availableToAdd = SITE_LANGUAGE_CATALOG.filter(
     (c) => !settings.locales.some((l) => l.code === c.code),
@@ -125,6 +138,9 @@ export function LanguagesStudio({
 
   function setSwitcherPlacement(placement: ScreenPlacement) {
     const next = normalizeScreenPlacement(placement);
+    if (isFabLinked(fabGroup, "languages")) {
+      setFabGroup((g) => mergeFloatingFabGroup({ ...g, placement: next }));
+    }
     setSettings((s) => ({
       ...s,
       switcher: {
@@ -173,13 +189,24 @@ export function LanguagesStudio({
   function save() {
     setError(null);
     startTransition(async () => {
-      const res = await actionSaveLanguages({
-        clientId,
-        websiteId,
-        settings,
-      });
+      const [res, fabRes] = await Promise.all([
+        actionSaveLanguages({
+          clientId,
+          websiteId,
+          settings,
+        }),
+        actionSaveFloatingFabGroup({
+          clientId,
+          websiteId,
+          group: fabGroup,
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
+        return;
+      }
+      if (!fabRes.ok) {
+        setError(fabRes.error);
         return;
       }
       setSaved(true);
@@ -707,10 +734,15 @@ export function LanguagesStudio({
                 </Field>
                 <Field label="Placement">
                   <p className="mb-2 text-[12px] text-muted">
-                    Move the Languages group in the live preview with your
-                    cursor — no numbers to enter. Independent from Accessibility
-                    and Live Chat.
+                    {stacked
+                      ? "Drag moves the shared stack (1px gap). Unlink below to place Languages alone."
+                      : "Drag places Languages alone. Turn Stack on to group with Accessibility and Live Chat."}
                   </p>
+                  <FabGroupControls
+                    value={fabGroup}
+                    onChange={setFabGroup}
+                    currentId="languages"
+                  />
                   <Toggle
                     label="Place in site menu (inline)"
                     description="Skip floating placement — inject into the theme menu instead"
@@ -1091,11 +1123,18 @@ export function LanguagesStudio({
                 <span className="text-[11px] text-faint">
                   {settings.switcher.position === "menu-inline"
                     ? "menu-inline"
-                    : placementLabel(settings.switcher.placement)}
+                    : placementLabel(
+                        stacked
+                          ? fabGroup.placement
+                          : settings.switcher.placement,
+                      )}
                 </span>
               </div>
               <SwitcherPreview
                 settings={settings}
+                placement={
+                  stacked ? fabGroup.placement : settings.switcher.placement
+                }
                 previewLocale={previewLocale}
                 onSelect={setPreviewLocale}
                 host={host}
@@ -1336,18 +1375,21 @@ function ScoreBar({
 
 function SwitcherPreview({
   settings,
+  placement,
   previewLocale,
   onSelect,
   host,
   onPlacementChange,
 }: {
   settings: LanguageSettings;
+  placement?: ScreenPlacement;
   previewLocale: string;
   onSelect: (code: string) => void;
   host: string;
   onPlacementChange: (p: ScreenPlacement) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const place = placement ?? settings.switcher.placement;
   const visible = settings.locales.filter((l) => l.enabled && l.visible);
   const floating = settings.switcher.position !== "menu-inline";
 
@@ -1410,11 +1452,11 @@ function SwitcherPreview({
   return (
     <DraggablePlacementCanvas
       label="Languages group"
-      placement={settings.switcher.placement}
+      placement={place}
       onChange={onPlacementChange}
     >
       <FloatingLauncherGroup
-        placement={settings.switcher.placement}
+        placement={place}
         open={open}
         panel={
           <>
@@ -1435,7 +1477,7 @@ function SwitcherPreview({
               iconSize: settings.switcher.iconSize,
               buttonPadding: settings.switcher.buttonPadding,
             }}
-            align={placementHorizontalAlign(settings.switcher.placement)}
+            align={placementHorizontalAlign(place)}
             onClick={() => setOpen((o) => !o)}
           >
             <TranslateGlyph className="size-[1em]" />

@@ -39,6 +39,7 @@ export default async function ChatAiPage({
         name: websites.name,
         url: websites.url,
         status: websites.status,
+        settings: websites.settings,
       })
       .from(websites)
       .where(eq(websites.id, websiteId))
@@ -122,6 +123,7 @@ export default async function ChatAiPage({
       clientId={clientId}
       websiteId={websiteId}
       websiteName={site.name}
+      initialFabGroup={site.settings?.floatingFabGroup}
       initial={{
         ...widget,
         createdAt: widget.createdAt.toISOString() as unknown as Date,

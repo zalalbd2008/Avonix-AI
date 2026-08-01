@@ -465,12 +465,12 @@
     ";height:" +
     mobH +
     ";border-radius:16px;}.avonix-cep-launcher{--avx-od:8px;}}" +
-    /* Phones: keep panel fully on-screen (studio desktop preview ≠ real mobile). */
+    /* Phones: panel full-bleed only while open — closed FAB must keep free % stack with a11y/lang. */
     "@media (max-width:639px){" +
     rootScope +
     ":not(.avonix-cep-root--wizard){max-width:calc(100vw - 12px)!important;}" +
     rootScope +
-    ":not(.avonix-cep-root--wizard).is-narrow{left:8px!important;right:8px!important;width:auto!important;}" +
+    ":not(.avonix-cep-root--wizard).is-narrow.is-open{left:8px!important;right:8px!important;width:auto!important;}" +
     rootScope +
     ":not(.avonix-cep-root--wizard) .avonix-cep-panel{width:100%!important;max-width:100%!important;height:min(560px,calc(100dvh - 100px))!important;max-height:calc(100dvh - 100px)!important;border-radius:16px!important;}" +
     rootScope +
@@ -1746,20 +1746,21 @@
 
   function placeRoot() {
     if (surface === "wizard") return;
+    // Match a11y/lang: innerHeight only — visualViewport drifts break equal % gaps.
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
-    var vh =
-      window.visualViewport && window.visualViewport.height
-        ? Math.round(window.visualViewport.height)
-        : window.innerHeight || document.documentElement.clientHeight || 640;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
     var bottomClear = ctaBottomClearance();
     var narrow = vw < 640;
+    var isOpenNow = root.classList.contains("is-open");
     root.classList.toggle("is-narrow", narrow);
     // Use configured outer size only — never a higher floor, or same % drifts vs a11y/lang.
     var bw = launcherPx;
     var bh = launcherPx;
-    if (ctaPill && !root.classList.contains("is-open") && !narrow) {
+    if (ctaPill && !isOpenNow && !narrow) {
       bw = launcherPx + 190;
     }
+    // Phones: keep FABs fully on-screen (no flush half-cut edge dock).
+    var edgeInset = narrow ? 8 : 0;
 
     root.style.left = "auto";
     root.style.right = "auto";
@@ -1767,16 +1768,16 @@
     root.style.bottom = "auto";
     root.style.width = "";
 
-    // Mobile: snap to bottom edge so free-placement % from desktop studio
-    // cannot push the open panel off-screen.
-    if (narrow && surface !== "wizard") {
+    // Mobile + open only: snap panel into the viewport. Closed FAB stays on
+    // free % so it lines up with Accessibility / Language in the same stack.
+    if (narrow && isOpenNow && surface !== "wizard") {
       var openLeft = useFree ? freeX >= 50 : edgeX === "right";
       root.style.flexDirection = "column";
       root.style.alignItems = openLeft ? "flex-end" : "flex-start";
       root.classList.toggle("is-align-end", openLeft);
       root.classList.toggle("is-align-start", !openLeft);
       fabRow.style.flexDirection = openLeft ? "row" : "row-reverse";
-      var narrowR = launcherTileRadius(!openLeft);
+      var narrowR = launcherCorner + "px";
       root.style.setProperty("--avx-launcher-radius", narrowR);
       button.style.borderRadius = narrowR;
       root.style.left = "8px";
@@ -1792,8 +1793,8 @@
       // across Language / Accessibility / Chat even when outer sizes differ.
       var x = Math.round((freeX / 100) * vw);
       var y = Math.round((freeY / 100) * vh);
-      x = Math.min(Math.max(0, vw - bw), Math.max(0, x));
-      y = Math.min(Math.max(0, vh - bh), Math.max(0, y));
+      x = Math.min(Math.max(edgeInset, vw - bw - edgeInset), Math.max(edgeInset, x));
+      y = Math.min(Math.max(edgeInset, vh - bh - edgeInset), Math.max(edgeInset, y));
       var openUp = freeY >= 45;
       var openLeftFree = freeX >= 50;
       // panel is first in DOM, launcher second — column keeps FAB at bottom
@@ -1803,14 +1804,17 @@
       root.classList.toggle("is-align-end", openLeftFree);
       root.classList.toggle("is-align-start", !openLeftFree);
       fabRow.style.flexDirection = openLeftFree ? "row" : "row-reverse";
-      var tileR = launcherTileRadius(!openLeftFree);
+      // Mobile: full radius so tiles are not clipped flush against the screen edge.
+      var tileR = narrow
+        ? launcherCorner + "px"
+        : launcherTileRadius(!openLeftFree);
       root.style.setProperty("--avx-launcher-radius", tileR);
       button.style.borderRadius = tileR;
       root.style.left = x + "px";
       if (openUp) {
         // Pin launcher bottom so the chat panel opens upward from the FAB.
         root.style.top = "auto";
-        root.style.bottom = Math.max(0, vh - (y + bh)) + "px";
+        root.style.bottom = Math.max(edgeInset, vh - (y + bh)) + "px";
       } else {
         root.style.bottom = "auto";
         root.style.top = y + "px";
@@ -1819,16 +1823,21 @@
     }
 
     var edgeOy = edgeY === "bottom" ? Math.max(oy, bottomClear) : oy;
+    if (narrow) {
+      edgeOy = Math.max(edgeInset, edgeOy);
+    }
     root.style.flexDirection = edgeY === "bottom" ? "column" : "column-reverse";
     root.style.alignItems = edgeX === "left" ? "flex-start" : "flex-end";
     root.classList.toggle("is-align-end", edgeX === "right");
     root.classList.toggle("is-align-start", edgeX === "left");
     fabRow.style.flexDirection = edgeX === "right" ? "row" : "row-reverse";
-    var edgeTileR = launcherTileRadius(edgeX === "left");
+    var edgeTileR = narrow
+      ? launcherCorner + "px"
+      : launcherTileRadius(edgeX === "left");
     root.style.setProperty("--avx-launcher-radius", edgeTileR);
     button.style.borderRadius = edgeTileR;
     root.style[edgeY] = edgeOy + "px";
-    root.style[edgeX] = ox + "px";
+    root.style[edgeX] = (narrow ? Math.max(edgeInset, ox) : ox) + "px";
   }
 
   function setOpen(next) {

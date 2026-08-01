@@ -394,11 +394,13 @@ CSS;
     var yPct = pct.yPct;
     var vw = window.innerWidth || document.documentElement.clientWidth || 360;
     var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    var narrow = vw < 640;
+    var edgeInset = narrow ? 8 : 0;
     // Full-viewport % — same 1% step for every floating widget size.
     var x = Math.round((xPct / 100) * vw);
     var y = Math.round((yPct / 100) * vh);
-    x = Math.min(Math.max(0, vw - outer), Math.max(0, x));
-    y = Math.min(Math.max(0, vh - outer), Math.max(0, y));
+    x = Math.min(Math.max(edgeInset, vw - outer - edgeInset), Math.max(edgeInset, x));
+    y = Math.min(Math.max(edgeInset, vh - outer - edgeInset), Math.max(edgeInset, y));
     root.style.left = x + "px";
     root.style.top = y + "px";
     root.style.right = "auto";
@@ -411,7 +413,11 @@ CSS;
     var r = Math.max(6, Math.round(outer * (10 / 44)));
     root.style.setProperty(
       "--avonix-lang-radius",
-      openLeft ? r + "px 0 0 " + r + "px" : "0 " + r + "px " + r + "px 0"
+      narrow
+        ? r + "px"
+        : openLeft
+          ? r + "px 0 0 " + r + "px"
+          : "0 " + r + "px " + r + "px 0"
     );
   }
 

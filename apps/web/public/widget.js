@@ -204,8 +204,11 @@
   var ttsOn = false;
 
   var alignEnd = useFree ? freeX >= 50 : edgeX === "right";
+  // DOM order is panel then launcher. Use column when opening upward so the
+  // FAB stays at the bottom; column-reverse when opening downward.
   var stackUp = useFree ? freeY >= 45 : edgeY === "bottom";
   var rootPosCss = edgeY + ":" + oy + "px;" + edgeX + ":" + ox + "px;";
+  var rootFlexDir = stackUp ? "column" : "column-reverse";
 
   var CHAT_SVG =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10h.01M12 10h.01M16 10h.01M21 16c0 1.1-.9 2-2 2H7l-4 4V6a2 2 0 012-2h14a2 2 0 012 2v10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -250,7 +253,7 @@
     ";" +
     rootPosCss +
     "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:" +
-    (stackUp ? "column-reverse" : "column") +
+    rootFlexDir +
     ";align-items:" +
     (alignEnd ? "flex-end" : "flex-start") +
     ";gap:12px;max-width:calc(100vw - 16px);box-sizing:border-box;}" +
@@ -1353,7 +1356,9 @@
       y = Math.min(vh - bh, Math.max(0, y));
       var openUp = freeY >= 45;
       var openLeft = freeX >= 50;
-      root.style.flexDirection = openUp ? "column-reverse" : "column";
+      // panel is first in DOM, launcher second — column keeps FAB at bottom
+      // when the panel opens upward; reverse puts FAB on top when opening down.
+      root.style.flexDirection = openUp ? "column" : "column-reverse";
       root.style.alignItems = openLeft ? "flex-end" : "flex-start";
       root.style.left = x + "px";
       if (openUp) {
@@ -1368,7 +1373,7 @@
     }
 
     var edgeOy = edgeY === "bottom" ? Math.max(oy, bottomClear) : oy;
-    root.style.flexDirection = edgeY === "bottom" ? "column-reverse" : "column";
+    root.style.flexDirection = edgeY === "bottom" ? "column" : "column-reverse";
     root.style.alignItems = edgeX === "left" ? "flex-start" : "flex-end";
     root.style[edgeY] = edgeOy + "px";
     root.style[edgeX] = ox + "px";

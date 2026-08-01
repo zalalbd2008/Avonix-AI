@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Avonix AI Connector
  * Description:       Sends this site's form submissions and chat leads to Avonix AI.
- * Version:           1.3.40
+ * Version:           1.3.41
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later

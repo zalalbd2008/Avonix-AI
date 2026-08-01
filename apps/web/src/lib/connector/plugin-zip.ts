@@ -56,9 +56,23 @@ export async function buildConnectorZip(): Promise<{
   const files: Record<string, Uint8Array> = {};
   await walkFiles(root, root, files);
 
-  if (!files["avonix-connector/avonix-connector.php"]) {
+  const mainPhp = files["avonix-connector/avonix-connector.php"];
+  if (!mainPhp) {
     throw new Error("avonix-connector.php missing from connector folder.");
   }
+
+  // Keep WP plugin header + AVONIX_VERSION in sync with CONNECTOR_VERSION so
+  // Plugins → Upload never shows a stale "Uploaded" version.
+  let phpText = new TextDecoder().decode(mainPhp);
+  phpText = phpText.replace(
+    /(\*\s*Version:\s*)[0-9]+(?:\.[0-9]+)*/,
+    `$1${CONNECTOR_VERSION}`,
+  );
+  phpText = phpText.replace(
+    /(define\(\s*'AVONIX_VERSION'\s*,\s*')[^']+(')/,
+    `$1${CONNECTOR_VERSION}$2`,
+  );
+  files["avonix-connector/avonix-connector.php"] = strToU8(phpText);
 
   // Tiny marker so support can see which build was downloaded
   files["avonix-connector/BUILD.txt"] = strToU8(

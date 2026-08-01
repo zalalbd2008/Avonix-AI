@@ -97,7 +97,7 @@ export type CepWidgetTheme = {
   agreementBrandName?: string;
   /** Optional logo above the brand name. */
   agreementLogoUrl?: string;
-  /** Agreement logo display height in px (width follows natural aspect). Default 56. */
+  /** Agreement logo display height in px (width follows natural aspect). Range 0–1000. Default 56. */
   agreementLogoSize?: number;
   /** First line under the brand (e.g. “Hi! I am your … Virtual Agent.”). */
   agreementIntro?: string;

@@ -136,7 +136,7 @@
   var agreementLogo = theme.agreementLogoUrl || "";
   var agreementLogoSize = Number(theme.agreementLogoSize);
   if (!isFinite(agreementLogoSize)) agreementLogoSize = 56;
-  agreementLogoSize = Math.max(24, Math.min(160, Math.round(agreementLogoSize)));
+  agreementLogoSize = Math.max(0, Math.min(1000, Math.round(agreementLogoSize)));
   var agreementIntro =
     theme.agreementIntro ||
     "Hi! I am your " + agreementBrand + " Virtual Agent.";
@@ -306,7 +306,7 @@
     ".avonix-cep-agree__close:hover{color:#475569;background:#f1f5f9;}" +
     ".avonix-cep-agree__body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 20px;text-align:center;box-sizing:border-box;}" +
     ".avonix-cep-agree__mark{width:56px;height:56px;margin:0 0 16px;border-radius:14px;background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:700;letter-spacing:-0.02em;flex-shrink:0;overflow:hidden;box-shadow:0 4px 14px color-mix(in srgb,var(--avx-primary) 28%,transparent);}" +
-    ".avonix-cep-agree__logo{display:block;margin:0 0 16px;height:var(--avx-agree-logo,56px);width:auto;max-width:min(220px,80%);object-fit:contain;object-position:center;border-radius:0;background:transparent;box-shadow:none;}" +
+    ".avonix-cep-agree__logo{display:block;margin:0 0 16px;height:var(--avx-agree-logo,56px);width:auto;max-width:100%;object-fit:contain;object-position:center;border-radius:0;background:transparent;box-shadow:none;}" +
     ".avonix-cep-agree__rich{width:100%;max-width:300px;text-align:center;color:var(--avx-ink);font-size:14px;line-height:1.5;}" +
     ".avonix-cep-agree__rich p{margin:0 0 12px;}" +
     ".avonix-cep-agree__rich p:last-child{margin-bottom:0;}" +
@@ -768,18 +768,18 @@
   agreeBody.className = "avonix-cep-agree__body";
 
   // Logo as-is (natural aspect) with editable height; letter mark only when no logo.
-  if (agreementLogo) {
+  if (agreementLogo && agreementLogoSize > 0) {
     var logoImg = document.createElement("img");
     logoImg.className = "avonix-cep-agree__logo";
     logoImg.src = String(agreementLogo).replace(/"/g, "");
     logoImg.alt = agreementBrand;
     logoImg.style.height = agreementLogoSize + "px";
     logoImg.style.width = "auto";
-    logoImg.style.maxWidth = "min(220px, 80%)";
+    logoImg.style.maxWidth = "100%";
     logoImg.style.objectFit = "contain";
     logoImg.style.borderRadius = "0";
     agreeBody.appendChild(logoImg);
-  } else {
+  } else if (!agreementLogo) {
     var mark = document.createElement("div");
     mark.className = "avonix-cep-agree__mark";
     mark.setAttribute("aria-hidden", "true");

@@ -730,21 +730,27 @@ export function CepWidgetStudio({
                           <span>Agreement logo size</span>
                           <span className="font-mono text-[11px] text-muted">
                             {Math.max(
-                              24,
-                              Math.min(160, Number(theme.agreementLogoSize) || 56),
+                              0,
+                              Math.min(
+                                1000,
+                                Number(theme.agreementLogoSize) || 56,
+                              ),
                             )}
                             px
                           </span>
                         </span>
                         <input
                           type="range"
-                          min={24}
-                          max={160}
+                          min={0}
+                          max={1000}
                           step={1}
                           className="mt-1 w-full accent-[var(--brand,#2563eb)]"
                           value={Math.max(
-                            24,
-                            Math.min(160, Number(theme.agreementLogoSize) || 56),
+                            0,
+                            Math.min(
+                              1000,
+                              Number(theme.agreementLogoSize) || 56,
+                            ),
                           )}
                           onChange={(e) =>
                             setPayload((p) => ({
@@ -757,7 +763,8 @@ export function CepWidgetStudio({
                           }
                         />
                         <p className="mt-1 text-[11px] text-muted">
-                          Height only — width follows the logo’s natural shape.
+                          0–1000px height — width follows the logo’s natural
+                          shape. 0 hides the logo.
                         </p>
                       </label>
                     ) : null}

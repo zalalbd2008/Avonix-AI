@@ -296,19 +296,21 @@
     /* Home */
     ".avonix-cep-home{display:flex;flex-direction:column;flex:1;min-height:0;}" +
     ".avonix-cep-home.is-hidden,.avonix-cep-ai.is-hidden,.avonix-cep-gate.is-hidden,.avonix-cep-agree.is-hidden{display:none!important;}" +
-    /* Terms agreement gate */
-    ".avonix-cep-agree{display:flex;flex-direction:column;flex:1;min-height:0;background:#fff;}" +
-    ".avonix-cep-agree__body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 22px 18px;text-align:center;}" +
-    ".avonix-cep-agree__logo{width:72px;height:72px;object-fit:contain;margin:0 0 14px;display:block;}" +
-    ".avonix-cep-agree__mark{width:64px;height:64px;margin:0 0 14px;border-radius:16px;background:linear-gradient(135deg,var(--avx-primary-end),var(--avx-primary));display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:700;}" +
-    ".avonix-cep-agree__brand{margin:0 0 18px;font-size:22px;font-weight:700;letter-spacing:-0.02em;color:var(--avx-ink);font-family:Georgia,'Times New Roman',serif;line-height:1.2;}" +
-    ".avonix-cep-agree__intro{margin:0 0 12px;font-size:14.5px;line-height:1.45;color:var(--avx-ink);font-weight:500;}" +
-    ".avonix-cep-agree__copy{margin:0;font-size:13.5px;line-height:1.55;color:var(--avx-ink-3);max-width:280px;}" +
+    /* Terms agreement gate — Mount Sinai–style centered welcome */
+    ".avonix-cep-agree{display:flex;flex-direction:column;flex:1;min-height:0;background:#fff;position:relative;}" +
+    ".avonix-cep-agree__close{position:absolute;top:12px;right:12px;z-index:2;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-size:18px;line-height:1;transition:color .15s,background .15s;}" +
+    ".avonix-cep-agree__close:hover{color:#475569;background:#f1f5f9;}" +
+    ".avonix-cep-agree__body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 20px;text-align:center;box-sizing:border-box;}" +
+    ".avonix-cep-agree__mark{width:56px;height:56px;margin:0 0 16px;border-radius:14px;background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:700;letter-spacing:-0.02em;flex-shrink:0;overflow:hidden;box-shadow:0 4px 14px color-mix(in srgb,var(--avx-primary) 28%,transparent);}" +
+    ".avonix-cep-agree__mark img{width:100%;height:100%;object-fit:cover;display:block;}" +
+    ".avonix-cep-agree__brand{margin:0 0 18px;font-size:23px;font-weight:700;letter-spacing:-0.025em;color:#0f172a;font-family:Georgia,'Times New Roman',Times,serif;line-height:1.2;}" +
+    ".avonix-cep-agree__intro{margin:0 0 12px;font-size:14.5px;line-height:1.45;color:#0f172a;font-weight:600;max-width:280px;}" +
+    ".avonix-cep-agree__copy{margin:0;font-size:13.5px;line-height:1.55;color:#64748b;max-width:280px;font-weight:400;}" +
     ".avonix-cep-agree__copy a{color:var(--avx-primary);font-weight:600;text-decoration:underline;text-underline-offset:2px;}" +
-    ".avonix-cep-agree__actions{display:flex;gap:10px;padding:8px 18px 22px;flex-shrink:0;}" +
-    ".avonix-cep-agree__btn{flex:1;min-height:42px;border-radius:999px;border:1.5px solid var(--avx-primary);background:#fff;color:var(--avx-primary);font-size:13.5px;font-weight:600;cursor:pointer;padding:10px 12px;transition:background .15s,color .15s,transform .15s;}" +
+    ".avonix-cep-agree__actions{display:flex;gap:10px;padding:10px 20px 22px;flex-shrink:0;}" +
+    ".avonix-cep-agree__btn{flex:1;min-height:44px;border-radius:999px;border:1.5px solid var(--avx-primary);background:#fff;color:var(--avx-primary);font-size:13.5px;font-weight:600;cursor:pointer;padding:10px 14px;transition:background .15s,color .15s,transform .15s,filter .15s;}" +
     ".avonix-cep-agree__btn:hover{background:color-mix(in srgb,var(--avx-primary) 8%,#fff);transform:translateY(-1px);}" +
-    ".avonix-cep-agree__btn.is-primary{background:var(--avx-primary);color:var(--avx-on-primary);}" +
+    ".avonix-cep-agree__btn.is-primary{background:var(--avx-primary);color:var(--avx-on-primary);border-color:var(--avx-primary);}" +
     ".avonix-cep-agree__btn.is-primary:hover{filter:brightness(.95);background:var(--avx-primary);}" +
     ".avonix-cep-home__head{display:flex;align-items:center;gap:13px;padding:18px 18px 16px;background:var(--avx-head);flex-shrink:0;}" +
     ".avonix-cep-home__avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;background:var(--avx-head-soft);border:1px solid var(--avx-head-line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;}" +
@@ -747,45 +749,60 @@
   agree.className = "avonix-cep-agree is-hidden";
   agree.setAttribute("role", "dialog");
   agree.setAttribute("aria-label", "Terms agreement");
+
+  var agreeClose = document.createElement("button");
+  agreeClose.type = "button";
+  agreeClose.className = "avonix-cep-agree__close";
+  agreeClose.setAttribute("aria-label", "Close");
+  agreeClose.innerHTML = "&#10005;";
+
   var agreeBody = document.createElement("div");
   agreeBody.className = "avonix-cep-agree__body";
+
+  // Rounded “C” mark — custom logo fills the tile; otherwise brand initial.
+  var mark = document.createElement("div");
+  mark.className = "avonix-cep-agree__mark";
+  mark.setAttribute("aria-hidden", "true");
   if (agreementLogo) {
     var logoImg = document.createElement("img");
-    logoImg.className = "avonix-cep-agree__logo";
     logoImg.src = String(agreementLogo).replace(/"/g, "");
-    logoImg.alt = agreementBrand;
-    agreeBody.appendChild(logoImg);
+    logoImg.alt = "";
+    mark.appendChild(logoImg);
   } else {
-    var mark = document.createElement("div");
-    mark.className = "avonix-cep-agree__mark";
-    mark.setAttribute("aria-hidden", "true");
-    mark.textContent = String(agreementBrand).trim().charAt(0).toUpperCase() || "A";
-    agreeBody.appendChild(mark);
+    mark.textContent =
+      String(agreementBrand).trim().charAt(0).toUpperCase() || "C";
   }
+  agreeBody.appendChild(mark);
+
   var brandEl = document.createElement("p");
   brandEl.className = "avonix-cep-agree__brand";
   brandEl.textContent = agreementBrand;
   agreeBody.appendChild(brandEl);
+
   var introEl = document.createElement("p");
   introEl.className = "avonix-cep-agree__intro";
   introEl.textContent = agreementIntro;
   agreeBody.appendChild(introEl);
+
   var copyEl = document.createElement("p");
   copyEl.className = "avonix-cep-agree__copy";
   copyEl.innerHTML = linkAgreementCopy(agreementBody, termsUrl, privacyUrl);
   agreeBody.appendChild(copyEl);
+
   var agreeActions = document.createElement("div");
   agreeActions.className = "avonix-cep-agree__actions";
-  var agreeYes = document.createElement("button");
-  agreeYes.type = "button";
-  agreeYes.className = "avonix-cep-agree__btn is-primary";
-  agreeYes.textContent = agreeLabel;
   var agreeNo = document.createElement("button");
   agreeNo.type = "button";
   agreeNo.className = "avonix-cep-agree__btn";
   agreeNo.textContent = disagreeLabel;
+  var agreeYes = document.createElement("button");
+  agreeYes.type = "button";
+  agreeYes.className = "avonix-cep-agree__btn is-primary";
+  agreeYes.textContent = agreeLabel;
   agreeActions.appendChild(agreeNo);
   agreeActions.appendChild(agreeYes);
+
+  agree.appendChild(agreeClose);
   agree.appendChild(agreeBody);
   agree.appendChild(agreeActions);
 
@@ -1414,6 +1431,9 @@
     setOpen(false);
   });
   gateHead.querySelector(".avonix-cep-close").addEventListener("click", function () {
+    setOpen(false);
+  });
+  agreeClose.addEventListener("click", function () {
     setOpen(false);
   });
   agreeYes.addEventListener("click", function () {

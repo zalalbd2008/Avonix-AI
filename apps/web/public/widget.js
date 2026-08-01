@@ -202,7 +202,9 @@
     ";align-items:" +
     (alignEnd ? "flex-end" : "flex-start") +
     ";gap:12px;max-width:calc(100vw - 16px);box-sizing:border-box;}" +
-    ".avonix-cep-root--wizard{position:relative;inset:auto;z-index:1;width:100%;max-width:100%;align-items:stretch;flex-direction:column;}" +
+    /* Inline shortcode / embed — fill the host container, never float. */
+    ".avonix-chat-wizard{display:flex;flex-direction:column;width:100%;height:100%;min-height:420px;box-sizing:border-box;}" +
+    ".avonix-cep-root--wizard{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:1;width:100%!important;max-width:100%!important;height:100%!important;min-height:100%;flex:1 1 auto;align-items:stretch!important;flex-direction:column!important;gap:0!important;max-width:none!important;box-sizing:border-box;}" +
     ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
     ".avonix-cep-root :where(button[class*=avonix-cep-],input[class*=avonix-cep-],a[class*=avonix-cep-]){margin:0;font-family:inherit;letter-spacing:normal;text-transform:none;-webkit-appearance:none;appearance:none;}" +
     /* FAB — Nexus style */
@@ -224,11 +226,12 @@
     radius +
     "px;overflow:hidden;box-shadow:0 16px 48px rgba(15,23,42,.18);}" +
     ".avonix-cep-panel.is-open{display:flex;animation:avonix-cep-pop .22s ease;}" +
-    /* Keep FAB visible while open — panel opens away from the bubble (column-reverse). */
-    ".avonix-cep-root.is-open > .avonix-cep-launcher{display:flex!important;}" +
+    /* Bubble mode: keep FAB visible while open. Wizard: never show FAB. */
+    ".avonix-cep-root.is-open:not(.avonix-cep-root--wizard) > .avonix-cep-launcher{display:flex!important;}" +
     "@keyframes avonix-cep-pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}" +
-    ".avonix-cep-root--wizard .avonix-cep-panel{display:flex;width:100%;height:min(640px,70vh);max-width:100%;box-shadow:none;}" +
-    ".avonix-cep-root--wizard .avonix-cep-launcher{display:none;}" +
+    ".avonix-cep-root--wizard .avonix-cep-panel,.avonix-cep-root--wizard .avonix-cep-panel.is-open{display:flex!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;flex:1 1 auto;min-height:0;border-radius:12px;box-shadow:none;animation:none;}" +
+    ".avonix-cep-root--wizard .avonix-cep-launcher,.avonix-cep-root--wizard.is-open > .avonix-cep-launcher{display:none!important;visibility:hidden!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;}" +
+    ".avonix-cep-root--wizard .avonix-cep-online{display:none!important;}" +
     /* Home */
     ".avonix-cep-home{display:flex;flex-direction:column;flex:1;min-height:0;}" +
     ".avonix-cep-home.is-hidden,.avonix-cep-ai.is-hidden,.avonix-cep-gate.is-hidden,.avonix-cep-agree.is-hidden{display:none!important;}" +
@@ -1379,9 +1382,14 @@
 
   function mountInto(target) {
     if (surface === "wizard") {
+      // Never float — fill the shortcode / embed host.
+      root.className = "avonix-cep-root avonix-cep-root--wizard";
+      root.style.cssText =
+        "position:relative;inset:auto;left:auto;right:auto;top:auto;bottom:auto;width:100%;height:100%;max-width:100%;z-index:1;display:flex;flex-direction:column;gap:0;box-sizing:border-box;";
       target.appendChild(root);
       open = true;
       panel.classList.add("is-open");
+      root.classList.add("is-open");
       beginOpenFlow();
       return;
     }
@@ -1398,18 +1406,34 @@
     }
   }
 
+  function findWizardHost() {
+    if (config.mount) {
+      try {
+        var byMount = document.querySelector(config.mount);
+        if (byMount) return byMount;
+      } catch (e) {}
+    }
+    return (
+      document.querySelector("[data-avonix-chat-wizard]") ||
+      document.getElementById("avonix-chat-wizard")
+    );
+  }
+
   function boot() {
+    // Shortcode / embed host on the page → always wizard (no floating bubble).
+    var host = findWizardHost();
+    if (host) {
+      surface = "wizard";
+      config.surface = "wizard";
+      root.className = "avonix-cep-root avonix-cep-root--wizard";
+      root.setAttribute("data-surface", "wizard");
+      if (!host.id) host.id = "avonix-chat-wizard";
+      config.mount = "#" + host.id;
+      mountInto(host);
+      return;
+    }
     if (surface === "wizard") {
-      var host =
-        (config.mount && document.querySelector(config.mount)) ||
-        document.querySelector("[data-avonix-chat-wizard]") ||
-        document.getElementById("avonix-chat-wizard");
-      if (host) {
-        mountInto(host);
-        return;
-      }
-      // No wizard mount on this page — show the floating bubble instead of a
-      // hidden launcher (wizard CSS forces display:none on the FAB).
+      // Config asked for wizard but no mount — fall back to floating bubble.
       surface = "bubble";
       root.className = "avonix-cep-root";
       root.setAttribute("data-surface", "bubble");

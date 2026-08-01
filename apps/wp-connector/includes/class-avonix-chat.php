@@ -186,6 +186,7 @@ class Avonix_Chat
         $atts = shortcode_atts(
             [
                 'surface' => 'wizard',
+                'height'  => '560px',
             ],
             $atts,
             'avonix_chat'
@@ -205,6 +206,7 @@ class Avonix_Chat
 
         $payload['surface'] = 'wizard';
         $payload['mount'] = '#avonix-chat-wizard';
+        $payload['embed'] = true;
 
         // Ensure script is present even if bubble enqueue skipped somehow
         wp_enqueue_script(
@@ -220,7 +222,14 @@ class Avonix_Chat
             'before'
         );
 
-        return '<div id="avonix-chat-wizard" data-avonix-chat-wizard class="avonix-chat-wizard" style="width:100%;min-height:420px;"></div>';
+        $height = isset($atts['height']) ? preg_replace('/[^0-9.%]/', '', (string) $atts['height']) : '';
+        if ($height === '') {
+            $height = '560px';
+        } elseif (is_numeric($height)) {
+            $height .= 'px';
+        }
+
+        return '<div id="avonix-chat-wizard" data-avonix-chat-wizard class="avonix-chat-wizard" style="display:flex;flex-direction:column;width:100%;height:' . esc_attr($height) . ';min-height:' . esc_attr($height) . ';max-width:100%;box-sizing:border-box;"></div>';
     }
 
     /** Forwards one message, then returns the reply as JSON. */

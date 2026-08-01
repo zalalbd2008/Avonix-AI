@@ -580,7 +580,7 @@ export function CepWidgetStudio({
                           metrics={chatMetrics}
                           align={placementHorizontalAlign(chatPlacement)}
                           online={theme.onlineIndicator !== false}
-                          shape="circle"
+                          shape="tile"
                         >
                           <span style={{ color: primary }} className="grid size-full place-items-center">
                             <ChatGlyph className="size-[54%]" />

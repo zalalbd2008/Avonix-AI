@@ -120,6 +120,12 @@
     20,
     Math.min(90, Math.round((launcherIconSz / launcherPx) * 100))
   );
+  var launcherCorner = Math.max(6, Math.round(launcherPx * (10 / 44)));
+  function launcherTileRadius(flushLeft) {
+    var r = launcherCorner + "px";
+    // Flat against the screen edge; rounded on the inner side.
+    return flushLeft ? "0 " + r + " " + r + " 0" : r + " 0 0 " + r;
+  }
   var agentName = theme.agentName || config.title || "Customer Support";
   var statusText = theme.statusText || "Online";
   var homeContent =
@@ -280,18 +286,18 @@
     ".avonix-cep-root--wizard{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:1;width:100%!important;max-width:100%!important;height:100%!important;min-height:100%;flex:1 1 auto;align-items:stretch!important;flex-direction:column!important;gap:0!important;max-width:none!important;box-sizing:border-box;}" +
     ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
     ".avonix-cep-root :where(button[class*=avonix-cep-],input[class*=avonix-cep-],a[class*=avonix-cep-]){margin:0;font-family:inherit;letter-spacing:normal;text-transform:none;-webkit-appearance:none;appearance:none;}" +
-    /* FAB — Nexus style */
-    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:50%;background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;z-index:1;}" +
-    ".avonix-cep-launcher:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.22);}" +
+    /* FAB — edge-dock tile (flat on screen edge), label tip on hover */
+    ".avonix-cep-launcher{--avx-od:9px;cursor:pointer;border:0;width:var(--avx-launcher);height:var(--avx-launcher);padding:0;border-radius:var(--avx-launcher-radius,12px 0 0 12px);background:linear-gradient(145deg,var(--avx-primary-end) 0%,var(--avx-primary) 100%);color:var(--avx-on-primary);box-shadow:0 6px 24px rgba(0,0,0,.2);position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;z-index:1;}" +
+    ".avonix-cep-launcher:hover{transform:translateY(-2px);filter:brightness(1.05);box-shadow:0 10px 28px rgba(0,0,0,.22);}" +
     /* Avatar must be out of flow so the online dot cannot be pushed to bottom-left. */
-    ".avonix-cep-launcher__img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;z-index:1;}" +
+    ".avonix-cep-launcher__img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;z-index:1;}" +
     ".avonix-cep-launcher svg{width:var(--avx-launcher-icon,40%);height:var(--avx-launcher-icon,40%);position:relative;z-index:1;}" +
     /* Hover tip — icon only until hover/focus */
     ".avonix-cep-launch-wrap{position:relative;display:flex;align-items:center;flex-shrink:0;overflow:visible;}" +
-    ".avonix-cep-tip{position:absolute;top:50%;z-index:0;max-width:0;overflow:hidden;pointer-events:none;white-space:nowrap;border-radius:6px;background:#fff;color:#2a2f38;font-size:12px;font-weight:500;line-height:1.2;box-shadow:0 1px 4px rgba(15,23,42,.14);opacity:0;transform:translateY(-50%);transition:opacity .15s ease,max-width .18s ease,padding .18s ease,transform .15s ease;}" +
-    ".avonix-cep-root.is-align-end .avonix-cep-tip{right:calc(100% + 0px);transform:translateY(-50%) translateX(4px);}" +
-    ".avonix-cep-root.is-align-start .avonix-cep-tip{left:calc(100% + 0px);transform:translateY(-50%) translateX(-4px);}" +
-    ".avonix-cep-launch-wrap:hover .avonix-cep-tip,.avonix-cep-launch-wrap:focus-within .avonix-cep-tip{max-width:200px;opacity:1;padding:6px 10px;}" +
+    ".avonix-cep-tip{position:absolute;top:50%;z-index:3;pointer-events:none;white-space:nowrap;border-radius:6px;background:#fff!important;color:#2a2f38!important;font-size:12px!important;font-weight:500!important;line-height:1.2!important;box-shadow:0 1px 4px rgba(15,23,42,.16)!important;opacity:0!important;visibility:hidden;max-width:0;overflow:hidden;padding:0!important;transform:translateY(-50%);transition:opacity .15s ease,visibility .15s ease,max-width .18s ease,padding .18s ease,transform .15s ease;}" +
+    ".avonix-cep-root.is-align-end .avonix-cep-tip{right:100%;left:auto;transform:translateY(-50%) translateX(4px);}" +
+    ".avonix-cep-root.is-align-start .avonix-cep-tip{left:100%;right:auto;transform:translateY(-50%) translateX(-4px);}" +
+    ".avonix-cep-launch-wrap:hover .avonix-cep-tip,.avonix-cep-launch-wrap:focus-within .avonix-cep-tip{opacity:1!important;visibility:visible;max-width:220px;padding:6px 10px!important;}" +
     ".avonix-cep-root.is-align-end .avonix-cep-launch-wrap:hover .avonix-cep-tip,.avonix-cep-root.is-align-end .avonix-cep-launch-wrap:focus-within .avonix-cep-tip{transform:translateY(-50%) translateX(-8px);}" +
     ".avonix-cep-root.is-align-start .avonix-cep-launch-wrap:hover .avonix-cep-tip,.avonix-cep-root.is-align-start .avonix-cep-launch-wrap:focus-within .avonix-cep-tip{transform:translateY(-50%) translateX(8px);}" +
     ".avonix-cep-root--wizard .avonix-cep-tip,.avonix-cep-root.is-open .avonix-cep-tip{display:none!important;}" +
@@ -530,8 +536,9 @@
   var button = document.createElement("button");
   button.type = "button";
   button.className = "avonix-cep-launcher";
-  button.setAttribute("aria-label", theme.launcherLabel || config.label || "Open chat");
+  button.setAttribute("aria-label", theme.launcherLabel || config.label || "Live Chat");
   button.setAttribute("aria-expanded", "false");
+  var initialRadius = launcherTileRadius(!alignEnd);
   // Inline fallback so the FAB still shows if injected CSS is filtered/broken.
   button.style.cssText =
     "width:" +
@@ -542,13 +549,16 @@
     launcherPx +
     "px;min-height:" +
     launcherPx +
-    "px;border:0;border-radius:50%;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;background:linear-gradient(145deg," +
+    "px;border:0;border-radius:" +
+    initialRadius +
+    ";padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;background:linear-gradient(145deg," +
     primaryEnd +
     " 0%," +
     primary +
     " 100%);color:" +
     onPrimary +
     ";box-shadow:0 6px 24px rgba(0,0,0,.2);overflow:visible;";
+  root.style.setProperty("--avx-launcher-radius", initialRadius);
   if (avatarUrl) {
     button.innerHTML =
       '<img class="avonix-cep-launcher__img" src="' +
@@ -1641,6 +1651,9 @@
       root.style.alignItems = openLeft ? "flex-end" : "flex-start";
       root.classList.toggle("is-align-end", openLeft);
       root.classList.toggle("is-align-start", !openLeft);
+      var tileR = launcherTileRadius(!openLeft);
+      root.style.setProperty("--avx-launcher-radius", tileR);
+      button.style.borderRadius = tileR;
       root.style.left = x + "px";
       if (openUp) {
         // Pin launcher bottom so the chat panel opens upward from the FAB.
@@ -1658,6 +1671,9 @@
     root.style.alignItems = edgeX === "left" ? "flex-start" : "flex-end";
     root.classList.toggle("is-align-end", edgeX === "right");
     root.classList.toggle("is-align-start", edgeX === "left");
+    var edgeTileR = launcherTileRadius(edgeX === "left");
+    root.style.setProperty("--avx-launcher-radius", edgeTileR);
+    button.style.borderRadius = edgeTileR;
     root.style[edgeY] = edgeOy + "px";
     root.style[edgeX] = ox + "px";
   }

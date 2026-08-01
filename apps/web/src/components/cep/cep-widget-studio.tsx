@@ -458,7 +458,7 @@ export function CepWidgetStudio({
                   <input
                     className={`${input} mt-1`}
                     value={theme.agentName ?? ""}
-                    placeholder={payload.title || "Chat with us"}
+                    placeholder={payload.title || "Customer Support"}
                     onChange={(e) =>
                       setPayload((p) => ({
                         ...p,
@@ -472,7 +472,7 @@ export function CepWidgetStudio({
                   <input
                     className={`${input} mt-1`}
                     value={theme.statusText ?? ""}
-                    placeholder="Online · typically replies in a few minutes"
+                    placeholder="Online"
                     onChange={(e) =>
                       setPayload((p) => ({
                         ...p,

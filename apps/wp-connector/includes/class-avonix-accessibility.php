@@ -105,11 +105,9 @@ class Avonix_Accessibility
 #avonix-a11y-root .avonix-a11y-btn:hover{transform:scale(1.05);filter:brightness(1.05)}
 #avonix-a11y-root .avonix-a11y-btn:focus-visible{outline:2px solid #0b1e3a;outline-offset:2px}
 #avonix-a11y-root .avonix-a11y-btn svg{width:var(--avonix-a11y-icon,52%);height:var(--avonix-a11y-icon,52%);display:block}
-#avonix-a11y-root .avonix-a11y-tip{position:absolute;top:50%;z-index:5;width:max-content;max-width:min(220px,70vw);padding:7px 11px;border-radius:8px;background:#fff;color:#1e293b;font-size:12px;font-weight:600;line-height:1.25;letter-spacing:0;white-space:nowrap;box-shadow:0 4px 14px rgba(15,23,42,.16);pointer-events:none;opacity:0;visibility:hidden;transform:translateY(-50%) translateX(-6px);transition:opacity .15s ease,visibility .15s ease,transform .15s ease}
-#avonix-a11y-root .avonix-a11y-stack.is-start .avonix-a11y-tip{left:calc(100% + 10px);right:auto}
+#avonix-a11y-root .avonix-a11y-tip{position:absolute;top:50%;left:calc(100% + 10px);right:auto;z-index:5;width:max-content;max-width:min(220px,70vw);padding:7px 11px;border-radius:8px;background:#fff;color:#1e293b;font-size:12px;font-weight:600;line-height:1.25;letter-spacing:0;white-space:nowrap;box-shadow:0 4px 14px rgba(15,23,42,.16);pointer-events:none;opacity:0;visibility:hidden;transform:translateY(-50%) translateX(-6px);transition:opacity .15s ease,visibility .15s ease,transform .15s ease}
 #avonix-a11y-root .avonix-a11y-stack.is-end .avonix-a11y-tip{right:calc(100% + 10px);left:auto;transform:translateY(-50%) translateX(6px)}
-#avonix-a11y-root .avonix-a11y-tip::after{content:"";position:absolute;top:50%;width:8px;height:8px;background:#fff;transform:translateY(-50%) rotate(45deg);box-shadow:-1px 1px 2px rgba(15,23,42,.06)}
-#avonix-a11y-root .avonix-a11y-stack.is-start .avonix-a11y-tip::after{left:-4px;right:auto}
+#avonix-a11y-root .avonix-a11y-tip::after{content:"";position:absolute;top:50%;left:-4px;right:auto;width:8px;height:8px;background:#fff;transform:translateY(-50%) rotate(45deg);box-shadow:-1px 1px 2px rgba(15,23,42,.06)}
 #avonix-a11y-root .avonix-a11y-stack.is-end .avonix-a11y-tip::after{right:-4px;left:auto;box-shadow:1px -1px 2px rgba(15,23,42,.06)}
 #avonix-a11y-root .avonix-a11y-stack:hover .avonix-a11y-tip,#avonix-a11y-root .avonix-a11y-stack:focus-within .avonix-a11y-tip{opacity:1;visibility:visible;transform:translateY(-50%) translateX(0)}
 #avonix-a11y-root .avonix-a11y-stack.is-open .avonix-a11y-tip{display:none!important}

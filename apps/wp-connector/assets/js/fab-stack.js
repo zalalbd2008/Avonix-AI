@@ -177,6 +177,7 @@
       y = Math.min(Math.max(inset, vh - stackH - inset), Math.max(inset, y));
 
       var openLeft = xPct >= 50;
+      var nearTop = yPct < 28;
       var cursor = y;
       linked.forEach(function (item) {
         var size = sizes[item.id] || 44;
@@ -199,6 +200,18 @@
             : openLeft
               ? rad + "px 0 0 " + rad + "px"
               : "0 " + rad + "px " + rad + "px 0";
+          // Tooltip side classes — same as solo place()/placeLang().
+          // Without these, tips sit on top of the icon (Live Chat was fine
+          // because it uses is-align-start on the root).
+          var localStack =
+            item.id === "accessibility"
+              ? el.querySelector(".avonix-a11y-stack")
+              : el.querySelector(".avonix-lang-stack");
+          if (localStack) {
+            localStack.classList.toggle("is-end", openLeft);
+            localStack.classList.toggle("is-start", !openLeft);
+            localStack.classList.toggle("is-below", nearTop);
+          }
           if (item.id === "accessibility") {
             el.style.setProperty("--avonix-a11y-radius", radius);
           }

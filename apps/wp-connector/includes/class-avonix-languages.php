@@ -187,6 +187,8 @@ class Avonix_Languages
 #avonix-lang-root .avonix-lang-tip {
   position: absolute;
   top: 50%;
+  left: calc(100% + 10px);
+  right: auto;
   z-index: 5;
   width: max-content;
   max-width: min(220px, 70vw);
@@ -205,10 +207,6 @@ class Avonix_Languages
   transform: translateY(-50%) translateX(-6px);
   transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
 }
-#avonix-lang-root .avonix-lang-stack.is-start .avonix-lang-tip {
-  left: calc(100% + 10px);
-  right: auto;
-}
 #avonix-lang-root .avonix-lang-stack.is-end .avonix-lang-tip {
   right: calc(100% + 10px);
   left: auto;
@@ -218,15 +216,13 @@ class Avonix_Languages
   content: "";
   position: absolute;
   top: 50%;
+  left: -4px;
+  right: auto;
   width: 8px;
   height: 8px;
   background: #fff;
   transform: translateY(-50%) rotate(45deg);
   box-shadow: -1px 1px 2px rgba(15, 23, 42, 0.06);
-}
-#avonix-lang-root .avonix-lang-stack.is-start .avonix-lang-tip::after {
-  left: -4px;
-  right: auto;
 }
 #avonix-lang-root .avonix-lang-stack.is-end .avonix-lang-tip::after {
   right: -4px;

@@ -146,6 +146,12 @@
   var disagreeLabel = theme.disagreeLabel || "I Don't Agree";
   var agreeStorageKey =
     "avonix-cep-agree-" + String(config.widget_id || config.website_id || "site");
+  // Agreement is required at the start of every new chat open — not remembered
+  // across opens (clear any legacy localStorage flag from older builds).
+  var agreedForOpen = false;
+  try {
+    localStorage.removeItem(agreeStorageKey);
+  } catch (e) {}
   var disclaimer = theme.disclaimer || "";
   var avatarUrl =
     config.bot_avatar_url ||
@@ -772,14 +778,14 @@
   agreeActions.className = "avonix-cep-agree__actions";
   var agreeYes = document.createElement("button");
   agreeYes.type = "button";
-  agreeYes.className = "avonix-cep-agree__btn";
+  agreeYes.className = "avonix-cep-agree__btn is-primary";
   agreeYes.textContent = agreeLabel;
   var agreeNo = document.createElement("button");
   agreeNo.type = "button";
   agreeNo.className = "avonix-cep-agree__btn";
   agreeNo.textContent = disagreeLabel;
-  agreeActions.appendChild(agreeYes);
   agreeActions.appendChild(agreeNo);
+  agreeActions.appendChild(agreeYes);
   agree.appendChild(agreeBody);
   agree.appendChild(agreeActions);
 
@@ -817,16 +823,10 @@
 
   function hasAgreed() {
     if (!agreementRequired) return true;
-    try {
-      return localStorage.getItem(agreeStorageKey) === "1";
-    } catch (e) {
-      return false;
-    }
+    return agreedForOpen;
   }
   function setAgreed() {
-    try {
-      localStorage.setItem(agreeStorageKey, "1");
-    } catch (e) {}
+    agreedForOpen = true;
   }
 
   /* ---- TTS ---- */
@@ -1137,7 +1137,9 @@
   }
 
   function beginOpenFlow() {
-    if (agreementRequired && !hasAgreed()) {
+    // Every time the chat opens, show Terms / Privacy before anything else.
+    if (agreementRequired) {
+      agreedForOpen = false;
       showAgreement();
       return;
     }
@@ -1315,7 +1317,14 @@
     seenIds = {};
     lastBotText = "";
     log.innerHTML = "";
-    showGreeting();
+    // New chat → require agreement again before messages.
+    agreedForOpen = false;
+    if (agreementRequired) {
+      showAgreement();
+      return;
+    }
+    if (!openOnLaunch) showHome();
+    else openAiFlow();
   }
 
   function ctaBottomClearance() {
@@ -1393,6 +1402,7 @@
     if (open) {
       beginOpenFlow();
     } else {
+      agreedForOpen = false;
       stopSpeech();
     }
   }

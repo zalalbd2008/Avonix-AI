@@ -672,10 +672,14 @@ export function CepWidgetStudio({
                       }))
                     }
                   />
-                  Require Terms / Privacy agreement before chat (required gate)
+                  Require Terms / Privacy agreement at the start of every new chat
                 </label>
                 {theme.agreementRequired !== false ? (
                   <>
+                    <p className="sm:col-span-2 text-[12px] text-muted">
+                      Shown every time the chat opens or is reset — not skipped
+                      after the first agree.
+                    </p>
                     <label className="block">
                       <span className="text-[12px] font-medium">
                         Agreement brand name

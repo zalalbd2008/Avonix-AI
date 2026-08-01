@@ -24,12 +24,14 @@ import {
 import {
   normalizeLauncherMetrics,
 } from "@/lib/widgets/launcher-size";
+import { normalizeWidgetPageTarget } from "@/lib/widgets/page-target";
 import {
   cepPositionFromAnchor,
   cornerFromPlacement,
   normalizeScreenPlacement,
   placementFromCorner,
 } from "@/lib/widgets/screen-placement";
+import { PageDisplayConditions } from "@/components/widgets/page-display-conditions";
 
 const input =
   "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/15";
@@ -105,6 +107,9 @@ export function CepWidgetStudio({
       ...defaults.triggers,
       ...initial.payload?.triggers,
     },
+    pageTarget: normalizeWidgetPageTarget(
+      initial.payload?.pageTarget ?? defaults.pageTarget,
+    ),
     modules: {
       ...defaults.modules,
       ...initial.payload?.modules,
@@ -812,6 +817,18 @@ export function CepWidgetStudio({
           {tab === "behavior" ? (
             <div className="space-y-4">
               <SectionEyebrow>Triggers & embeds</SectionEyebrow>
+              <PageDisplayConditions
+                label="Floating bubble display"
+                value={payload.pageTarget}
+                onChange={(pageTarget) =>
+                  setPayload((p) => ({ ...p, pageTarget }))
+                }
+              />
+              <p className="text-[12px] text-muted">
+                Shortcode embed <code className="text-[11px]">[avonix_chat]</code>{" "}
+                always renders in the page container. These conditions only
+                control the floating chat icon.
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-[12px] font-medium">Open delay (ms)</span>

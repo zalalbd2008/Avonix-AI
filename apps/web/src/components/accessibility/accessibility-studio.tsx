@@ -12,6 +12,7 @@ import {
   placementHorizontalAlign,
 } from "@/components/widgets/floating-launcher-group";
 import { actionSaveAccessibility } from "@/lib/accessibility/actions";
+import { PageDisplayConditions } from "@/components/widgets/page-display-conditions";
 import {
   accessibilityScore,
   countEnabledFeatures,
@@ -489,14 +490,16 @@ export function AccessibilityStudio({
                     checked={settings.announceChanges}
                     onChange={(v) => patch({ announceChanges: v })}
                   />
-                  <Field label="Exclude URL paths (one per line)">
-                    <textarea
-                      className={`${input} min-h-[88px] font-mono text-[12px]`}
-                      placeholder={"/checkout\n/admin"}
-                      value={settings.excludePaths}
-                      onChange={(e) => patch({ excludePaths: e.target.value })}
-                    />
-                  </Field>
+                  <PageDisplayConditions
+                    label="Display conditions"
+                    value={settings.pageTarget}
+                    onChange={(pageTarget) =>
+                      patch({
+                        pageTarget,
+                        excludePaths: (pageTarget.excludePaths ?? []).join("\n"),
+                      })
+                    }
+                  />
                 </Section>
               </>
             )}

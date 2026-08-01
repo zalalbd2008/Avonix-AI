@@ -8,6 +8,12 @@ import {
   normalizeLauncherMetrics,
 } from "@/lib/widgets/launcher-size";
 import {
+  DEFAULT_WIDGET_PAGE_TARGET,
+  linesToExcludePaths,
+  normalizeWidgetPageTarget,
+  type WidgetPageTarget,
+} from "@/lib/widgets/page-target";
+import {
   defaultScreenPlacement,
   normalizeScreenPlacement,
   placementFromCorner,
@@ -101,8 +107,11 @@ export type LanguageSettings = {
   autoTranslateNew: boolean;
   glossary: string;
   neverTranslate: string;
+  /** @deprecated prefer pageTarget */
   excludePaths: string;
   excludeSelectors: string;
+  /** Switcher visibility on WP pages / custom URLs */
+  pageTarget: WidgetPageTarget;
 
   surfaces: LanguageSurfaces;
   seo: LanguageSeo;
@@ -198,6 +207,7 @@ export const DEFAULT_LANGUAGES: LanguageSettings = {
   neverTranslate: "Avonix\nWordPress",
   excludePaths: "",
   excludeSelectors: ".no-translate\n[data-no-translate]",
+  pageTarget: { ...DEFAULT_WIDGET_PAGE_TARGET },
 
   surfaces: {
     forms: true,
@@ -260,10 +270,23 @@ export function mergeLanguageSettings(
       : (switcherRaw as { launcherSize?: string }).launcherSize,
   );
 
+  const legacyExclude = linesToExcludePaths(String(raw.excludePaths ?? ""));
+  const pageTarget = normalizeWidgetPageTarget(
+    raw.pageTarget ??
+      (legacyExclude.length
+        ? { mode: "everywhere", excludePaths: legacyExclude }
+        : undefined),
+  );
+  if (!pageTarget.excludePaths?.length && legacyExclude.length) {
+    pageTarget.excludePaths = legacyExclude;
+  }
+
   return {
     ...DEFAULT_LANGUAGES,
     ...raw,
     locales,
+    pageTarget,
+    excludePaths: (pageTarget.excludePaths ?? []).join("\n"),
     switcher: {
       ...DEFAULT_LANGUAGES.switcher,
       ...switcherRaw,

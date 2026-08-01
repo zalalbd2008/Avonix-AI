@@ -67,6 +67,7 @@ function serializeWidget(
     placeholder: p.placeholder ?? "Type a message…",
     theme: p.theme ?? {},
     triggers: p.triggers ?? {},
+    page_target: p.pageTarget ?? { mode: "everywhere" },
     modules: p.modules ?? {},
     bot_avatar_url: p.botAvatarUrl ?? null,
     agent_avatar_url: p.agentAvatarUrl ?? null,

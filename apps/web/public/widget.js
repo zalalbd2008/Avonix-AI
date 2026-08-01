@@ -1,16 +1,58 @@
 /*
  * Avonix CEP chat widget — Nexus Lead Suite parity (bubble + panel + AI messenger)
  * No build step. Talks only to WP admin-ajax (connector key stays server-side).
+ * Can mount an embedded wizard AND a floating bubble on the same page.
  */
 (function () {
   "use strict";
 
-  var config = window.AVONIX_CHAT || {};
+  function pageTargetAllows(t, path, surface) {
+    if (!t || typeof t !== "object") return true;
+    path = path || "/";
+    surface = surface || "";
+    var excludes = t.excludePaths || t.exclude_paths || [];
+    for (var i = 0; i < excludes.length; i++) {
+      var ex = String(excludes[i] || "");
+      if (!ex) continue;
+      if (ex.charAt(ex.length - 1) === "*") {
+        var prefix = ex.replace(/\*+$/, "").replace(/\/$/, "");
+        if (!prefix || path.indexOf(prefix) === 0) return false;
+      } else if (path === ex || path.indexOf(ex) === 0) {
+        return false;
+      }
+    }
+    var mode = t.mode || "everywhere";
+    if (mode === "everywhere") return true;
+    var ok = false;
+    (t.surfaces || []).forEach(function (s) {
+      if (s === surface) ok = true;
+    });
+    (t.rules || []).forEach(function (r) {
+      if (!r || !r.value) return;
+      var v = String(r.value);
+      var op = r.op || "equals";
+      if (op === "equals" && path === v) ok = true;
+      if (op === "starts_with" && path.indexOf(v) === 0) ok = true;
+      if (op === "ends_with" && path.slice(-v.length) === v) ok = true;
+      if (op === "contains" && path.indexOf(v) !== -1) ok = true;
+      if (op === "regex") {
+        try {
+          if (new RegExp(v).test(path)) ok = true;
+        } catch (e) {}
+      }
+    });
+    if (mode === "include") return ok;
+    if (mode === "exclude") return !ok;
+    return true;
+  }
+
+  function createAvonixChatWidget(config) {
   var proxy = config.proxy;
-  if (!proxy) return;
+  if (!proxy) return null;
 
   var theme = config.theme || {};
   var modules = config.modules || {};
+  var instanceUid = String(config._uid || "main");
 
   function parseHex(h) {
     h = String(h || "").replace("#", "").trim();
@@ -529,21 +571,31 @@
     '<p class="avonix-cep-gate__title"></p>' +
     '<p class="avonix-cep-gate__sub">Share your details below and we will connect you with our team right away.</p>' +
     '<div class="avonix-cep-gate__fields">' +
-    '<input type="text" class="avonix-cep-gate__input" id="avonix-cep-name" placeholder="Your name" autocomplete="name"/>' +
-    '<input type="tel" class="avonix-cep-gate__input" id="avonix-cep-phone" placeholder="Phone" autocomplete="tel"/>' +
-    '<input type="email" class="avonix-cep-gate__input" id="avonix-cep-email" placeholder="Email" autocomplete="email"/>' +
+    '<input type="text" class="avonix-cep-gate__input" id="avonix-cep-name-' +
+    instanceUid +
+    '" placeholder="Your name" autocomplete="name"/>' +
+    '<input type="tel" class="avonix-cep-gate__input" id="avonix-cep-phone-' +
+    instanceUid +
+    '" placeholder="Phone" autocomplete="tel"/>' +
+    '<input type="email" class="avonix-cep-gate__input" id="avonix-cep-email-' +
+    instanceUid +
+    '" placeholder="Email" autocomplete="email"/>' +
     "</div>" +
-    '<div class="avonix-cep-gate__err" id="avonix-cep-gate-err"></div>' +
-    '<button type="button" class="avonix-cep-gate__send" id="avonix-cep-gate-send">Send</button>' +
+    '<div class="avonix-cep-gate__err" id="avonix-cep-gate-err-' +
+    instanceUid +
+    '"></div>' +
+    '<button type="button" class="avonix-cep-gate__send" id="avonix-cep-gate-send-' +
+    instanceUid +
+    '">Send</button>' +
     '<p class="avonix-cep-gate__hint">We typically reply within a few minutes during business hours.</p>' +
     "</div>";
   gateBody.querySelector(".avonix-cep-gate__title").textContent =
     theme.startTitle || "Leave your contact";
-  var gateName = gateBody.querySelector("#avonix-cep-name");
-  var gatePhone = gateBody.querySelector("#avonix-cep-phone");
-  var gateEmail = gateBody.querySelector("#avonix-cep-email");
-  var gateErr = gateBody.querySelector("#avonix-cep-gate-err");
-  var gateSend = gateBody.querySelector("#avonix-cep-gate-send");
+  var gateName = gateBody.querySelector("#avonix-cep-name-" + instanceUid);
+  var gatePhone = gateBody.querySelector("#avonix-cep-phone-" + instanceUid);
+  var gateEmail = gateBody.querySelector("#avonix-cep-email-" + instanceUid);
+  var gateErr = gateBody.querySelector("#avonix-cep-gate-err-" + instanceUid);
+  var gateSend = gateBody.querySelector("#avonix-cep-gate-send-" + instanceUid);
   gate.appendChild(gateHead);
   gate.appendChild(gateBody);
 
@@ -1420,23 +1472,15 @@
   }
 
   function boot() {
-    // Shortcode / embed host on the page → always wizard (no floating bubble).
-    var host = findWizardHost();
-    if (host) {
-      surface = "wizard";
-      config.surface = "wizard";
-      root.className = "avonix-cep-root avonix-cep-root--wizard";
-      root.setAttribute("data-surface", "wizard");
+    if (surface === "wizard") {
+      var host = findWizardHost();
+      if (!host) return;
       if (!host.id) host.id = "avonix-chat-wizard";
       config.mount = "#" + host.id;
+      root.className = "avonix-cep-root avonix-cep-root--wizard";
+      root.setAttribute("data-surface", "wizard");
       mountInto(host);
       return;
-    }
-    if (surface === "wizard") {
-      // Config asked for wizard but no mount — fall back to floating bubble.
-      surface = "bubble";
-      root.className = "avonix-cep-root";
-      root.setAttribute("data-surface", "bubble");
     }
     mountInto(document.body);
   }
@@ -1447,11 +1491,68 @@
     boot();
   }
 
-  window.AvonixCep = window.AvonixCep || {};
-  window.AvonixCep.open = function () {
-    setOpen(true);
+  return {
+    open: function () {
+      setOpen(true);
+    },
+    close: function () {
+      setOpen(false);
+    },
+    setOpen: setOpen,
   };
-  window.AvonixCep.close = function () {
-    setOpen(false);
-  };
+  } // end createAvonixChatWidget
+
+  function bootAll() {
+    var base = window.AVONIX_CHAT || {};
+    if (!base.proxy) return;
+
+    var path = base.path || window.location.pathname || "/";
+    var surfaceCtx = base.wp_surface || "";
+    var allowBubble =
+      base.show_bubble !== false &&
+      pageTargetAllows(base.page_target || base.pageTarget, path, surfaceCtx);
+
+    var host =
+      document.querySelector("[data-avonix-chat-wizard]") ||
+      document.getElementById("avonix-chat-wizard");
+
+    var bubbleApi = null;
+    if (allowBubble) {
+      bubbleApi = createAvonixChatWidget(
+        Object.assign({}, base, {
+          surface: "bubble",
+          mount: null,
+          _uid: "fab",
+        })
+      );
+    }
+
+    if (host) {
+      if (!host.id) host.id = "avonix-chat-wizard";
+      createAvonixChatWidget(
+        Object.assign({}, base, {
+          surface: "wizard",
+          mount: "#" + host.id,
+          embed: true,
+          _uid: "embed",
+        })
+      );
+    }
+
+    window.AvonixCep = window.AvonixCep || {};
+    if (bubbleApi) {
+      window.AvonixCep.open = function () {
+        bubbleApi.open();
+      };
+      window.AvonixCep.close = function () {
+        bubbleApi.close();
+      };
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootAll);
+  } else {
+    bootAll();
+  }
 })();

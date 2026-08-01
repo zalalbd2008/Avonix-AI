@@ -119,6 +119,27 @@ export type CepWidgetTheme = {
   disclaimer?: string;
 };
 
+/** Page visibility — same shape as CTA/Popup pageTarget. */
+export type CepPageTarget = {
+  mode: "everywhere" | "include" | "exclude";
+  rules?: Array<{
+    op: "contains" | "equals" | "starts_with" | "ends_with" | "regex";
+    value: string;
+  }>;
+  surfaces?: Array<
+    | "homepage"
+    | "blog"
+    | "single_post"
+    | "shop"
+    | "product"
+    | "cart"
+    | "checkout"
+    | "account"
+    | "404"
+  >;
+  excludePaths?: string[];
+};
+
 export type CepWidgetTriggers = {
   delayMs?: number;
   scrollPercent?: number[];
@@ -167,6 +188,8 @@ export type CepWidgetPayload = {
   placeholder?: string;
   theme?: CepWidgetTheme;
   triggers?: CepWidgetTriggers;
+  /** Where the floating bubble may appear (embed shortcode always renders). */
+  pageTarget?: CepPageTarget;
   ai?: CepAiConfig;
   modules?: CepWidgetModules;
   botAvatarUrl?: string;
@@ -264,6 +287,7 @@ export function defaultCepWidgetPayload(
     triggers: {
       delayMs: 0,
     },
+    pageTarget: { mode: "everywhere", rules: [], surfaces: [], excludePaths: [] },
     ai: {
       provider: "openrouter",
       model: "anthropic/claude-sonnet-4",

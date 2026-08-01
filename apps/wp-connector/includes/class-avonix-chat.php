@@ -124,6 +124,19 @@ class Avonix_Chat
         if (!empty($w['surface'])) {
             $payload['surface'] = $w['surface'];
         }
+        if (!empty($w['page_target']) && is_array($w['page_target'])) {
+            $payload['page_target'] = $w['page_target'];
+        }
+
+        $payload['path'] = Avonix_Page_Target::current_path();
+        $payload['wp_surface'] = Avonix_Page_Target::current_surface();
+        $payload['show_bubble'] = Avonix_Page_Target::matches(
+            isset($payload['page_target']) && is_array($payload['page_target'])
+                ? $payload['page_target']
+                : null,
+            $payload['path'],
+            $payload['wp_surface']
+        );
 
         return $payload;
     }
@@ -207,6 +220,20 @@ class Avonix_Chat
         $payload['surface'] = 'wizard';
         $payload['mount'] = '#avonix-chat-wizard';
         $payload['embed'] = true;
+
+        // Keep floating bubble settings from the site bubble widget.
+        $bubble = $this->build_payload('bubble');
+        if (isset($bubble['show_bubble'])) {
+            $payload['show_bubble'] = !empty($bubble['show_bubble']);
+        }
+        if (!empty($bubble['page_target']) && is_array($bubble['page_target'])) {
+            $payload['page_target'] = $bubble['page_target'];
+        }
+        if (!empty($bubble['theme']) && is_array($bubble['theme'])) {
+            $payload['theme'] = array_merge($bubble['theme'], $payload['theme'] ?? []);
+        }
+        $payload['path'] = Avonix_Page_Target::current_path();
+        $payload['wp_surface'] = Avonix_Page_Target::current_surface();
 
         // Ensure script is present even if bubble enqueue skipped somehow
         wp_enqueue_script(

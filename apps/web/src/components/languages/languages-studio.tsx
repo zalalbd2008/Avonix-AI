@@ -13,6 +13,7 @@ import {
   placementHorizontalAlign,
 } from "@/components/widgets/floating-launcher-group";
 import { actionSaveLanguages } from "@/lib/languages/actions";
+import { PageDisplayConditions } from "@/components/widgets/page-display-conditions";
 import {
   SITE_LANGUAGE_CATALOG,
   averageCoverage,
@@ -978,14 +979,16 @@ export function LanguagesStudio({
                     </button>
                   ))}
                 </div>
-                <Field label="Exclude URL paths (one per line)">
-                  <textarea
-                    className={`${input} min-h-[88px] font-mono text-[12px]`}
-                    placeholder={"/wp-admin\n/cart"}
-                    value={settings.excludePaths}
-                    onChange={(e) => patch({ excludePaths: e.target.value })}
-                  />
-                </Field>
+                <PageDisplayConditions
+                  label="Language switcher display"
+                  value={settings.pageTarget}
+                  onChange={(pageTarget) =>
+                    patch({
+                      pageTarget,
+                      excludePaths: (pageTarget.excludePaths ?? []).join("\n"),
+                    })
+                  }
+                />
                 <Field label="Exclude CSS selectors (one per line)">
                   <textarea
                     className={`${input} min-h-[88px] font-mono text-[12px]`}

@@ -8,6 +8,12 @@ import {
   normalizeLauncherMetrics,
 } from "@/lib/widgets/launcher-size";
 import {
+  DEFAULT_WIDGET_PAGE_TARGET,
+  linesToExcludePaths,
+  normalizeWidgetPageTarget,
+  type WidgetPageTarget,
+} from "@/lib/widgets/page-target";
+import {
   defaultScreenPlacement,
   normalizeScreenPlacement,
   placementFromCorner,
@@ -55,7 +61,10 @@ export type AccessibilitySettings = {
   label: string;
   language: string;
   hideOnMobile: boolean;
+  /** @deprecated prefer pageTarget — kept for older saves */
   excludePaths: string;
+  /** Show / hide on WP surfaces and custom URLs */
+  pageTarget: WidgetPageTarget;
 
   /** Feature flags exposed in the visitor widget */
   features: {
@@ -111,6 +120,7 @@ export const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
   language: "auto",
   hideOnMobile: false,
   excludePaths: "",
+  pageTarget: { ...DEFAULT_WIDGET_PAGE_TARGET },
 
   features: {
     contrast: true,
@@ -186,6 +196,16 @@ export function mergeAccessibilitySettings(
       ? { iconSize: raw.iconSize, buttonPadding: raw.buttonPadding }
       : (raw as { launcherSize?: string }).launcherSize,
   );
+  const legacyExclude = linesToExcludePaths(String(raw.excludePaths ?? ""));
+  const pageTarget = normalizeWidgetPageTarget(
+    raw.pageTarget ??
+      (legacyExclude.length
+        ? { mode: "everywhere", excludePaths: legacyExclude }
+        : undefined),
+  );
+  if (!pageTarget.excludePaths?.length && legacyExclude.length) {
+    pageTarget.excludePaths = legacyExclude;
+  }
   return {
     ...DEFAULT_ACCESSIBILITY,
     ...raw,
@@ -193,6 +213,8 @@ export function mergeAccessibilitySettings(
     placement,
     iconSize: metrics.iconSize,
     buttonPadding: metrics.buttonPadding,
+    pageTarget,
+    excludePaths: (pageTarget.excludePaths ?? []).join("\n"),
     features: {
       ...DEFAULT_ACCESSIBILITY.features,
       ...(raw.features ?? {}),

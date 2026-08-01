@@ -41,6 +41,7 @@ export type ConnectorLanguagesConfig = {
   exclude_selectors: string[];
   never_translate: string[];
   exclude_paths: string[];
+  page_target: LanguageSettings["pageTarget"];
 };
 
 function lines(raw: string): string[] {
@@ -100,6 +101,7 @@ export async function getConnectorLanguagesConfig(
     detection: settings.detection,
     exclude_selectors: lines(settings.excludeSelectors),
     never_translate: lines(settings.neverTranslate),
-    exclude_paths: lines(settings.excludePaths),
+    exclude_paths: settings.pageTarget.excludePaths ?? lines(settings.excludePaths),
+    page_target: settings.pageTarget,
   };
 }

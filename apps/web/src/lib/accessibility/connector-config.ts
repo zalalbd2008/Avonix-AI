@@ -21,6 +21,7 @@ export type ConnectorAccessibilityConfig = {
   label: string;
   hide_on_mobile: boolean;
   exclude_paths: string[];
+  page_target: AccessibilitySettings["pageTarget"];
   features: AccessibilitySettings["features"];
   profiles: AccessibilitySettings["profiles"];
   statement: AccessibilitySettings["statement"];
@@ -62,7 +63,8 @@ export async function getConnectorAccessibilityConfig(
     primary_color: s.primaryColor,
     label: s.label || "Accessibility",
     hide_on_mobile: s.hideOnMobile,
-    exclude_paths: lines(s.excludePaths),
+    exclude_paths: s.pageTarget.excludePaths ?? lines(s.excludePaths),
+    page_target: s.pageTarget,
     features: s.features,
     profiles: s.profiles,
     statement: s.statement,

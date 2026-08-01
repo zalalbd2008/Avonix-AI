@@ -34,24 +34,18 @@ class Avonix_Accessibility
             return;
         }
 
-        $path = $this->current_path();
-        $exclude_paths = isset($config['exclude_paths']) && is_array($config['exclude_paths'])
-            ? $config['exclude_paths']
-            : [];
-        foreach ($exclude_paths as $ex) {
-            $ex = (string) $ex;
-            if ($ex === '') {
-                continue;
-            }
-            if ($ex === $path) {
-                return;
-            }
-            if (substr($ex, -1) === '*' && strpos($path, rtrim($ex, '*')) === 0) {
-                return;
-            }
-            if (strpos($path, $ex) === 0) {
-                return;
-            }
+        $path = Avonix_Page_Target::current_path();
+        $surface = Avonix_Page_Target::current_surface();
+        $page_target = isset($config['page_target']) && is_array($config['page_target'])
+            ? $config['page_target']
+            : [
+                'mode' => 'everywhere',
+                'excludePaths' => isset($config['exclude_paths']) && is_array($config['exclude_paths'])
+                    ? $config['exclude_paths']
+                    : [],
+            ];
+        if (!Avonix_Page_Target::matches($page_target, $path, $surface)) {
+            return;
         }
 
         $handle = 'avonix-accessibility';

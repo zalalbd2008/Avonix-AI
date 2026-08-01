@@ -105,12 +105,12 @@ class Avonix_Accessibility
 #avonix-a11y-root .avonix-a11y-btn:hover{transform:scale(1.05);filter:brightness(1.05)}
 #avonix-a11y-root .avonix-a11y-btn:focus-visible{outline:2px solid #0b1e3a;outline-offset:2px}
 #avonix-a11y-root .avonix-a11y-btn svg{width:var(--avonix-a11y-icon,52%);height:var(--avonix-a11y-icon,52%);display:block}
-#avonix-a11y-root .avonix-a11y-tip{position:absolute;top:50%;z-index:0;max-width:0;overflow:hidden;pointer-events:none;white-space:nowrap;border-radius:6px;background:#fff;color:#2a2f38;font-size:12px;font-weight:500;line-height:1.2;box-shadow:0 1px 4px rgba(15,23,42,.14);opacity:0;transform:translateY(-50%);transition:opacity .15s ease,max-width .18s ease,padding .18s ease,transform .15s ease}
-#avonix-a11y-root .avonix-a11y-stack.is-start .avonix-a11y-tip{left:100%;transform:translateY(-50%) translateX(-4px)}
-#avonix-a11y-root .avonix-a11y-stack.is-end .avonix-a11y-tip{right:100%;transform:translateY(-50%) translateX(4px)}
-#avonix-a11y-root .avonix-a11y-stack:hover .avonix-a11y-tip,#avonix-a11y-root .avonix-a11y-stack:focus-within .avonix-a11y-tip{max-width:200px;opacity:1;padding:6px 10px}
-#avonix-a11y-root .avonix-a11y-stack.is-start:hover .avonix-a11y-tip,#avonix-a11y-root .avonix-a11y-stack.is-start:focus-within .avonix-a11y-tip{transform:translateY(-50%) translateX(8px)}
-#avonix-a11y-root .avonix-a11y-stack.is-end:hover .avonix-a11y-tip,#avonix-a11y-root .avonix-a11y-stack.is-end:focus-within .avonix-a11y-tip{transform:translateY(-50%) translateX(-8px)}
+#avonix-a11y-root .avonix-a11y-tip{position:absolute;top:50%;z-index:3;max-width:0;overflow:hidden;pointer-events:none;white-space:nowrap;border-radius:6px;background:#fff;color:#2a2f38;font-size:12px;font-weight:500;line-height:1.2;box-shadow:0 1px 4px rgba(15,23,42,.14);opacity:0;transform:translateY(-50%);transition:opacity .15s ease,max-width .18s ease,padding .18s ease,transform .15s ease}
+#avonix-a11y-root .avonix-a11y-stack.is-start .avonix-a11y-tip{left:calc(100% + 8px);right:auto;transform:translateY(-50%)}
+#avonix-a11y-root .avonix-a11y-stack.is-end .avonix-a11y-tip{right:calc(100% + 8px);left:auto;transform:translateY(-50%)}
+#avonix-a11y-root .avonix-a11y-stack:hover .avonix-a11y-tip,#avonix-a11y-root .avonix-a11y-stack:focus-within .avonix-a11y-tip{max-width:220px;opacity:1;padding:6px 10px}
+#avonix-a11y-root .avonix-a11y-stack.is-start:hover .avonix-a11y-tip,#avonix-a11y-root .avonix-a11y-stack.is-start:focus-within .avonix-a11y-tip{transform:translateY(-50%)}
+#avonix-a11y-root .avonix-a11y-stack.is-end:hover .avonix-a11y-tip,#avonix-a11y-root .avonix-a11y-stack.is-end:focus-within .avonix-a11y-tip{transform:translateY(-50%)}
 #avonix-a11y-root .avonix-a11y-stack.is-open .avonix-a11y-tip{display:none!important}
 #avonix-a11y-root .avonix-a11y-panel{display:none;position:absolute;bottom:calc(100% + 10px);width:min(320px,calc(100vw - 24px));max-height:min(520px,70vh);overflow:auto;background:#fff;border:1px solid #e8edf5;border-radius:16px;box-shadow:0 16px 40px rgba(11,30,58,.18);z-index:2;padding:0;scrollbar-width:thin}
 #avonix-a11y-root .avonix-a11y-stack.is-open .avonix-a11y-panel{display:flex;flex-direction:column}

@@ -187,7 +187,7 @@ class Avonix_Languages
 #avonix-lang-root .avonix-lang-tip {
   position: absolute;
   top: 50%;
-  z-index: 0;
+  z-index: 3;
   max-width: 0;
   overflow: hidden;
   pointer-events: none;
@@ -204,26 +204,28 @@ class Avonix_Languages
   transition: opacity 0.15s ease, max-width 0.18s ease, padding 0.18s ease, transform 0.15s ease;
 }
 #avonix-lang-root .avonix-lang-stack.is-start .avonix-lang-tip {
-  left: 100%;
-  transform: translateY(-50%) translateX(-4px);
+  left: calc(100% + 8px);
+  right: auto;
+  transform: translateY(-50%);
 }
 #avonix-lang-root .avonix-lang-stack.is-end .avonix-lang-tip {
-  right: 100%;
-  transform: translateY(-50%) translateX(4px);
+  right: calc(100% + 8px);
+  left: auto;
+  transform: translateY(-50%);
 }
 #avonix-lang-root .avonix-lang-stack:hover .avonix-lang-tip,
 #avonix-lang-root .avonix-lang-stack:focus-within .avonix-lang-tip {
-  max-width: 200px;
+  max-width: 220px;
   opacity: 1;
   padding: 6px 10px;
 }
 #avonix-lang-root .avonix-lang-stack.is-start:hover .avonix-lang-tip,
 #avonix-lang-root .avonix-lang-stack.is-start:focus-within .avonix-lang-tip {
-  transform: translateY(-50%) translateX(8px);
+  transform: translateY(-50%);
 }
 #avonix-lang-root .avonix-lang-stack.is-end:hover .avonix-lang-tip,
 #avonix-lang-root .avonix-lang-stack.is-end:focus-within .avonix-lang-tip {
-  transform: translateY(-50%) translateX(-8px);
+  transform: translateY(-50%);
 }
 #avonix-lang-root .avonix-lang-btn[aria-expanded="true"] ~ .avonix-lang-tip {
   display: none !important;

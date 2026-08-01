@@ -282,8 +282,7 @@
     (alignEnd ? "flex-end" : "flex-start") +
     ";gap:12px;max-width:calc(100vw - 16px);box-sizing:border-box;}" +
     ".avonix-cep-root.avonix-fab-stacked{gap:0!important;}" +
-    ".avonix-cep-root.avonix-fab-stacked:not(.is-open) .avonix-cep-cta-pill{display:none!important;}" +
-    /* Inline shortcode / embed — fill the host container, never float. */
+    /* Keep CTA label visible beside launcher while stacked (does not affect vertical gap). */
     ".avonix-chat-wizard{display:flex;flex-direction:column;width:100%;height:100%;min-height:420px;box-sizing:border-box;}" +
     ".avonix-cep-root--wizard{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:1;width:100%!important;max-width:100%!important;height:100%!important;min-height:100%;flex:1 1 auto;align-items:stretch!important;flex-direction:column!important;gap:0!important;max-width:none!important;box-sizing:border-box;}" +
     ".avonix-cep-root :where([class*=avonix-cep-]){box-sizing:border-box;}" +
@@ -476,7 +475,7 @@
     rootScope +
     ":not(.avonix-cep-root--wizard) .avonix-cep-panel{width:100%!important;max-width:100%!important;height:min(560px,calc(100dvh - 100px))!important;max-height:calc(100dvh - 100px)!important;border-radius:16px!important;}" +
     rootScope +
-    " .avonix-cep-cta-pill{display:none!important;}" +
+    " .avonix-cep-cta-pill{max-width:min(200px,58vw);}" +
     rootScope +
     " .avonix-cep-btns{gap:8px;}" +
     rootScope +
@@ -1777,7 +1776,15 @@
     if (chatStacked) {
       root.classList.add("avonix-fab-stacked");
       root.style.gap = "0px";
-      if (ctaPill) ctaPill.setAttribute("hidden", "");
+      if (ctaPill) ctaPill.removeAttribute("hidden");
+      // Launcher on the stack edge; CTA label sits beside it.
+      fabRow.style.flexDirection = useFree
+        ? freeX >= 50
+          ? "row"
+          : "row-reverse"
+        : edgeX === "right"
+          ? "row"
+          : "row-reverse";
       if (window.AvonixFabStack && typeof window.AvonixFabStack.schedule === "function") {
         window.AvonixFabStack.schedule();
       }

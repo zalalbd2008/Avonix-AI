@@ -79,10 +79,14 @@
     el.classList.add("avonix-fab-stacked");
     el.style.gap = "0px";
     var pill = el.querySelector(".avonix-cep-cta-pill");
-    if (pill) pill.setAttribute("hidden", "");
+    if (pill) pill.removeAttribute("hidden");
+    var fabRow = el.querySelector(".avonix-cep-fab-row");
+    // DOM is [pill, launcher] — reverse on left edge so launcher stays in the stack column.
+    if (fabRow) {
+      fabRow.style.flexDirection = openLeft ? "row" : "row-reverse";
+    }
 
     var r = narrow ? Math.max(6, Math.round(size * (10 / 44))) + "px" : null;
-    // Keep launcher at the top of the root (no column-reverse / panel gap).
     el.style.flexDirection = "column";
     el.style.alignItems = openLeft ? "flex-end" : "flex-start";
     el.classList.toggle("is-align-end", openLeft);
@@ -98,14 +102,16 @@
       if (btn) btn.style.borderRadius = r;
     }
 
-    // Correct if launcher is not flush with root top (pill/centering leftovers).
+    // Align root so the launcher (not the CTA pill) sits on the stack X/Y.
     var launcher = el.querySelector(".avonix-cep-launcher");
     if (launcher) {
-      var rootTop = el.getBoundingClientRect().top;
-      var btnTop = launcher.getBoundingClientRect().top;
-      var drift = Math.round(btnTop - rootTop);
-      if (drift !== 0) {
-        el.style.top = y - drift + "px";
+      var rootBox = el.getBoundingClientRect();
+      var btnBox = launcher.getBoundingClientRect();
+      var driftX = Math.round(btnBox.left - rootBox.left);
+      var driftY = Math.round(btnBox.top - rootBox.top);
+      if (driftX !== 0 || driftY !== 0) {
+        el.style.left = x - driftX + "px";
+        el.style.top = y - driftY + "px";
       }
     }
     return true;

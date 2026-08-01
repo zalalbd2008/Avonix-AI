@@ -32,6 +32,7 @@ import {
   placementFromCorner,
 } from "@/lib/widgets/screen-placement";
 import { PageDisplayConditions } from "@/components/widgets/page-display-conditions";
+import { ImageUrlField } from "@/components/ui/image-url-field";
 
 const input =
   "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/15";
@@ -584,55 +585,45 @@ export function CepWidgetStudio({
                     />
                   </DraggablePlacementCanvas>
                 </div>
-                <label className="block">
-                  <span className="text-[12px] font-medium">Bot avatar URL</span>
-                  <input
-                    className={`${input} mt-1`}
-                    value={payload.botAvatarUrl ?? ""}
-                    placeholder="https://…"
-                    onChange={(e) =>
-                      setPayload((p) => ({
-                        ...p,
-                        botAvatarUrl: e.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[12px] font-medium">
-                    Agent avatar URL
-                  </span>
-                  <input
-                    className={`${input} mt-1`}
-                    value={payload.agentAvatarUrl ?? ""}
-                    placeholder="https://…"
-                    onChange={(e) =>
-                      setPayload((p) => ({
-                        ...p,
-                        agentAvatarUrl: e.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="block sm:col-span-2">
-                  <span className="text-[12px] font-medium">
-                    Start-screen hero image URL
-                  </span>
-                  <input
-                    className={`${input} mt-1`}
-                    value={theme.startHeroImageUrl ?? ""}
-                    placeholder="https://… (optional — default line art if empty)"
-                    onChange={(e) =>
-                      setPayload((p) => ({
-                        ...p,
-                        theme: {
-                          ...p.theme,
-                          startHeroImageUrl: e.target.value || undefined,
-                        },
-                      }))
-                    }
-                  />
-                </label>
+                <ImageUrlField
+                  label="Bot avatar"
+                  value={payload.botAvatarUrl ?? ""}
+                  placeholder="https://… or pick from Media"
+                  hint="Used for the bot in chat messages and launcher (if no agent avatar)."
+                  onChange={(next) =>
+                    setPayload((p) => ({
+                      ...p,
+                      botAvatarUrl: next || undefined,
+                    }))
+                  }
+                />
+                <ImageUrlField
+                  label="Agent avatar"
+                  value={payload.agentAvatarUrl ?? ""}
+                  placeholder="https://… or pick from Media"
+                  hint="Shown for human-agent messages when available."
+                  onChange={(next) =>
+                    setPayload((p) => ({
+                      ...p,
+                      agentAvatarUrl: next || undefined,
+                    }))
+                  }
+                />
+                <ImageUrlField
+                  className="sm:col-span-2"
+                  label="Start-screen hero image"
+                  value={theme.startHeroImageUrl ?? ""}
+                  placeholder="https://… (optional — default line art if empty)"
+                  onChange={(next) =>
+                    setPayload((p) => ({
+                      ...p,
+                      theme: {
+                        ...p.theme,
+                        startHeroImageUrl: next || undefined,
+                      },
+                    }))
+                  }
+                />
                 <label className="block sm:col-span-2">
                   <span className="text-[12px] font-medium">Privacy policy URL</span>
                   <input
@@ -708,25 +699,20 @@ export function CepWidgetStudio({
                         }
                       />
                     </label>
-                    <label className="block">
-                      <span className="text-[12px] font-medium">
-                        Agreement logo URL
-                      </span>
-                      <input
-                        className={`${input} mt-1`}
-                        value={theme.agreementLogoUrl ?? ""}
-                        placeholder="https://… (optional)"
-                        onChange={(e) =>
-                          setPayload((p) => ({
-                            ...p,
-                            theme: {
-                              ...p.theme,
-                              agreementLogoUrl: e.target.value || undefined,
-                            },
-                          }))
-                        }
-                      />
-                    </label>
+                    <ImageUrlField
+                      label="Agreement logo"
+                      value={theme.agreementLogoUrl ?? ""}
+                      placeholder="https://… (optional)"
+                      onChange={(next) =>
+                        setPayload((p) => ({
+                          ...p,
+                          theme: {
+                            ...p.theme,
+                            agreementLogoUrl: next || undefined,
+                          },
+                        }))
+                      }
+                    />
                     <label className="block sm:col-span-2">
                       <span className="text-[12px] font-medium">
                         Agreement intro

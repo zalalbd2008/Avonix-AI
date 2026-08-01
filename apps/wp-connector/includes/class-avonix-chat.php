@@ -230,7 +230,11 @@ class Avonix_Chat
             $payload['page_target'] = $bubble['page_target'];
         }
         if (!empty($bubble['theme']) && is_array($bubble['theme'])) {
-            $payload['theme'] = array_merge($bubble['theme'], $payload['theme'] ?? []);
+            // Bubble must win placement (leftPercent/topPercent/position) so the
+            // floating FAB stays where the studio saved it — wizard theme must
+            // not overwrite those keys (that pinned the icon to the top-left).
+            $payload['bubble_theme'] = $bubble['theme'];
+            $payload['theme'] = array_merge($payload['theme'] ?? [], $bubble['theme']);
         }
         $payload['path'] = Avonix_Page_Target::current_path();
         $payload['wp_surface'] = Avonix_Page_Target::current_surface();

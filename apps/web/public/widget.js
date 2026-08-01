@@ -157,15 +157,19 @@
   var edgeY = rawPos.indexOf("top") >= 0 ? "top" : "bottom";
   var ox = theme.offsetX != null ? theme.offsetX : 24;
   var oy = theme.offsetY != null ? theme.offsetY : 24;
-  var freeX =
-    theme.leftPercent != null && isFinite(Number(theme.leftPercent))
-      ? Math.min(100, Math.max(0, Number(theme.leftPercent)))
-      : null;
-  var freeY =
-    theme.topPercent != null && isFinite(Number(theme.topPercent))
-      ? Math.min(100, Math.max(0, Number(theme.topPercent)))
-      : null;
-  var useFree = freeX != null && freeY != null;
+  function parsePlacementPercent(v) {
+    if (v == null || v === "") return null;
+    var n = Number(v);
+    if (!isFinite(n)) return null;
+    return Math.min(100, Math.max(0, n));
+  }
+  var freeX = parsePlacementPercent(theme.leftPercent);
+  var freeY = parsePlacementPercent(theme.topPercent);
+  // Always use free % placement (same as studio). Map corner presets when
+  // percents are absent — never leave the FAB at CSS 0,0 / top-left.
+  if (freeX == null) freeX = edgeX === "left" ? 2 : 88;
+  if (freeY == null) freeY = edgeY === "top" ? 2 : 82;
+  var useFree = true;
   // Above Accessibility (2147482900) / Languages so the chat FAB is never buried.
   var z = Math.max(2147483200, Number(theme.zIndex) || 0);
   var radius = theme.radius != null ? theme.radius : 16;
@@ -206,9 +210,14 @@
   var CHAT_SVG =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10h.01M12 10h.01M16 10h.01M21 16c0 1.1-.9 2-2 2H7l-4 4V6a2 2 0 012-2h14a2 2 0 012 2v10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+  // Scope root CSS to this instance so dual mount (FAB + embed) cannot
+  // overwrite each other's position:fixed top/left/bottom/right rules.
+  var rootScope = ".avonix-cep-root--" + instanceUid;
   var style = document.createElement("style");
+  style.setAttribute("data-avonix-cep", instanceUid);
   style.textContent =
-    ".avonix-cep-root{--avx-primary:" +
+    rootScope +
+    "{--avx-primary:" +
     primary +
     ";--avx-on-primary:" +
     onPrimary +
@@ -235,7 +244,8 @@
     "%;--avx-primary-end:" +
     primaryEnd +
     ";--avx-shadow-lg:0 12px 32px -8px rgba(15,23,42,.18);}" +
-    ".avonix-cep-root{position:fixed;z-index:" +
+    rootScope +
+    "{position:fixed;z-index:" +
     z +
     ";" +
     rootPosCss +
@@ -465,9 +475,12 @@
   /* ---- Root / FAB ---- */
   var root = document.createElement("div");
   root.className =
-    "avonix-cep-root" + (surface === "wizard" ? " avonix-cep-root--wizard" : "");
+    "avonix-cep-root avonix-cep-root--" +
+    instanceUid +
+    (surface === "wizard" ? " avonix-cep-root--wizard" : "");
   root.setAttribute("data-avonix", "cep-chat");
   root.setAttribute("data-surface", surface);
+  root.setAttribute("data-avonix-uid", instanceUid);
 
   var button = document.createElement("button");
   button.type = "button";
@@ -1435,7 +1448,10 @@
   function mountInto(target) {
     if (surface === "wizard") {
       // Never float — fill the shortcode / embed host.
-      root.className = "avonix-cep-root avonix-cep-root--wizard";
+      root.className =
+        "avonix-cep-root avonix-cep-root--" +
+        instanceUid +
+        " avonix-cep-root--wizard";
       root.style.cssText =
         "position:relative;inset:auto;left:auto;right:auto;top:auto;bottom:auto;width:100%;height:100%;max-width:100%;z-index:1;display:flex;flex-direction:column;gap:0;box-sizing:border-box;";
       target.appendChild(root);
@@ -1477,7 +1493,10 @@
       if (!host) return;
       if (!host.id) host.id = "avonix-chat-wizard";
       config.mount = "#" + host.id;
-      root.className = "avonix-cep-root avonix-cep-root--wizard";
+      root.className =
+        "avonix-cep-root avonix-cep-root--" +
+        instanceUid +
+        " avonix-cep-root--wizard";
       root.setAttribute("data-surface", "wizard");
       mountInto(host);
       return;
@@ -1518,11 +1537,19 @@
 
     var bubbleApi = null;
     if (allowBubble) {
+      var bubbleTheme = Object.assign(
+        {},
+        base.theme || {},
+        base.bubble_theme && typeof base.bubble_theme === "object"
+          ? base.bubble_theme
+          : {}
+      );
       bubbleApi = createAvonixChatWidget(
         Object.assign({}, base, {
           surface: "bubble",
           mount: null,
           _uid: "fab",
+          theme: bubbleTheme,
         })
       );
     }

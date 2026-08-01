@@ -427,6 +427,11 @@
     "</div>";
   gateBody.querySelector(".avonix-cep-gate__title").textContent =
     theme.startTitle || "Leave your contact";
+  var gateName = gateBody.querySelector("#avonix-cep-name");
+  var gatePhone = gateBody.querySelector("#avonix-cep-phone");
+  var gateEmail = gateBody.querySelector("#avonix-cep-email");
+  var gateErr = gateBody.querySelector("#avonix-cep-gate-err");
+  var gateSend = gateBody.querySelector("#avonix-cep-gate-send");
   gate.appendChild(gateHead);
   gate.appendChild(gateBody);
 
@@ -811,16 +816,17 @@
   }
 
   function enterFromGate() {
-    var name = (document.getElementById("avonix-cep-name").value || "").trim();
-    var phone = (document.getElementById("avonix-cep-phone").value || "").trim();
-    var email = (document.getElementById("avonix-cep-email").value || "").trim();
-    var err = document.getElementById("avonix-cep-gate-err");
+    var name = ((gateName && gateName.value) || "").trim();
+    var phone = ((gatePhone && gatePhone.value) || "").trim();
+    var email = ((gateEmail && gateEmail.value) || "").trim();
     if (!email && !phone) {
-      err.textContent = "Please add an email or phone.";
-      err.classList.add("is-on");
+      if (gateErr) {
+        gateErr.textContent = "Please add an email or phone.";
+        gateErr.classList.add("is-on");
+      }
       return;
     }
-    err.classList.remove("is-on");
+    if (gateErr) gateErr.classList.remove("is-on");
     leadGatePassed = true;
     try {
       sessionStorage.setItem("avonix-cep-started", "1");
@@ -1104,7 +1110,7 @@
     showHome();
   });
   resetBtn.addEventListener("click", resetChat);
-  document.getElementById("avonix-cep-gate-send").addEventListener("click", enterFromGate);
+  if (gateSend) gateSend.addEventListener("click", enterFromGate);
   emojiBtn.addEventListener("click", function (ev) {
     ev.preventDefault();
     emojiPop.classList.toggle("is-open");

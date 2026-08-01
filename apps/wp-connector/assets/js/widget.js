@@ -549,7 +549,7 @@
     primary +
     " 100%);color:" +
     onPrimary +
-    ";box-shadow:0 6px 24px rgba(0,0,0,.2);overflow:visible;";
+    ";box-shadow:2px 2px 10px rgba(15,23,42,.16);overflow:visible;";
   root.style.setProperty("--avx-launcher-radius", initialRadius);
   if (avatarUrl) {
     button.innerHTML =

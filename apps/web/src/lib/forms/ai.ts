@@ -11,6 +11,7 @@ import {
   type FormSubmissionCrm,
 } from "@/lib/db/schema";
 import { limitsFor } from "@/lib/plans";
+import { resolveAiApiKey } from "@/lib/platform/ai-keys";
 import { appendTimeline, normalizeSubmissionCrm } from "@/lib/forms/admin-crm";
 import { normalizeAi } from "./ai-config";
 
@@ -18,12 +19,10 @@ export { DEFAULT_AI, normalizeAi, publicAiForEmbed } from "./ai-config";
 
 const MODEL = "claude-sonnet-5";
 
-let client: Anthropic | null = null;
-function anthropic(): Anthropic | null {
-  const key = process.env.ANTHROPIC_API_KEY;
+async function anthropic(): Promise<Anthropic | null> {
+  const key = await resolveAiApiKey("anthropic");
   if (!key) return null;
-  client ??= new Anthropic({ apiKey: key });
-  return client;
+  return new Anthropic({ apiKey: key });
 }
 
 export type AnalyzeLeadInput = {
@@ -206,7 +205,7 @@ async function runLlmAnalysis(
   message: string,
   base: FormSubmissionAi,
 ): Promise<FormSubmissionAi | null> {
-  const claude = anthropic();
+  const claude = await anthropic();
   if (!claude) return null;
 
   const quota = await checkQuota(input.agencyId);
@@ -355,7 +354,7 @@ export async function rewriteFormMessage(opts: {
   const text = opts.message.trim();
   if (!text) return { ok: false, error: "Nothing to rewrite." };
 
-  const claude = anthropic();
+  const claude = await anthropic();
   if (!claude) {
     // Lightweight local polish when LLM is unavailable.
     const polished = text.replace(/\s+/g, " ").replace(/\s+([,.!?])/g, "$1").trim();

@@ -36,5 +36,6 @@ export async function actionSavePlatformAiKeys(input: {
   });
 
   revalidatePath("/platform/ai");
+  revalidatePath("/platform/settings");
   return { ok: true };
 }

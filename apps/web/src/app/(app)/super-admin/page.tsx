@@ -15,6 +15,8 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { limitsFor } from "@/lib/plans";
+import { isPlatformOwner } from "@/lib/platform/owner";
+import { listAiKeyStatuses } from "@/lib/platform/ai-keys";
 
 /**
  * Route: /super-admin — Organization overview (Operations → Overview).
@@ -22,6 +24,15 @@ import { limitsFor } from "@/lib/plans";
  */
 export default async function SuperAdminPage() {
   const ctx = await requireAgency();
+  const platformOwner = await isPlatformOwner(ctx.userId);
+  const aiStatuses = platformOwner ? await listAiKeyStatuses() : [];
+  const chatReady = aiStatuses.some(
+    (s) =>
+      (s.provider === "openrouter" ||
+        s.provider === "anthropic" ||
+        s.provider === "openai") &&
+      s.source !== "none",
+  );
 
   const [me] = await db
     .select({
@@ -122,6 +133,32 @@ export default async function SuperAdminPage() {
         title="Organization overview"
         subtitle="Account, workspace snapshot, and every record in this agency"
       />
+
+      {platformOwner ? (
+        <section className="mb-4 rounded-xl border border-brand/25 bg-[rgba(255,102,0,.05)] p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[11.5px] font-semibold tracking-[0.07em] text-brand uppercase">
+                Platform Super Admin
+              </p>
+              <h2 className="mt-1 text-[16px] font-semibold text-ink">
+                API Configuration
+              </h2>
+              <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-muted">
+                {chatReady
+                  ? "Provider keys are set. Live Chat can answer on all connected sites."
+                  : "Add an OpenRouter (or Anthropic) API key once — every website Live Chat uses it."}
+              </p>
+            </div>
+            <Link
+              href={"/platform/ai" as never}
+              className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-brand-dark"
+            >
+              {chatReady ? "Manage API keys" : "Configure API keys"}
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border border-line bg-white p-4 sm:p-5">

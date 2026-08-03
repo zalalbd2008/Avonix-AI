@@ -282,7 +282,7 @@ export function CepWidgetStudio({
               <b className="font-semibold text-ink">Not answering yet.</b>{" "}
               <span className="text-muted">
                 {!health.modelReady
-                  ? "Set OPENROUTER_API_KEY or ANTHROPIC_API_KEY — questions are still captured."
+                  ? "Add an API key in Platform → API Configuration (OpenRouter recommended)."
                   : "Index site content so the bot has pages to answer from."}
               </span>
             </p>
@@ -1137,7 +1137,7 @@ export function CepWidgetStudio({
                 detail={
                   health.modelReady
                     ? health.providers.join(", ")
-                    : "OPENROUTER_API_KEY or ANTHROPIC_API_KEY"
+                    : "Platform → API Configuration"
                 }
               />
               <SetupRow

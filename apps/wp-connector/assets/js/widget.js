@@ -450,7 +450,17 @@
     ".avonix-cep-root.is-open .avonix-cep-cta-pill{display:none!important;}" +
     ".avonix-cep-reply-eta{margin:0;padding:2px 4px 4px;font-size:11px;color:var(--avx-muted);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;flex:0 0 auto;}" +
     ".avonix-cep-reply-eta__dot{width:7px;height:7px;border-radius:999px;background:var(--avx-online);flex:0 0 auto;}" +
-    ".avonix-cep-lead{margin-top:8px;border-radius:var(--avx-rl);padding:10px;background:var(--avx-surface);border:1px solid var(--avx-border);max-height:280px;overflow:auto;}" +
+    /* Inline Form Builder embed — full panel width like page embed (not a cramped bubble) */
+    ".avonix-cep-row--embed{align-self:stretch;width:100%;max-width:100%;margin:2px 0 8px;}" +
+    ".avonix-cep-embed-form{width:100%;max-width:100%;box-sizing:border-box;overflow:visible;}" +
+    ".avonix-cep-embed-form .avonix-form{width:100%!important;max-width:100%!important;margin:0!important;padding:var(--avx-container-pad,12px)!important;box-sizing:border-box;overflow:visible;}" +
+    ".avonix-cep-embed-form .avonix-form .avx-step,.avonix-cep-embed-form .avonix-form .avx-row,.avonix-cep-embed-form .avonix-form .avx-col{overflow:visible;min-width:0;}" +
+    ".avonix-cep-embed-form .avonix-form .avx-choice,.avonix-cep-embed-form .avonix-form .avx-radio,.avonix-cep-embed-form .avonix-form .avx-check{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}" +
+    ".avonix-cep-embed-form .avonix-form input[type='radio'],.avonix-cep-embed-form .avonix-form input[type='checkbox']{width:auto;max-width:none;}" +
+    ".avonix-cep-embed-form .avonix-form label,.avonix-cep-embed-form .avonix-form .avx-label{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}" +
+    ".avonix-cep-embed-form .avonix-form input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']):not([type='file']),.avonix-cep-embed-form .avonix-form select,.avonix-cep-embed-form .avonix-form textarea{width:100%;box-sizing:border-box;}" +
+    ".avonix-cep-embed-form .avonix-form .avx-nav,.avonix-cep-embed-form .avonix-form .avx-submit,.avonix-cep-embed-form .avonix-form button[type='submit']{width:100%;}" +
+    ".avonix-cep-embed-form .avonix-form input[type='radio'],.avonix-cep-embed-form .avonix-form input[type='checkbox']{-webkit-appearance:auto!important;appearance:auto!important;width:16px!important;height:16px!important;min-width:0!important;max-width:18px!important;padding:0!important;margin:2px 6px 0 0!important;border:0!important;flex-shrink:0!important;}" +
     /* Typing */
     ".avonix-cep-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:#ffffff;border:1px solid #e2e8f0;border-radius:var(--avx-r);border-bottom-left-radius:4px;}" +
     ".avonix-cep-typing span{width:7px;height:7px;border-radius:50%;background:var(--avx-muted);animation:avonix-cep-bounce 1.2s infinite ease-in-out;}" +
@@ -1289,7 +1299,83 @@
     }
   }
 
+  function injectHtml(host, html) {
+    host.innerHTML = html || "";
+    var links = host.querySelectorAll('link[rel="stylesheet"]');
+    links.forEach(function (old) {
+      var href = old.getAttribute("href") || "";
+      if (href.indexOf("fonts.googleapis.com") === -1) return;
+      if (document.querySelector('link[href="' + href.replace(/"/g, "") + '"]')) {
+        old.remove();
+        return;
+      }
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      if (old.getAttribute("data-avonix-gfont")) {
+        link.setAttribute("data-avonix-gfont", "1");
+      }
+      document.head.appendChild(link);
+      old.remove();
+    });
+    var scripts = host.querySelectorAll("script");
+    scripts.forEach(function (old) {
+      var s = document.createElement("script");
+      if (old.src) {
+        s.src = old.src;
+        s.async = old.async;
+      } else {
+        s.textContent = old.textContent;
+      }
+      Array.prototype.forEach.call(old.attributes || [], function (attr) {
+        if (attr.name !== "src") s.setAttribute(attr.name, attr.value);
+      });
+      old.parentNode.replaceChild(s, old);
+    });
+  }
+
+  function renderLeadFormEmbed(block, opts) {
+    var html =
+      (block && block.html) ||
+      (block &&
+        block.formId &&
+        config.lead_form &&
+        config.lead_form.form_id === block.formId
+        ? config.lead_form.html
+        : "");
+    if (!html) {
+      bubble("Form unavailable.", "bot", opts);
+      return;
+    }
+    var row = document.createElement("div");
+    row.className = "avonix-cep-row avonix-cep-row--embed";
+    var shell = document.createElement("div");
+    shell.className = "avonix-cep-embed-form";
+    row.appendChild(shell);
+    log.appendChild(row);
+    injectHtml(shell, html);
+    log.scrollTop = log.scrollHeight;
+    if (opts && opts.sound) playPing();
+  }
+
   function renderBlocks(blocks, who, opts) {
+    opts = opts || {};
+    var formBlocks = [];
+    var messageBlocks = [];
+    (blocks || []).forEach(function (b) {
+      if (b && b.type === "lead_form") formBlocks.push(b);
+      else messageBlocks.push(b);
+    });
+
+    if (messageBlocks.length) {
+      renderMessageBlocks(messageBlocks, who, opts);
+    }
+    formBlocks.forEach(function (b) {
+      renderLeadFormEmbed(b, opts);
+    });
+  }
+
+  function renderMessageBlocks(blocks, who, opts) {
     opts = opts || {};
     var isSys = (blocks || []).some(function (b) {
       return b && b.type === "system";
@@ -1322,29 +1408,6 @@
         plainBits.push(b.text || "");
       } else if (b.type === "buttons") {
         return;
-      } else if (b.type === "lead_form") {
-        var box = document.createElement("div");
-        box.className = "avonix-cep-lead";
-        if (b.title) {
-          var t = document.createElement("div");
-          t.style.fontWeight = "600";
-          t.style.marginBottom = "8px";
-          t.style.fontSize = "13px";
-          t.textContent = b.title;
-          box.appendChild(t);
-        }
-        var html =
-          b.html ||
-          (config.lead_form && config.lead_form.form_id === b.formId
-            ? config.lead_form.html
-            : "");
-        if (html) box.innerHTML = (b.title ? box.innerHTML : "") + html;
-        else {
-          var miss = document.createElement("div");
-          miss.textContent = "Form unavailable.";
-          box.appendChild(miss);
-        }
-        wrap.appendChild(box);
       }
     });
 

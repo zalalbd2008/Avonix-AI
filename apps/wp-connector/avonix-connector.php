@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AVONIX_VERSION', '1.3.71');
+define('AVONIX_VERSION', '1.3.72');
 define('AVONIX_PLUGIN_FILE', __FILE__);
 define('AVONIX_OPT_KEY', 'avonix_connector_key');
 define('AVONIX_OPT_ENDPOINT', 'avonix_endpoint');

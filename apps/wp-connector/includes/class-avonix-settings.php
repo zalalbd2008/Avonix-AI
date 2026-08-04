@@ -204,8 +204,8 @@ class Avonix_Settings
             <p><code>[avonix_chat mode="iframe" height="680"]</code> — framed embed</p>
             <p><code>[avonix_chat max_width="720px" full_width="yes"]</code> — width controls</p>
             <p class="description">
-                By default the floating bubble is hidden on the same page
-                (<code>hide_floating="yes"</code>). Use <code>hide_floating="no"</code> to keep both.
+                By default both the floating bubble and the inline embed show.
+                Use <code>hide_floating="yes"</code> to hide the bubble on that page.
             </p>
             <?php
             $embed_src = add_query_arg('avonix_chat_embed', '1', home_url('/'));

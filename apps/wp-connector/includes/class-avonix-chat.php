@@ -266,7 +266,8 @@ class Avonix_Chat
                 'max_width'     => 'none',
                 'full_width'    => 'no',
                 'mode'          => 'inline',
-                'hide_floating' => 'yes',
+                // Default: keep floating bubble + inline embed together.
+                'hide_floating' => 'no',
             ],
             $atts,
             'avonix_chat'
@@ -285,7 +286,7 @@ class Avonix_Chat
                 : '';
         }
 
-        if (strtolower(trim((string) $atts['hide_floating'])) !== 'no') {
+        if (strtolower(trim((string) $atts['hide_floating'])) === 'yes') {
             self::$suppress_floating = true;
         }
 
@@ -306,7 +307,7 @@ class Avonix_Chat
         $css_url = plugins_url('assets/css/chat-embed.css', AVONIX_PLUGIN_FILE);
         wp_enqueue_style('avonix-chat-embed', $css_url, [], AVONIX_VERSION);
 
-        $hide_float = strtolower(trim((string) $atts['hide_floating'])) !== 'no';
+        $hide_float = strtolower(trim((string) $atts['hide_floating'])) === 'yes';
 
         if ($hide_float) {
             // Enqueue may have already printed AVONIX_CHAT for the FAB — force it off.

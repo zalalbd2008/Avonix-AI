@@ -1019,8 +1019,9 @@ export function CepWidgetStudio({
                   Embed shortcodes
                 </p>
                 <p className="mt-1 text-[11px] leading-[1.5] text-muted">
-                  Paste into any page. By default the floating bubble is hidden on
-                  the same page. Use{" "}
+                  Paste into any page. Floating bubble stays on by default. Use{" "}
+                  <code className="text-[10px]">hide_floating=&quot;yes&quot;</code>{" "}
+                  to hide it, or{" "}
                   <code className="text-[10px]">mode=&quot;iframe&quot;</code> to
                   wall off theme CSS.
                 </p>

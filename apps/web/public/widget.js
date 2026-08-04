@@ -450,16 +450,19 @@
     ".avonix-cep-root.is-open .avonix-cep-cta-pill{display:none!important;}" +
     ".avonix-cep-reply-eta{margin:0;padding:2px 4px 4px;font-size:11px;color:var(--avx-muted);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;flex:0 0 auto;}" +
     ".avonix-cep-reply-eta__dot{width:7px;height:7px;border-radius:999px;background:var(--avx-online);flex:0 0 auto;}" +
-    /* Inline Form Builder embed — full panel width like page embed (not a cramped bubble) */
-    ".avonix-cep-row--embed{align-self:stretch;width:100%;max-width:100%;margin:2px 0 8px;}" +
-    ".avonix-cep-embed-form{width:100%;max-width:100%;box-sizing:border-box;overflow:visible;}" +
-    ".avonix-cep-embed-form .avonix-form{width:100%!important;max-width:100%!important;margin:0!important;padding:var(--avx-container-pad,12px)!important;box-sizing:border-box;overflow:visible;}" +
+    /* Inline Form Builder embed — centered ~60% width like a page embed card */
+    ".avonix-cep-row--embed{align-self:stretch;width:100%;max-width:100%;margin:2px 0 8px;display:flex;justify-content:center;}" +
+    ".avonix-cep-embed-form{width:60%;max-width:60%;min-width:0;box-sizing:border-box;overflow:visible;}" +
+    ".avonix-cep-embed-form .avonix-form{width:100%!important;max-width:100%!important;margin:0 auto!important;padding:var(--avx-container-pad,12px)!important;box-sizing:border-box;overflow:visible;}" +
     ".avonix-cep-embed-form .avonix-form .avx-step,.avonix-cep-embed-form .avonix-form .avx-row,.avonix-cep-embed-form .avonix-form .avx-col{overflow:visible;min-width:0;}" +
     ".avonix-cep-embed-form .avonix-form .avx-choice,.avonix-cep-embed-form .avonix-form .avx-radio,.avonix-cep-embed-form .avonix-form .avx-check{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}" +
     ".avonix-cep-embed-form .avonix-form input[type='radio'],.avonix-cep-embed-form .avonix-form input[type='checkbox']{width:auto;max-width:none;}" +
     ".avonix-cep-embed-form .avonix-form label,.avonix-cep-embed-form .avonix-form .avx-label{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}" +
     ".avonix-cep-embed-form .avonix-form input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']):not([type='file']),.avonix-cep-embed-form .avonix-form select,.avonix-cep-embed-form .avonix-form textarea{width:100%;box-sizing:border-box;}" +
-    ".avonix-cep-embed-form .avonix-form .avx-nav,.avonix-cep-embed-form .avonix-form .avx-submit,.avonix-cep-embed-form .avonix-form button[type='submit']{width:100%;}" +
+    ".avonix-cep-embed-form .avonix-form .avx-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}" +
+    ".avonix-cep-embed-form .avonix-form .avx-nav .avx-prev,.avonix-cep-embed-form .avonix-form .avx-nav .avx-next{width:auto;flex:1 1 auto;}" +
+    ".avonix-cep-embed-form .avonix-form .avx-submit,.avonix-cep-embed-form .avonix-form button[type='submit'].avx-submit{width:100%;}" +
+    ".avonix-cep-embed-form .avonix-form[data-mode='single'] .avx-next,.avonix-cep-embed-form .avonix-form[data-mode='single'] .avx-prev,.avonix-cep-embed-form .avonix-form[data-mode='accordion'] .avx-next,.avonix-cep-embed-form .avonix-form[data-mode='accordion'] .avx-prev{display:none!important;}" +
     ".avonix-cep-embed-form .avonix-form input[type='radio'],.avonix-cep-embed-form .avonix-form input[type='checkbox']{-webkit-appearance:auto!important;appearance:auto!important;width:16px!important;height:16px!important;min-width:0!important;max-width:18px!important;padding:0!important;margin:2px 6px 0 0!important;border:0!important;flex-shrink:0!important;}" +
     /* Typing */
     ".avonix-cep-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:#ffffff;border:1px solid #e2e8f0;border-radius:var(--avx-r);border-bottom-left-radius:4px;}" +
@@ -1334,6 +1337,30 @@
     });
   }
 
+  function normalizeChatEmbedForm(shell) {
+    if (!shell) return;
+    var formEl = shell.querySelector("form.avonix-form, form[data-avx-ultimate], form");
+    if (!formEl) return;
+    var mode = String(formEl.getAttribute("data-mode") || "single").toLowerCase();
+    var draftBtn = formEl.querySelector(".avx-draft");
+    if (draftBtn) draftBtn.hidden = true;
+    var prevBtn = formEl.querySelector(".avx-prev");
+    var nextBtn = formEl.querySelector(".avx-next");
+    var submitBtn = formEl.querySelector(".avx-submit");
+    var stepCount = formEl.querySelectorAll(
+      ".avx-step:not(.avx-acc):not(.avx-conv-item), .avx-acc, .avx-conv-item"
+    ).length;
+    var singleSurface =
+      mode === "single" ||
+      mode === "accordion" ||
+      stepCount <= 1;
+    if (singleSurface) {
+      if (prevBtn) prevBtn.hidden = true;
+      if (nextBtn) nextBtn.hidden = true;
+      if (submitBtn) submitBtn.hidden = false;
+    }
+  }
+
   function renderLeadFormEmbed(block, opts) {
     var html =
       (block && block.html) ||
@@ -1354,6 +1381,10 @@
     row.appendChild(shell);
     log.appendChild(row);
     injectHtml(shell, html);
+    normalizeChatEmbedForm(shell);
+    setTimeout(function () {
+      normalizeChatEmbedForm(shell);
+    }, 0);
     log.scrollTop = log.scrollHeight;
     if (opts && opts.sound) playPing();
   }

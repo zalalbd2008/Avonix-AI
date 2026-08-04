@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Avonix AI Connector
  * Description:       Sends this site's form submissions and chat leads to Avonix AI.
- * Version:           1.3.75
+ * Version:           1.3.76
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AVONIX_VERSION', '1.3.75');
+define('AVONIX_VERSION', '1.3.76');
 define('AVONIX_PLUGIN_FILE', __FILE__);
 define('AVONIX_OPT_KEY', 'avonix_connector_key');
 define('AVONIX_OPT_ENDPOINT', 'avonix_endpoint');
@@ -42,6 +42,7 @@ require_once __DIR__ . '/includes/class-avonix-languages.php';
 require_once __DIR__ . '/includes/class-avonix-accessibility.php';
 require_once __DIR__ . '/includes/class-avonix-backup.php';
 require_once __DIR__ . '/includes/class-avonix-updates.php';
+require_once __DIR__ . '/includes/class-avonix-woo.php';
 
 /**
  * Called when Avonix cloud says this site was deleted — deactivate and remove
@@ -88,6 +89,7 @@ add_action('plugins_loaded', function () {
     new Avonix_Accessibility();
     new Avonix_Backup();
     new Avonix_Updates();
+    new Avonix_Woo();
 });
 
 /** Poll for pending backup jobs every 5 minutes (independent of hourly heartbeat). */

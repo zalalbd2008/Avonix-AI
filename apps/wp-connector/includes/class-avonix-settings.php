@@ -198,6 +198,22 @@ class Avonix_Settings
                 <button class="button" name="avonix_test" value="1">Test connection</button>
             </form>
 
+            <h2>Embed chat</h2>
+            <p>Drop the chat into any page, Elementor column, or template:</p>
+            <p><code>[avonix_chat]</code> — inline (fills the container)</p>
+            <p><code>[avonix_chat mode="iframe" height="680"]</code> — framed embed</p>
+            <p><code>[avonix_chat max_width="720px" full_width="yes"]</code> — width controls</p>
+            <p class="description">
+                By default the floating bubble is hidden on the same page
+                (<code>hide_floating="yes"</code>). Use <code>hide_floating="no"</code> to keep both.
+            </p>
+            <?php
+            $embed_src = add_query_arg('avonix_chat_embed', '1', home_url('/'));
+            $iframe_html = '<div class="avonix-chat-embed" style="width:100%;max-width:100%;--avx-chat-h:620px;"><div class="avonix-chat-embed__frame" style="height:clamp(380px,145cqw,var(--avx-chat-h));"><iframe src="' . esc_url($embed_src) . '" title="Chat" style="width:100%;height:100%;border:0;display:block;" loading="lazy"></iframe></div></div>';
+            ?>
+            <p><strong>HTML iframe (copy-paste):</strong></p>
+            <textarea class="large-text code" rows="4" readonly onclick="this.select();"><?php echo esc_textarea($iframe_html); ?></textarea>
+
             <h2>Adding a form</h2>
             <p>Put this shortcode on any page:</p>
             <p><code>[avonix_form]</code></p>

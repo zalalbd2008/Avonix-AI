@@ -13,6 +13,7 @@ import { chunkText, contentHash, fetchPage, chunkPage } from "./crawl";
 import { embeddings } from "./embeddings";
 import { indexWebsite } from "./index-site";
 import { autogenWebsiteChat, type AutogenPreview } from "./autogen";
+import { ensureDefaultBubbleWidget, saveCepWidget } from "@/lib/cep/cep-service";
 
 function canEdit(permissions: string[] | "*") {
   if (permissions === "*") return true;
@@ -33,6 +34,27 @@ export async function reindexWebsite(clientId: string, websiteId: string) {
     return { ok: false as const, error: "Permission denied." };
   }
   try {
+    // Ask WP connector to refresh WooCommerce catalog on next heartbeat.
+    await withAgency(ctx.agencyId, async (tx) => {
+      const [site] = await tx
+        .select({ settings: websites.settings })
+        .from(websites)
+        .where(eq(websites.id, websiteId))
+        .limit(1);
+      if (!site) return;
+      const settings = {
+        ...(site.settings ?? {}),
+        woo: {
+          ...(site.settings?.woo ?? {}),
+          syncRequested: true,
+        },
+      };
+      await tx
+        .update(websites)
+        .set({ settings, updatedAt: new Date() })
+        .where(eq(websites.id, websiteId));
+    });
+
     const result = await indexWebsite(ctx.agencyId, websiteId, "manual");
     if (result.ok) revalidateKnowledge(clientId, websiteId);
     return result;
@@ -262,6 +284,97 @@ export async function actionAutogenWebsite(input: {
   if ("error" in preview) return { ok: false, error: preview.error };
   revalidateKnowledge(input.clientId, input.websiteId);
   return { ok: true, preview };
+}
+
+function faqsToPaste(faqs: AutogenPreview["faqs"]): string {
+  return faqs
+    .filter((f) => f.q && f.a)
+    .map((f) => `Q: ${f.q}\nA: ${f.a}`)
+    .join("\n\n");
+}
+
+/** Apply autogen preview to the bubble chat widget (FAQ, prompt, quick actions). */
+export async function actionApplyAutogen(input: {
+  clientId: string;
+  websiteId: string;
+  preview: AutogenPreview;
+  trainAfter?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await requireAgency();
+  if (!canEdit(ctx.permissions)) {
+    return { ok: false, error: "Permission denied." };
+  }
+
+  const [site] = await withAgency(ctx.agencyId, (tx) =>
+    tx
+      .select({ id: websites.id, name: websites.name })
+      .from(websites)
+      .where(and(eq(websites.id, input.websiteId), isNull(websites.deletedAt)))
+      .limit(1),
+  );
+  if (!site) return { ok: false, error: "Website not found." };
+
+  const widget = await ensureDefaultBubbleWidget({
+    agencyId: ctx.agencyId,
+    clientId: input.clientId,
+    websiteId: input.websiteId,
+    websiteName: site.name,
+  });
+
+  const p = input.preview;
+  const paste = faqsToPaste(p.faqs);
+  const payload = {
+    ...widget.payload,
+    greeting: p.summary || widget.payload.greeting,
+    faq: {
+      enabled: true,
+      paste,
+      items: p.faqs.map((f, i) => ({
+        id: `autogen-${i + 1}`,
+        label: f.label || f.q.slice(0, 48),
+        answer: f.a,
+      })),
+    },
+    ai: {
+      ...widget.payload.ai,
+      systemPromptOverride: p.systemPrompt || widget.payload.ai?.systemPromptOverride,
+    },
+    quickReplies: p.actions.map((a, i) => ({
+      id: `autogen-qr-${i + 1}`,
+      label: a.label,
+      action: a.action,
+      value: a.value,
+    })),
+    theme: {
+      ...widget.payload.theme,
+      homeContent: p.summary || widget.payload.theme?.homeContent,
+    },
+  };
+
+  const saved = await saveCepWidget({
+    agencyId: ctx.agencyId,
+    clientId: input.clientId,
+    websiteId: input.websiteId,
+    id: widget.id,
+    name: widget.name,
+    status: widget.status,
+    surface: widget.surface ?? "bubble",
+    isEnabled: widget.isEnabled,
+    payload,
+  });
+
+  if (!saved.ok) return saved;
+
+  if (input.trainAfter) {
+    const train = await indexWebsite(ctx.agencyId, input.websiteId, "manual");
+    if (!train.ok) {
+      return { ok: false, error: `Widget saved but training failed: ${train.error}` };
+    }
+  }
+
+  revalidateKnowledge(input.clientId, input.websiteId);
+  revalidatePath(`/clients/${input.clientId}/websites/${input.websiteId}/chat-ai`);
+  return { ok: true };
 }
 
 export async function actionClearKnowledge(

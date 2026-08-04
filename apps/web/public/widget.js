@@ -474,6 +474,16 @@
     ".avonix-cep-sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}" +
     ".avonix-cep-sources a{font-size:11px;line-height:1.3;padding:4px 8px;border-radius:999px;background:var(--avx-border-soft);color:var(--avx-ink-2);text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
     ".avonix-cep-sources a:hover{background:var(--avx-border);color:var(--avx-ink);}" +
+    ".avonix-cep-products{align-self:stretch;display:flex;align-items:flex-start;gap:10px;overflow-x:auto;overflow-y:hidden;padding:4px 2px 14px;scrollbar-width:thin;min-height:0;}" +
+    ".avonix-cep-pcard{flex:0 0 152px;width:152px;min-height:222px;display:flex;flex-direction:column;border:1px solid var(--avx-border);border-radius:14px;overflow:hidden;background:var(--avx-surface,#fff);box-shadow:0 1px 3px rgba(15,23,42,.08);}" +
+    ".avonix-cep-pcard__link{display:flex;flex-direction:column;flex:1 1 auto;text-decoration:none;color:inherit;}" +
+    ".avonix-cep-pcard__img{position:relative;flex:0 0 118px;display:flex;align-items:center;justify-content:center;height:118px;min-height:118px;background:var(--avx-border-soft,#f1f5f9);overflow:hidden;}" +
+    ".avonix-cep-pcard__img img{width:100%;height:100%;object-fit:cover;display:block;}" +
+    ".avonix-cep-pcard__sale{position:absolute;top:6px;left:6px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:6px;}" +
+    ".avonix-cep-pcard__body{display:flex;flex-direction:column;gap:3px;padding:9px 10px 4px;flex:1 1 auto;}" +
+    ".avonix-cep-pcard__title{font-size:12.5px;font-weight:600;line-height:1.3;color:var(--avx-ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}" +
+    ".avonix-cep-pcard__price{font-size:12.5px;font-weight:700;color:var(--avx-primary);margin-top:auto;padding-top:2px;}" +
+    ".avonix-cep-pcard__add{margin:2px 10px 12px;display:block;text-align:center;text-decoration:none;background:var(--avx-primary);color:#fff;font-size:11.5px;font-weight:700;padding:8px 6px;border-radius:9px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
     /* Typing */
     ".avonix-cep-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:#ffffff;border:1px solid #e2e8f0;border-radius:var(--avx-r);border-bottom-left-radius:4px;}" +
     ".avonix-cep-typing span{width:7px;height:7px;border-radius:50%;background:var(--avx-muted);animation:avonix-cep-bounce 1.2s infinite ease-in-out;}" +
@@ -1494,8 +1504,84 @@
       appendTryAsking(b.buttons);
     });
 
+    (blocks || []).forEach(function (b) {
+      if (!b || b.type !== "product_carousel" || !b.products || !b.products.length)
+        return;
+      appendProductCarousel(b.products);
+    });
+
     log.scrollTop = log.scrollHeight;
     if (opts.sound && who !== "you") playPing();
+  }
+
+  function appendProductCarousel(products) {
+    if (!log || !products || !products.length) return;
+    var row = document.createElement("div");
+    row.className = "avonix-cep-products";
+    products.forEach(function (p) {
+      if (!p || !p.title) return;
+      var card = document.createElement("div");
+      card.className = "avonix-cep-pcard";
+      var link = document.createElement("a");
+      link.className = "avonix-cep-pcard__link";
+      link.href = p.url || "#";
+      link.target = "_blank";
+      link.rel = "noopener nofollow";
+      var im = document.createElement("span");
+      im.className = "avonix-cep-pcard__img";
+      if (p.image) {
+        var pic = document.createElement("img");
+        pic.src = String(p.image);
+        pic.alt = p.title;
+        pic.loading = "lazy";
+        pic.onerror = function () {
+          if (pic.parentNode) pic.parentNode.removeChild(pic);
+          im.textContent = "🛍";
+          im.style.fontSize = "30px";
+          im.style.opacity = ".5";
+        };
+        im.appendChild(pic);
+      } else {
+        im.textContent = "🛍";
+        im.style.fontSize = "30px";
+        im.style.opacity = ".5";
+      }
+      if (p.onSale) {
+        var sb = document.createElement("span");
+        sb.className = "avonix-cep-pcard__sale";
+        sb.textContent = "Sale";
+        im.appendChild(sb);
+      }
+      link.appendChild(im);
+      var body = document.createElement("span");
+      body.className = "avonix-cep-pcard__body";
+      var t = document.createElement("span");
+      t.className = "avonix-cep-pcard__title";
+      t.textContent = p.title;
+      body.appendChild(t);
+      if (p.price) {
+        var pr = document.createElement("span");
+        pr.className = "avonix-cep-pcard__price";
+        pr.textContent = p.price;
+        body.appendChild(pr);
+      }
+      link.appendChild(body);
+      card.appendChild(link);
+      if (p.addUrl) {
+        var ac = document.createElement("a");
+        ac.className = "avonix-cep-pcard__add";
+        ac.href = p.addUrl;
+        ac.target = "_blank";
+        ac.rel = "noopener nofollow";
+        ac.textContent = p.addText || "Add to cart";
+        card.appendChild(ac);
+      }
+      row.appendChild(card);
+    });
+    if (row.childNodes.length) {
+      log.appendChild(row);
+      log.scrollTop = log.scrollHeight;
+    }
   }
 
   function bubble(text, who, opts) {
@@ -2280,9 +2366,10 @@
     if (!file) return;
     var name = file.name || "attachment";
     var isPdf = /\.pdf$/i.test(name);
+    var isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(name);
     var reader = new FileReader();
     reader.onload = function () {
-      if (isPdf && typeof reader.result === "string") {
+      if ((isPdf || isImg) && typeof reader.result === "string") {
         var parts = reader.result.split(",");
         pendingAttachment = {
           name: name,
@@ -2299,7 +2386,7 @@
       clipBtn.classList.add("is-armed");
       fileInput.value = "";
     };
-    if (isPdf) reader.readAsDataURL(file);
+    if (isPdf || isImg) reader.readAsDataURL(file);
     else reader.readAsText(file);
   });
   document.addEventListener("keydown", function (ev) {

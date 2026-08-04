@@ -71,6 +71,7 @@ export async function GET(request: Request) {
         )
       : null,
     fab_group,
+    woo_sync: Boolean(siteRow?.settings?.woo?.syncRequested),
   });
 }
 

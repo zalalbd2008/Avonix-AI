@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { and, count, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
 import { TrainControls } from "@/components/knowledge/train-controls";
+import { AutoSetupPanel } from "@/components/knowledge/autogen-setup-panel";
 import {
   KnowledgeAddTextForm,
   KnowledgeAddUrlForm,
@@ -195,6 +196,14 @@ export default async function KnowledgePage({
             <div className="mt-0.5 text-[12.5px] text-muted">{m.label}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mb-5">
+        <AutoSetupPanel
+          clientId={clientId}
+          websiteId={websiteId}
+          websiteName={data.site.name}
+        />
       </div>
 
       {data.total === 0 && (

@@ -5,6 +5,8 @@ import { and, eq } from "drizzle-orm";
 import { answerVisitor, chatConversation } from "@/lib/ai/chat";
 import { extractFileText } from "@/lib/ai/file-text";
 import { detectHandoffIntent } from "@/lib/ai/handoff";
+import { isImageFilename, ocrImageBuffer } from "@/lib/ai/ocr";
+import { matchWooProducts } from "@/lib/ai/woo-products";
 import { enqueueWebsiteAutomation } from "@/lib/automation/engine";
 import {
   getPublishedWidgetConfig,
@@ -20,6 +22,7 @@ import {
   textToBlocks,
   type CepChatBlock,
   type CepWidgetSurface,
+  type WebsiteSettings,
 } from "@/lib/db/schema";
 
 import {
@@ -286,8 +289,12 @@ export async function runChatTurn(
       const raw =
         input.attachmentEncoding === "base64"
           ? Buffer.from(input.attachmentContent, "base64")
-          : input.attachmentContent;
-      attachmentText = extractFileText(input.attachmentName, raw).text;
+          : Buffer.from(String(input.attachmentContent), "utf8");
+      if (isImageFilename(input.attachmentName)) {
+        attachmentText = await ocrImageBuffer(raw);
+      } else {
+        attachmentText = extractFileText(input.attachmentName, raw).text;
+      }
     } catch {
       attachmentText = null;
     }
@@ -318,6 +325,40 @@ export async function runChatTurn(
   }
 
   let blocks = result.blocks;
+
+  // WooCommerce product carousel (Nexus show_product_carousel parity)
+  if (modules.productCarousel === true) {
+    const [siteRow] = await withAgency(input.agencyId, (tx) =>
+      tx
+        .select({ settings: websites.settings })
+        .from(websites)
+        .where(eq(websites.id, input.websiteId))
+        .limit(1),
+    );
+    const woo = (siteRow?.settings as WebsiteSettings | undefined)?.woo;
+    const catalog = woo?.active !== false ? (woo?.products ?? []) : [];
+    const matched = matchWooProducts(question, catalog, 8);
+    if (matched.length) {
+      blocks = [
+        ...blocks,
+        {
+          type: "product_carousel",
+          products: matched.map((p) => ({
+            id: p.id,
+            title: p.title,
+            url: p.url,
+            image: p.image,
+            price: p.price,
+            onSale: p.onSale,
+            inStock: p.inStock,
+            addUrl: p.addUrl,
+            addText: p.addText,
+          })),
+        },
+      ];
+    }
+  }
+
   // Offer transfer + form when AI admits it doesn't know or handoff intent detected
   if (
     modules.transferAgent !== false &&

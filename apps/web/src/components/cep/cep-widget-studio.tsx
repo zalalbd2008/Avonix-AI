@@ -51,6 +51,7 @@ import {
   KnowledgeAddUrlForm,
 } from "@/components/knowledge/knowledge-forms";
 import { TrainControls } from "@/components/knowledge/train-controls";
+import { AutoSetupPanel } from "@/components/knowledge/autogen-setup-panel";
 import { FaqPasteEditor } from "@/components/knowledge/faq-paste-editor";
 
 const input =
@@ -186,7 +187,6 @@ export function CepWidgetStudio({
   const ai = payload.ai ?? {};
   const triggers = payload.triggers ?? {};
   const modules = payload.modules ?? {};
-  const shortcode = "[avonix_chat]";
   const primary = theme.primaryColor ?? LAUNCHER_ORANGE;
   const stacked = isFabLinked(fabGroup, "chat");
   const soloChatPlacement = normalizeScreenPlacement(
@@ -1016,27 +1016,47 @@ export function CepWidgetStudio({
 
               <div className="rounded-xl border border-line bg-[#f7f8fb] p-3.5">
                 <p className="text-[12px] font-semibold text-ink">
-                  Inline wizard shortcode
+                  Embed shortcodes
                 </p>
                 <p className="mt-1 text-[11px] leading-[1.5] text-muted">
-                  Paste into any page for a fluid-width chat. The bubble still
-                  auto-loads when chat is enabled in the plugin.
+                  Paste into any page. By default the floating bubble is hidden on
+                  the same page. Use{" "}
+                  <code className="text-[10px]">mode=&quot;iframe&quot;</code> to
+                  wall off theme CSS.
                 </p>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                  <code className="rounded-md border border-line bg-white px-2.5 py-1.5 font-mono text-[12px] text-ink">
-                    {shortcode}
-                  </code>
-                  <button
-                    type="button"
-                    className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12px] font-semibold text-brand hover:bg-brand/5"
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(shortcode);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 1200);
-                    }}
-                  >
-                    {copied ? "Copied" : "Copy"}
-                  </button>
+                <div className="mt-2.5 flex flex-col gap-2">
+                  {(
+                    [
+                      ["[avonix_chat]", "Inline"],
+                      [
+                        '[avonix_chat mode="iframe" height="680"]',
+                        "Iframe",
+                      ],
+                    ] as const
+                  ).map(([code, label]) => (
+                    <div
+                      key={label}
+                      className="flex flex-wrap items-center gap-2"
+                    >
+                      <span className="w-12 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                        {label}
+                      </span>
+                      <code className="rounded-md border border-line bg-white px-2.5 py-1.5 font-mono text-[11px] text-ink">
+                        {code}
+                      </code>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12px] font-semibold text-brand hover:bg-brand/5"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(code);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 1200);
+                        }}
+                      >
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1046,6 +1066,11 @@ export function CepWidgetStudio({
                   [
                     ["leadForm", "Lead form in chat", "Embed Form Builder"],
                     ["transferAgent", "Transfer to human", "Queue + inbox"],
+                    [
+                      "productCarousel",
+                      "WooCommerce product cards",
+                      "Carousel when shoppers ask about products",
+                    ],
                     ["sounds", "Message sounds", "Soft ping on reply"],
                     ["streaming", "Streaming replies", "Progressive reveal"],
                   ] as const
@@ -1057,7 +1082,11 @@ export function CepWidgetStudio({
                     <input
                       type="checkbox"
                       className="mt-0.5"
-                      checked={modules[key] !== false}
+                      checked={
+                        key === "productCarousel"
+                          ? modules.productCarousel === true
+                          : modules[key] !== false
+                      }
                       onChange={(e) =>
                         setPayload((p) => ({
                           ...p,
@@ -1188,6 +1217,45 @@ export function CepWidgetStudio({
 
           {tab === "train" ? (
             <div className="space-y-5">
+              <AutoSetupPanel
+                clientId={clientId}
+                websiteId={websiteId}
+                websiteName={websiteName}
+                onApplied={(p) => {
+                  const paste = p.faqs
+                    .filter((f) => f.q && f.a)
+                    .map((f) => `Q: ${f.q}\nA: ${f.a}`)
+                    .join("\n\n");
+                  setPayload((prev) => ({
+                    ...prev,
+                    greeting: p.summary || prev.greeting,
+                    faq: {
+                      enabled: true,
+                      paste,
+                      items: p.faqs.map((f, i) => ({
+                        id: `autogen-${i + 1}`,
+                        label: f.label || f.q.slice(0, 48),
+                        answer: f.a,
+                      })),
+                    },
+                    ai: {
+                      ...prev.ai,
+                      systemPromptOverride: p.systemPrompt || prev.ai?.systemPromptOverride,
+                    },
+                    quickReplies: p.actions.map((a, i) => ({
+                      id: `autogen-qr-${i + 1}`,
+                      label: a.label,
+                      action: a.action,
+                      value: a.value,
+                    })),
+                    theme: {
+                      ...prev.theme,
+                      homeContent: p.summary || prev.theme?.homeContent,
+                    },
+                  }));
+                }}
+              />
+
               <div className="rounded-xl border border-brand/20 bg-brand/5 p-3.5">
                 <p className="text-[13px] font-semibold text-ink">
                   Train from this website

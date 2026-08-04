@@ -47,6 +47,20 @@ export type CepChatBlock =
   | {
       type: "sources";
       items: Array<{ url: string; title?: string }>;
+    }
+  | {
+      type: "product_carousel";
+      products: Array<{
+        id: number;
+        title: string;
+        url: string;
+        image?: string;
+        price?: string;
+        onSale?: boolean;
+        inStock?: boolean;
+        addUrl?: string;
+        addText?: string;
+      }>;
     };
 
 export type CepBubbleShape = "circle" | "rounded_square" | "image" | "gif" | "lottie";

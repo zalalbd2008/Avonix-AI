@@ -40,6 +40,7 @@ import type { UptimeSettings } from "@/lib/uptime/types";
 import type { WebsiteEmailSettings } from "@/lib/website-email/types";
 import type { PageSpeedCache } from "@/lib/pagespeed/client";
 import type { FloatingFabGroupSettings } from "@/lib/widgets/fab-group";
+import type { WebsiteWooSettings } from "@/lib/ai/woo-products";
 
 export type WebsiteSettings = {
   fonts?: WebsiteFontSettings;
@@ -82,6 +83,8 @@ export type WebsiteSettings = {
   backupsDropboxOAuth?: BackupsCloudOAuth;
   /** OneDrive OAuth tokens for backup destination (see lib/backups/cloud-oauth). */
   backupsOneDriveOAuth?: BackupsCloudOAuth;
+  /** Cached WooCommerce catalog from connector sync. */
+  woo?: WebsiteWooSettings;
 };
 
 /**

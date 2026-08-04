@@ -127,6 +127,10 @@ export type CepWidgetTheme = {
   disclaimer?: string;
   /** Small reply-time line under action cards / above composer. */
   replyEtaText?: string;
+  /** Optional click-to-call number shown on booking / contact intents (tel: link). */
+  contactPhone?: string;
+  /** Optional external booking page (Calendly, etc.). */
+  bookingUrl?: string;
 };
 
 /** Page visibility — same shape as CTA/Popup pageTarget. */

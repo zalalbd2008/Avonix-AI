@@ -965,6 +965,52 @@ export function CepWidgetStudio({
                       </option>
                     ))}
                   </select>
+                  {!payload.leadFormId ? (
+                    <p className="mt-1.5 text-[12px] text-warn">
+                      Link a form here — Book a Call, Support, and Talk to a
+                      human show this form inline (no AI guessing).
+                    </p>
+                  ) : null}
+                </label>
+                <label className="block">
+                  <span className="text-[12px] font-medium">Call-back phone</span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.contactPhone ?? ""}
+                    placeholder="+1 555 123 4567"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: {
+                          ...p.theme,
+                          contactPhone: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    Optional — shows a Call button on Book a Call intents.
+                  </p>
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[12px] font-medium">Booking page URL</span>
+                  <input
+                    className={`${input} mt-1`}
+                    value={theme.bookingUrl ?? ""}
+                    placeholder="https://calendly.com/your-team/discovery"
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        theme: {
+                          ...p.theme,
+                          bookingUrl: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    Optional — Calendly or booking page link on Book a Call.
+                  </p>
                 </label>
               </div>
 

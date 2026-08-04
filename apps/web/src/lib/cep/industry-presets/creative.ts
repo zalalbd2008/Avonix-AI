@@ -51,7 +51,7 @@ export const CREATIVE_PRESETS: CepIndustryPreset[] = [
       ["pricing", "View Pricing", "layers"],
       ["portfolio", "See Our Portfolio", "image"],
       ["branding", "Branding Package", "briefcase"],
-      ["call", "Book a Call", "phone", "send_text", "I'd like to book a discovery call"],
+      ["call", "Book a Call", "phone", "start_form"],
       ["process", "Our Process", "git-branch"],
       ["human", "Talk to a Designer", "headphones", "transfer_agent"],
     ]),

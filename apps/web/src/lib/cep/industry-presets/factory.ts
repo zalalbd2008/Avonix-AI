@@ -117,7 +117,7 @@ function defaultQuickActions(category: IndustryCategory): QuickAction[] {
     ["portfolio", "See Portfolio", "image"],
     ["packages", "View Pricing", "layers"],
     ["brief", "Start a Brief", "file-text"],
-    ["call", "Book a Call", "phone", "send_text", "I'd like to book a discovery call"],
+    ["call", "Book a Call", "phone", "start_form"],
     ["process", "Our Process", "git-branch"],
     ["timeline", "Timeline", "clock"],
     ["human", "Talk to a Human", "headphones", "transfer_agent"],

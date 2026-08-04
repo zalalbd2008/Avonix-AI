@@ -1214,13 +1214,46 @@
   }
   input.addEventListener("input", updateSendState);
 
+  function inferContactAction(btn) {
+    if (!btn) return null;
+    if (btn.action === "start_form") return "start_form";
+    if (btn.action === "transfer_agent") return "transfer_agent";
+    var blob = (
+      String(btn.id || "") +
+      " " +
+      String(btn.label || "") +
+      " " +
+      String(btn.value || "")
+    ).toLowerCase();
+    if (/book|schedule|discovery|appointment|consultation|callback|call me/.test(blob)) {
+      return "start_form";
+    }
+    if (/human|agent|support|designer|representative|live|talk to|speak to/.test(blob)) {
+      return "transfer_agent";
+    }
+    return null;
+  }
+
   function handleButton(btn) {
     if (!btn) return;
     if (
       (btn.action === "open_url" || btn.action === "url") &&
       btn.value
     ) {
-      window.open(btn.value, "_blank", "noopener");
+      if (String(btn.value).indexOf("tel:") === 0) {
+        window.location.href = btn.value;
+      } else {
+        window.open(btn.value, "_blank", "noopener");
+      }
+      return;
+    }
+    var contactAction = inferContactAction(btn);
+    if (contactAction === "transfer_agent") {
+      sendMessage(btn.value || btn.label || "Talk to a human", "transfer_agent");
+      return;
+    }
+    if (contactAction === "start_form") {
+      sendMessage(btn.value || btn.label || "Book a call", "start_form");
       return;
     }
     if (btn.action === "transfer_agent") {

@@ -5,7 +5,6 @@ import { and, eq } from "drizzle-orm";
 import { answerVisitor, chatConversation } from "@/lib/ai/chat";
 import { enqueueWebsiteAutomation } from "@/lib/automation/engine";
 import {
-  getLeadFormEmbed,
   getPublishedWidgetConfig,
   setConversationHandoff,
 } from "@/lib/cep/cep-service";
@@ -21,13 +20,14 @@ import {
   type CepWidgetSurface,
 } from "@/lib/db/schema";
 
+import {
+  buildContactCaptureTurn,
+  detectContactKind,
+  visitorBlocksForAction,
+  visitorBodyForAction,
+} from "@/lib/cep/contact-intents";
+
 const MAX_QUESTION = 2000;
-
-const TRANSFER_RE =
-  /\b(talk to (a )?human|speak to (a )?(human|agent|person|designer)|real person|live agent|transfer|human please)\b/i;
-
-const BOOKING_RE =
-  /\b(book (a )?(call|demo|consultation|appointment|meeting)|schedule (a )?(call|demo|consultation|meeting)|discovery call|book a call)\b/i;
 
 export type ChatTurnInput = {
   agencyId: string;
@@ -121,18 +121,25 @@ export async function runChatTurn(
   );
   let handoff = conv?.handoffStatus ?? "ai";
 
-  const wantsTransfer =
-    input.action === "transfer_agent" ||
-    (modules.transferAgent !== false && TRANSFER_RE.test(question));
-
-  if (question) {
+  const visitorBody = visitorBodyForAction(question, input.action);
+  if (visitorBody && visitorBody !== "[action]") {
     await withAgency(input.agencyId, (tx) =>
       tx.insert(messages).values({
         agencyId: input.agencyId,
         conversationId,
         author: "visitor",
-        body: question || "[action]",
-        blocks: textToBlocks(question || "Talk to a human"),
+        body: visitorBody,
+        blocks: visitorBlocksForAction(question, input.action),
+      }),
+    );
+  } else if (input.action === "transfer_agent" || input.action === "start_form") {
+    await withAgency(input.agencyId, (tx) =>
+      tx.insert(messages).values({
+        agencyId: input.agencyId,
+        conversationId,
+        author: "visitor",
+        body: visitorBodyForAction("", input.action),
+        blocks: visitorBlocksForAction("", input.action),
       }),
     );
   }
@@ -179,164 +186,45 @@ export async function runChatTurn(
     };
   }
 
-  // Lead form request
-  if (input.action === "start_form") {
-    const formId = cfg?.payload?.leadFormId;
-    if (!formId || modules.leadForm === false) {
-      const blocks: CepChatBlock[] = [
-        {
-          type: "system",
-          text: "No lead form is linked to this chat yet.",
-        },
-      ];
-      const saved = await insertSystem(input.agencyId, conversationId, blocks);
-      return {
-        ok: true,
-        conversationId,
-        reply: "No lead form is linked to this chat yet.",
-        blocks,
-        handoffStatus: handoff,
-        skippedAi: true,
-        ...turnMessageMeta(saved),
-      };
-    }
-    const embed = await getLeadFormEmbed(input.agencyId, input.clientId, formId);
-    const blocks: CepChatBlock[] = embed
-      ? [
-          {
-            type: "lead_form",
-            formId: embed.formId,
-            title: embed.title,
-            html: embed.html,
-          },
-        ]
-      : [{ type: "system", text: "That form could not be loaded." }];
-    const reply = embed ? `Please fill in: ${embed.title}` : "Form unavailable.";
-    const saved = await insertAuthorMessage(
-      input.agencyId,
-      conversationId,
-      "system",
-      reply,
-      blocks,
-    );
-    await touchConversation(input.agencyId, conversationId);
-    return {
-      ok: true,
-      conversationId,
-      reply,
-      blocks,
-      handoffStatus: handoff,
-      skippedAi: true,
-      ...turnMessageMeta(saved),
-    };
-  }
+  const contactKind = detectContactKind({
+    question,
+    action: input.action,
+    handoff,
+  });
 
-  if (wantsTransfer && modules.transferAgent !== false) {
-    await setConversationHandoff(input.agencyId, conversationId, "queued");
-    handoff = "queued";
-    const blocks: CepChatBlock[] = [
-      {
-        type: "system",
-        text: "Connecting you with a teammate. They will reply here shortly.",
-      },
-      {
-        type: "buttons",
-        buttons: [
-          {
-            id: "stay",
-            label: "Keep chatting with AI",
-            action: "send_text",
-            value: "Please continue with AI",
-          },
-        ],
-      },
-    ];
-    if (modules.leadForm !== false && cfg?.payload?.leadFormId) {
-      blocks[1] = {
-        type: "buttons",
-        buttons: [
-          {
-            id: "stay",
-            label: "Keep chatting with AI",
-            action: "send_text",
-            value: "Please continue with AI",
-          },
-          {
-            id: "form",
-            label: "Leave your details",
-            action: "start_form",
-          },
-        ],
-      };
-    }
-    const reply = "Connecting you with a teammate. They will reply here shortly.";
-    const saved = await insertAuthorMessage(
-      input.agencyId,
-      conversationId,
-      "system",
-      reply,
-      blocks,
-    );
-    await touchConversation(input.agencyId, conversationId);
-
-    void fireChatHandoffAutomation({
+  if (
+    contactKind &&
+    (contactKind !== "transfer" || modules.transferAgent !== false)
+  ) {
+    const captured = await buildContactCaptureTurn({
       agencyId: input.agencyId,
       clientId: input.clientId,
       websiteId: input.websiteId,
       conversationId,
+      widget: cfg,
+      modules,
+      kind: contactKind,
+      handoff,
+      question,
       name: input.name,
       email: input.email,
-      message: question || "Visitor requested a human",
+      onHandoff: fireChatHandoffAutomation,
     });
-
-    return {
-      ok: true,
-      conversationId,
-      reply,
-      blocks,
-      handoffStatus: handoff,
-      skippedAi: true,
-      ...turnMessageMeta(saved),
-    };
-  }
-
-  // Booking / call CTAs — guide to form or human instead of inventing a calendar.
-  if (handoff === "ai" && BOOKING_RE.test(question)) {
-    const buttons: NonNullable<Extract<CepChatBlock, { type: "buttons" }>["buttons"]> =
-      [];
-    if (modules.leadForm !== false && cfg?.payload?.leadFormId) {
-      buttons.push({
-        id: "form",
-        label: "Leave your details",
-        action: "start_form",
-      });
-    }
-    if (modules.transferAgent !== false) {
-      buttons.push({
-        id: "transfer",
-        label: "Talk to a human",
-        action: "transfer_agent",
-      });
-    }
-    const reply =
-      "Happy to help you book a call. Leave your details below (or talk to a teammate) and we’ll confirm a time — we won’t invent availability.";
-    const blocks: CepChatBlock[] = [
-      { type: "plain_text", text: reply },
-      ...(buttons.length ? [{ type: "buttons" as const, buttons }] : []),
-    ];
+    handoff = captured.handoffStatus;
+    const author = contactKind === "transfer" ? "system" : "ai";
     const saved = await insertAuthorMessage(
       input.agencyId,
       conversationId,
-      "ai",
-      reply,
-      blocks,
+      author,
+      captured.reply,
+      captured.blocks,
     );
     await touchConversation(input.agencyId, conversationId);
     return {
       ok: true,
       conversationId,
-      reply,
-      blocks,
+      reply: captured.reply,
+      blocks: captured.blocks,
       handoffStatus: handoff,
       skippedAi: true,
       ...turnMessageMeta(saved),

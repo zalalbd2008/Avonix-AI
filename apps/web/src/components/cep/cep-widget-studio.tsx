@@ -46,18 +46,22 @@ import {
   type FloatingFabGroupSettings,
 } from "@/lib/widgets/fab-group";
 import { actionSaveFloatingFabGroup } from "@/lib/widgets/fab-group-actions";
+import { ReindexButton } from "@/components/reindex-button";
+import {
+  KnowledgeAddTextForm,
+  KnowledgeAddUrlForm,
+} from "@/components/knowledge/knowledge-forms";
 
 const input =
   "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/15";
 
-type StudioTab = "presets" | "appearance" | "behavior" | "ai" | "setup";
+type StudioTab = "presets" | "appearance" | "behavior" | "train";
 
 const TABS: { id: StudioTab; label: string }[] = [
   { id: "presets", label: "Industry presets" },
   { id: "appearance", label: "Appearance" },
   { id: "behavior", label: "Behavior" },
-  { id: "ai", label: "AI engine" },
-  { id: "setup", label: "Setup" },
+  { id: "train", label: "Train chatbot" },
 ];
 
 export type CepStudioHealth = {
@@ -67,6 +71,8 @@ export type CepStudioHealth = {
   embeddingsReady: boolean;
   pluginConnected: boolean;
   chunks: number;
+  crawlChunks: number;
+  customChunks: number;
   threads: number;
   used: number;
   limit: number;
@@ -278,14 +284,25 @@ export function CepWidgetStudio({
               </span>
             </p>
           ) : (
-            <p>
-              <b className="font-semibold text-ink">Not answering yet.</b>{" "}
-              <span className="text-muted">
-                {!health.modelReady
-                  ? "Add an API key in Platform → API Configuration (OpenRouter recommended)."
-                  : "Index site content so the bot has pages to answer from."}
-              </span>
-            </p>
+            <div>
+              <p>
+                <b className="font-semibold text-ink">Not answering yet.</b>{" "}
+                <span className="text-muted">
+                  {!health.modelReady
+                    ? "Add an API key in Platform → API Configuration (OpenRouter recommended)."
+                    : "Open Train chatbot to crawl the site or add custom knowledge."}
+                </span>
+              </p>
+              {health.modelReady && !health.indexed ? (
+                <button
+                  type="button"
+                  onClick={() => setTab("train")}
+                  className="mt-1.5 text-[12.5px] font-semibold text-brand hover:underline"
+                >
+                  Train chatbot →
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
       </div>
@@ -1010,24 +1027,17 @@ export function CepWidgetStudio({
                   </label>
                 ))}
               </div>
-            </div>
-          ) : null}
 
-          {tab === "ai" ? (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-brand/20 bg-brand/5 p-3.5">
-                <p className="text-[13px] font-semibold text-ink">AI engine</p>
-                <p className="mt-1 text-[12px] leading-[1.55] text-muted">
-                  Default is OpenRouter with Anthropic fallback. Keys stay in
-                  server env — never in the browser. Ready now:{" "}
-                  <b className="font-semibold text-ink">
-                    {configuredProviders.length
-                      ? configuredProviders.join(", ")
-                      : "none"}
-                  </b>
-                  .
-                </p>
-              </div>
+              <SectionEyebrow>Reply model</SectionEyebrow>
+              <p className="text-[12px] text-muted">
+                Keys live in Platform → API Configuration. Ready:{" "}
+                <b className="font-semibold text-ink">
+                  {configuredProviders.length
+                    ? configuredProviders.join(", ")
+                    : "none"}
+                </b>
+                .
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-[12px] font-medium">Provider</span>
@@ -1129,62 +1139,140 @@ export function CepWidgetStudio({
             </div>
           ) : null}
 
-          {tab === "setup" ? (
-            <div className="space-y-1">
-              <SetupRow
-                ok={health.modelReady}
-                label="AI provider key"
-                detail={
-                  health.modelReady
-                    ? health.providers.join(", ")
-                    : "Platform → API Configuration"
-                }
-              />
-              <SetupRow
-                ok={health.indexed}
-                label="Site content"
-                detail={
-                  health.indexed
-                    ? `${health.chunks} passages indexed`
-                    : "Nothing crawled yet"
-                }
-                href={health.knowledgeHref}
-                hrefLabel={health.indexed ? "Manage" : "Crawl now"}
-              />
-              <SetupRow
-                ok={health.embeddingsReady}
-                label="Embeddings"
-                detail={
-                  health.embeddingsReady
-                    ? "voyage-4-lite, 1024 dimensions"
-                    : "No key — retrieval falls back to Postgres full-text"
-                }
-                warnOnly
-              />
-              <SetupRow
-                ok={health.pluginConnected}
-                label="WordPress plugin"
-                detail={
-                  health.pluginConnected
-                    ? "Connected — widget can load on the site"
-                    : "Not connected — install the connector"
-                }
-                href={health.websiteHref}
-                hrefLabel="Install"
-              />
-              <div className="mt-4 rounded-xl border border-line bg-[#f7f8fb] px-3.5 py-3">
+          {tab === "train" ? (
+            <div className="space-y-5">
+              <div className="rounded-xl border border-brand/20 bg-brand/5 p-3.5">
+                <p className="text-[13px] font-semibold text-ink">
+                  Train from this website
+                </p>
+                <p className="mt-1 text-[12px] leading-[1.55] text-muted">
+                  Crawl pulls pages into this site&apos;s private knowledge base.
+                  Custom text and URLs stay after re-index. Answers never mix with
+                  other websites.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <ReindexButton clientId={clientId} websiteId={websiteId} />
+                  <Link
+                    href={health.knowledgeHref as never}
+                    className="text-[12.5px] font-semibold text-brand hover:underline"
+                  >
+                    Full Knowledge studio →
+                  </Link>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-xl border border-line bg-[#f7f8fb] px-3 py-2.5">
+                  <p className="text-lg font-bold tracking-tight text-ink">
+                    {health.crawlChunks}
+                  </p>
+                  <p className="text-[11px] text-muted">Crawl passages</p>
+                </div>
+                <div className="rounded-xl border border-line bg-[#f7f8fb] px-3 py-2.5">
+                  <p className="text-lg font-bold tracking-tight text-ink">
+                    {health.customChunks}
+                  </p>
+                  <p className="text-[11px] text-muted">Custom passages</p>
+                </div>
+                <div className="rounded-xl border border-line bg-[#f7f8fb] px-3 py-2.5">
+                  <p className="text-lg font-bold tracking-tight text-ink">
+                    {health.chunks}
+                  </p>
+                  <p className="text-[11px] text-muted">Total</p>
+                </div>
+                <div className="rounded-xl border border-line bg-[#f7f8fb] px-3 py-2.5">
+                  <p className="text-lg font-bold tracking-tight text-ink">
+                    {health.embeddingsReady ? "On" : "Text"}
+                  </p>
+                  <p className="text-[11px] text-muted">Semantic search</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <SetupRow
+                  ok={health.modelReady}
+                  label="AI provider key"
+                  detail={
+                    health.modelReady
+                      ? health.providers.join(", ")
+                      : "Platform → API Configuration"
+                  }
+                />
+                <SetupRow
+                  ok={health.indexed}
+                  label="Site knowledge"
+                  detail={
+                    health.indexed
+                      ? `${health.chunks} passages ready for answers`
+                      : "Nothing indexed yet — crawl or add custom text"
+                  }
+                />
+                <SetupRow
+                  ok={health.embeddingsReady}
+                  label="Embeddings"
+                  detail={
+                    health.embeddingsReady
+                      ? "voyage-4-lite, 1024 dimensions"
+                      : "No key — keyword search only"
+                  }
+                  warnOnly
+                />
+                <SetupRow
+                  ok={health.pluginConnected}
+                  label="WordPress plugin"
+                  detail={
+                    health.pluginConnected
+                      ? "Connected — widget can load on the site"
+                      : "Not connected — install the connector"
+                  }
+                  href={health.websiteHref}
+                  hrefLabel="Install"
+                />
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-line p-3.5">
+                  <p className="text-[13px] font-semibold text-ink">
+                    Add custom text
+                  </p>
+                  <p className="mt-1 mb-3 text-[12px] text-muted">
+                    FAQs, hours, offers — survives site re-index.
+                  </p>
+                  <KnowledgeAddTextForm
+                    clientId={clientId}
+                    websiteId={websiteId}
+                  />
+                </div>
+                <div className="rounded-xl border border-line p-3.5">
+                  <p className="text-[13px] font-semibold text-ink">
+                    Add custom URL
+                  </p>
+                  <p className="mt-1 mb-3 text-[12px] text-muted">
+                    Index one extra page into this chatbot only.
+                  </p>
+                  <KnowledgeAddUrlForm
+                    clientId={clientId}
+                    websiteId={websiteId}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-line bg-[#f7f8fb] px-3.5 py-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-faint">
-                  How it behaves
+                  How answers work
                 </p>
                 <ul className="mt-2 space-y-1.5 text-[12.5px] leading-[1.55] text-muted">
-                  <li>Answers only from this site&apos;s own pages.</li>
                   <li>
-                    Dual brain: AI until transfer, then inbox replies appear in
-                    the widget.
+                    Visitor questions search this website&apos;s knowledge first,
+                    then the model answers from those passages only.
                   </li>
                   <li>
-                    Inline wizard via{" "}
-                    <code className="text-ink">{shortcode}</code>.
+                    If nothing relevant is found, the bot admits it and offers a
+                    lead handoff — it will not invent prices or hours.
+                  </li>
+                  <li>
+                    Re-index refreshes crawl data only; custom sources stay until
+                    you remove them.
                   </li>
                 </ul>
               </div>

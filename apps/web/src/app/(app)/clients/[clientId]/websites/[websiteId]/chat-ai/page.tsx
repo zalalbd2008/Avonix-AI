@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, count, eq, gte, isNull, sql, asc } from "drizzle-orm";
+import { and, count, eq, gte, isNull, ne, sql, asc } from "drizzle-orm";
 import { CepWidgetStudio } from "@/components/cep/cep-widget-studio";
 import { requireAgency } from "@/lib/auth/session";
 import { withAgency } from "@/lib/db";
@@ -46,7 +46,8 @@ export default async function ChatAiPage({
       .limit(1);
     if (!site) return null;
 
-    const [[agency], [chunks], [threads], [used], formRows] = await Promise.all([
+    const [[agency], [chunks], [crawlChunks], [customChunks], [threads], [used], formRows] =
+      await Promise.all([
       tx
         .select({ plan: agencies.plan })
         .from(agencies)
@@ -56,6 +57,24 @@ export default async function ChatAiPage({
         .select({ n: count() })
         .from(knowledgeChunks)
         .where(eq(knowledgeChunks.websiteId, websiteId)),
+      tx
+        .select({ n: count() })
+        .from(knowledgeChunks)
+        .where(
+          and(
+            eq(knowledgeChunks.websiteId, websiteId),
+            eq(knowledgeChunks.sourceType, "crawl"),
+          ),
+        ),
+      tx
+        .select({ n: count() })
+        .from(knowledgeChunks)
+        .where(
+          and(
+            eq(knowledgeChunks.websiteId, websiteId),
+            ne(knowledgeChunks.sourceType, "crawl"),
+          ),
+        ),
       tx
         .select({ n: count() })
         .from(conversations)
@@ -95,6 +114,8 @@ export default async function ChatAiPage({
       site,
       plan: agency.plan,
       chunks: chunks.n,
+      crawlChunks: crawlChunks.n,
+      customChunks: customChunks.n,
       threads: threads.n,
       used: used.n,
       forms: formRows,
@@ -140,6 +161,8 @@ export default async function ChatAiPage({
         embeddingsReady,
         pluginConnected: site.status === "connected",
         chunks: data.chunks,
+        crawlChunks: data.crawlChunks,
+        customChunks: data.customChunks,
         threads: data.threads,
         used: data.used,
         limit: limits.maxAiMessagesPerMonth,

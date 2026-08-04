@@ -294,6 +294,7 @@ export function websiteNav(clientId: string, websiteId: string): NavSection[] {
         { label: "Popup", href: `${base}/popup` as Route, status: "v1", icon: "popup" },
         { label: "Buttons", href: `${base}/buttons` as Route, status: "v1", icon: "button" },
         { label: "AI Chat", href: `${base}/chat-ai` as Route, status: "v1", icon: "spark" },
+        { label: "Knowledge", href: `${base}/knowledge` as Route, status: "v1", icon: "layers" },
         {
           label: "CRM",
           href: crm,

@@ -97,7 +97,7 @@ export function planForPrice(priceId: string | null | undefined): Agency["plan"]
       envPrice(env.year),
       envPrice(env.monthLegacy),
       envPrice(env.yearLegacy),
-    ].filter((id): id is string => Boolean(id) && id.startsWith("price_"));
+    ].filter((id): id is string => typeof id === "string" && id.startsWith("price_"));
     if (ids.includes(priceId)) return plan;
   }
   return null;

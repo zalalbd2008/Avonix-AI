@@ -46,11 +46,12 @@ import {
   type FloatingFabGroupSettings,
 } from "@/lib/widgets/fab-group";
 import { actionSaveFloatingFabGroup } from "@/lib/widgets/fab-group-actions";
-import { ReindexButton } from "@/components/reindex-button";
 import {
   KnowledgeAddTextForm,
   KnowledgeAddUrlForm,
 } from "@/components/knowledge/knowledge-forms";
+import { TrainControls } from "@/components/knowledge/train-controls";
+import { FaqPasteEditor } from "@/components/knowledge/faq-paste-editor";
 
 const input =
   "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/15";
@@ -1151,7 +1152,11 @@ export function CepWidgetStudio({
                   other websites.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <ReindexButton clientId={clientId} websiteId={websiteId} />
+                  <TrainControls
+                    clientId={clientId}
+                    websiteId={websiteId}
+                    faqPaste={payload.faq?.paste}
+                  />
                   <Link
                     href={health.knowledgeHref as never}
                     className="text-[12.5px] font-semibold text-brand hover:underline"
@@ -1228,6 +1233,17 @@ export function CepWidgetStudio({
                   href={health.websiteHref}
                   hrefLabel="Install"
                 />
+              </div>
+
+              <div className="rounded-xl border border-line p-3.5">
+                <p className="text-[13px] font-semibold text-ink">
+                  FAQ quick-replies
+                </p>
+                <p className="mt-1 mb-3 text-[12px] text-muted">
+                  Paste Q&amp;A pairs — visitors tap a question and get an instant
+                  answer (like Nexus Live Chat FAQ).
+                </p>
+                <FaqPasteEditor payload={payload} onChange={setPayload} />
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">

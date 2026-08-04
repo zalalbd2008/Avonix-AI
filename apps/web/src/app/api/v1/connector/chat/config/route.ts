@@ -101,6 +101,7 @@ function serializeWidget(
         }
       : null,
     quick_replies: p.quickReplies ?? [],
+    faq: p.faq ?? { enabled: false, items: [] },
     ai_provider: p.ai?.provider ?? "openrouter",
   };
 }

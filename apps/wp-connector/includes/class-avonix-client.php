@@ -117,6 +117,8 @@ class Avonix_Client
                 'reply'           => $data['reply'] ?? '',
                 'blocks'          => isset($data['blocks']) && is_array($data['blocks']) ? $data['blocks'] : null,
                 'conversation_id' => $data['conversation_id'] ?? null,
+                'message_id'      => $data['message_id'] ?? null,
+                'created_at'      => $data['created_at'] ?? null,
                 'handoff_status'  => $data['handoff_status'] ?? null,
                 'provider'        => $data['provider'] ?? null,
                 'model'           => $data['model'] ?? null,

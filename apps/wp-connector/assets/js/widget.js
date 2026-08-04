@@ -214,6 +214,10 @@
   var busy = false;
   var pollTimer = null;
   var seenIds = {};
+  var seenBodies = {};
+  var lastBotFingerprint = "";
+  var lastBotFingerprintAt = 0;
+  var pollSkipUntil = 0;
   var aiViewActive = false;
   var leadGatePassed = false;
   var lastBotText = "";
@@ -1212,7 +1216,10 @@
 
   function handleButton(btn) {
     if (!btn) return;
-    if (btn.action === "url" && btn.value) {
+    if (
+      (btn.action === "open_url" || btn.action === "url") &&
+      btn.value
+    ) {
       window.open(btn.value, "_blank", "noopener");
       return;
     }
@@ -1226,6 +1233,27 @@
     }
     input.value = btn.value || btn.label || "";
     form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+  }
+
+  function handleFaqChip(item, container) {
+    if (
+      container &&
+      container.getAttribute("data-avx-followup") === "1" &&
+      container.parentNode
+    ) {
+      container.parentNode.removeChild(container);
+    }
+    var answer = (item.answer || "").trim();
+    var followups = item.followups || [];
+    if (!answer && !followups.length) {
+      sendMessage(item.label || "");
+      return;
+    }
+    if (item.label) bubble(item.label, "you");
+    if (answer) bubble(answer, "bot");
+    if (followups.length) {
+      appendFaqChips(followups, { followup: true });
+    }
   }
 
   function renderBlocks(blocks, who, opts) {
@@ -1367,6 +1395,42 @@
     log.appendChild(tryBox);
   }
 
+  function appendFaqChips(items, opts) {
+    opts = opts || {};
+    var tryBox = document.createElement("div");
+    tryBox.className = "avonix-cep-try";
+    if (opts.followup) tryBox.setAttribute("data-avx-followup", "1");
+    var btns = document.createElement("div");
+    btns.className = "avonix-cep-btns";
+    (items || []).slice(0, 6).forEach(function (item, idx) {
+      if (!item || !item.label) return;
+      var el = document.createElement("button");
+      el.type = "button";
+      el.className = "avonix-cep-btn";
+      var accent = cardAccentFor(item, idx);
+      el.style.setProperty("--avx-card-accent", accent);
+      el.style.setProperty(
+        "--avx-card-soft",
+        "color-mix(in srgb," + accent + " 16%,#ffffff)"
+      );
+      var iconKey = item.icon || item.id || "";
+      el.innerHTML =
+        '<span class="avonix-cep-btn__ico">' +
+        suggestionIcon(iconKey, idx) +
+        '</span><span class="avonix-cep-btn__txt"></span>';
+      el.querySelector(".avonix-cep-btn__txt").textContent = item.label;
+      el.addEventListener("click", function () {
+        if (busy) return;
+        handleFaqChip(item, tryBox);
+      });
+      btns.appendChild(el);
+    });
+    if (!btns.childNodes.length) return;
+    tryBox.appendChild(btns);
+    log.appendChild(tryBox);
+    log.scrollTop = log.scrollHeight;
+  }
+
   function appendStreamingBubble() {
     var row = document.createElement("div");
     row.className = "avonix-cep-row";
@@ -1398,8 +1462,17 @@
       config.greeting ||
       "Hi! Ask me anything about our site and I'll help right away.";
     bubble(greet, "bot");
-    var qr = config.quick_replies || [];
-    if (qr.length) appendTryAsking(qr);
+    var faqCfg = config.faq || {};
+    if (
+      faqCfg.enabled !== false &&
+      faqCfg.items &&
+      faqCfg.items.length
+    ) {
+      appendFaqChips(faqCfg.items);
+    } else {
+      var qr = config.quick_replies || [];
+      if (qr.length) appendTryAsking(qr);
+    }
   }
 
   function showHome() {
@@ -1561,6 +1634,54 @@
     proceedAfterAgreement();
   }
 
+  function botFingerprint(body, blocks) {
+    var text = String(body || "");
+    if (blocks && blocks.length) {
+      var parts = [];
+      blocks.forEach(function (b) {
+        if (!b) return;
+        if (
+          b.type === "plain_text" ||
+          b.type === "markdown" ||
+          b.type === "system"
+        ) {
+          parts.push(b.text || "");
+        }
+      });
+      if (parts.length) text = parts.join("\n");
+    }
+    return text.replace(/\s+/g, " ").trim().slice(0, 600);
+  }
+
+  function markBotSeen(id, body, blocks) {
+    if (id) seenIds[String(id)] = true;
+    var fp = botFingerprint(body, blocks);
+    if (!fp) return;
+    seenBodies[fp] = Date.now();
+    lastBotFingerprint = fp;
+    lastBotFingerprintAt = Date.now();
+  }
+
+  function isDuplicateBot(id, body, blocks) {
+    if (id && seenIds[String(id)]) return true;
+    var fp = botFingerprint(body, blocks);
+    if (!fp) return false;
+    var seenAt = seenBodies[fp];
+    if (seenAt && Date.now() - seenAt < 45000) return true;
+    if (fp === lastBotFingerprint && Date.now() - lastBotFingerprintAt < 8000) {
+      return true;
+    }
+    return false;
+  }
+
+  function bumpPollCursor(iso) {
+    if (iso) {
+      lastSeenAt = String(iso);
+      return;
+    }
+    lastSeenAt = new Date().toISOString();
+  }
+
   function startPoll() {
     if (pollTimer) return;
     pollTimer = setInterval(pollMessages, 2500);
@@ -1568,6 +1689,7 @@
 
   function pollMessages() {
     if (!conversationId) return;
+    if (Date.now() < pollSkipUntil) return;
     var body = new FormData();
     body.append("action", "avonix_chat_poll");
     body.append("nonce", config.nonce || "");
@@ -1581,8 +1703,9 @@
         if (!data || !data.messages) return;
         if (data.handoff_status) handoffStatus = data.handoff_status;
         data.messages.forEach(function (m) {
-          if (!m || !m.id || seenIds[m.id]) return;
-          seenIds[m.id] = true;
+          if (!m || !m.id) return;
+          if (isDuplicateBot(m.id, m.body, m.blocks)) return;
+          markBotSeen(m.id, m.body, m.blocks);
           if (m.created_at) lastSeenAt = m.created_at;
           var who = m.author === "agent" ? "agent" : "bot";
           if (m.blocks && m.blocks.length) renderBlocks(m.blocks, who, { sound: true });
@@ -1595,15 +1718,30 @@
   function applyDone(data) {
     if (data && data.conversation_id) conversationId = data.conversation_id;
     if (data && data.handoff_status) handoffStatus = data.handoff_status;
-    lastSeenAt = new Date().toISOString();
-    if (data && data.blocks && data.blocks.length) {
-      renderBlocks(data.blocks, "bot", { sound: true });
-    } else {
-      bubble(
-        (data && (data.reply || data.message)) || "Sorry — try again.",
-        "bot",
-        { sound: true }
-      );
+    var mid =
+      data && (data.message_id || data.messageId)
+        ? String(data.message_id || data.messageId)
+        : "";
+    var replyBody = (data && (data.reply || data.message)) || "";
+    var replyBlocks = (data && data.blocks) || null;
+
+    pollSkipUntil = Date.now() + 4000;
+    bumpPollCursor(data && data.created_at);
+
+    if (isDuplicateBot(mid, replyBody, replyBlocks)) {
+      if (mid) seenIds[mid] = true;
+      startPoll();
+      return;
+    }
+
+    markBotSeen(mid, replyBody, replyBlocks);
+
+    if (replyBlocks && replyBlocks.length) {
+      renderBlocks(replyBlocks, "bot", { sound: true });
+    } else if (replyBody) {
+      bubble(replyBody, "bot", { sound: true });
+    } else if (!mid) {
+      bubble("Sorry — try again.", "bot", { sound: true });
     }
     startPoll();
   }
@@ -1734,6 +1872,10 @@
     conversationId = null;
     lastSeenAt = null;
     seenIds = {};
+    seenBodies = {};
+    lastBotFingerprint = "";
+    lastBotFingerprintAt = 0;
+    pollSkipUntil = 0;
     lastBotText = "";
     log.innerHTML = "";
     leadGatePassed = false;

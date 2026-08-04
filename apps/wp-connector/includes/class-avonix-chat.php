@@ -121,6 +121,9 @@ class Avonix_Chat
         if (!empty($w['quick_replies']) && is_array($w['quick_replies'])) {
             $payload['quick_replies'] = $w['quick_replies'];
         }
+        if (!empty($w['faq']) && is_array($w['faq'])) {
+            $payload['faq'] = $w['faq'];
+        }
         if (!empty($w['surface'])) {
             $payload['surface'] = $w['surface'];
         }

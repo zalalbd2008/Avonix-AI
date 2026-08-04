@@ -214,6 +214,19 @@ export type CepWidgetPayload = {
     action: "send_text" | "open_url" | "transfer_agent" | "start_form";
     value?: string;
   }>;
+  /** Deterministic FAQ chips (answered client-side when `answer` is set). */
+  faq?: {
+    enabled?: boolean;
+    /** Raw Q:/A: paste — indexed on Train Now and parsed into items. */
+    paste?: string;
+    items?: Array<{
+      id: string;
+      label: string;
+      icon?: string;
+      answer?: string;
+      followups?: Array<{ label: string; answer?: string }>;
+    }>;
+  };
   /**
    * Enterprise Industry Preset Library id.
    * AI customizes this preset — it must never invent a widget design from scratch.

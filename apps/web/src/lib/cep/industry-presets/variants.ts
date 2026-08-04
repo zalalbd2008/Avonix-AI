@@ -124,7 +124,7 @@ function trimGreeting(g: string) {
 }
 
 function premiumGreeting(g: string, industry: string) {
-  if (/review|book|quote|estimate|choose an option/i.test(g)) return g;
+  if (/review|book|quote|estimate|choose an option|pick an option/i.test(g)) return g;
   return `${g} Thousands trust ${industry} pros like us — pick an option below to get started.`;
 }
 

@@ -236,6 +236,42 @@ export async function actionDeleteCustomSource(input: {
   return { ok: true };
 }
 
+/** Wipe all knowledge for this website (crawl + custom). */
+export async function actionClearKnowledge(
+  clientId: string,
+  websiteId: string,
+): Promise<{ ok: true; removed: number } | { ok: false; error: string }> {
+  const ctx = await requireAgency();
+  if (!canEdit(ctx.permissions)) {
+    return { ok: false, error: "Permission denied." };
+  }
+
+  const siteOk = await assertWebsite(ctx.agencyId, websiteId);
+  if (!siteOk) return { ok: false, error: "Website not found." };
+
+  let removed = 0;
+  await withAgency(ctx.agencyId, async (tx) => {
+    const chunks = await tx
+      .delete(knowledgeChunks)
+      .where(eq(knowledgeChunks.websiteId, websiteId))
+      .returning({ id: knowledgeChunks.id });
+    removed = chunks.length;
+
+    await tx
+      .update(knowledgeSources)
+      .set({ deletedAt: new Date(), status: "deleted", updatedAt: new Date() })
+      .where(
+        and(
+          eq(knowledgeSources.websiteId, websiteId),
+          isNull(knowledgeSources.deletedAt),
+        ),
+      );
+  });
+
+  revalidateKnowledge(clientId, websiteId);
+  return { ok: true, removed };
+}
+
 async function assertWebsite(agencyId: string, websiteId: string) {
   const [site] = await withAgency(agencyId, (tx) =>
     tx

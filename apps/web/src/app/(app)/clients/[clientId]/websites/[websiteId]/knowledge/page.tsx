@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { and, count, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { PageHeader } from "@/components/shell/page-header";
-import { ReindexButton } from "@/components/reindex-button";
+import { TrainControls } from "@/components/knowledge/train-controls";
 import {
   KnowledgeAddTextForm,
   KnowledgeAddUrlForm,
@@ -158,7 +158,9 @@ export default async function KnowledgePage({
       <PageHeader
         title="Knowledge"
         subtitle={`What the assistant can read for ${data.site.name}`}
-        action={<ReindexButton clientId={clientId} websiteId={websiteId} />}
+        action={
+          <TrainControls clientId={clientId} websiteId={websiteId} />
+        }
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -24,7 +24,10 @@ import {
 const MAX_QUESTION = 2000;
 
 const TRANSFER_RE =
-  /\b(talk to (a )?human|speak to (a )?(human|agent|person)|real person|live agent|transfer|human please)\b/i;
+  /\b(talk to (a )?human|speak to (a )?(human|agent|person|designer)|real person|live agent|transfer|human please)\b/i;
+
+const BOOKING_RE =
+  /\b(book (a )?(call|demo|consultation|appointment|meeting)|schedule (a )?(call|demo|consultation|meeting)|discovery call|book a call)\b/i;
 
 export type ChatTurnInput = {
   agencyId: string;
@@ -45,6 +48,10 @@ export type ChatTurnOk = {
   reply: string;
   blocks: CepChatBlock[];
   handoffStatus: "ai" | "queued" | "agent";
+  /** DB id of the assistant/system message — widget marks it seen to avoid poll duplicates. */
+  messageId?: string;
+  /** ISO timestamp of the assistant/system message (poll cursor). */
+  createdAt?: string;
   provider?: string;
   model?: string;
   skippedAi: boolean;
@@ -182,7 +189,7 @@ export async function runChatTurn(
           text: "No lead form is linked to this chat yet.",
         },
       ];
-      await insertSystem(input.agencyId, conversationId, blocks);
+      const saved = await insertSystem(input.agencyId, conversationId, blocks);
       return {
         ok: true,
         conversationId,
@@ -190,6 +197,7 @@ export async function runChatTurn(
         blocks,
         handoffStatus: handoff,
         skippedAi: true,
+        ...turnMessageMeta(saved),
       };
     }
     const embed = await getLeadFormEmbed(input.agencyId, input.clientId, formId);
@@ -204,14 +212,12 @@ export async function runChatTurn(
         ]
       : [{ type: "system", text: "That form could not be loaded." }];
     const reply = embed ? `Please fill in: ${embed.title}` : "Form unavailable.";
-    await withAgency(input.agencyId, (tx) =>
-      tx.insert(messages).values({
-        agencyId: input.agencyId,
-        conversationId,
-        author: "system",
-        body: reply,
-        blocks,
-      }),
+    const saved = await insertAuthorMessage(
+      input.agencyId,
+      conversationId,
+      "system",
+      reply,
+      blocks,
     );
     await touchConversation(input.agencyId, conversationId);
     return {
@@ -221,6 +227,7 @@ export async function runChatTurn(
       blocks,
       handoffStatus: handoff,
       skippedAi: true,
+      ...turnMessageMeta(saved),
     };
   }
 
@@ -263,18 +270,15 @@ export async function runChatTurn(
       };
     }
     const reply = "Connecting you with a teammate. They will reply here shortly.";
-    await withAgency(input.agencyId, (tx) =>
-      tx.insert(messages).values({
-        agencyId: input.agencyId,
-        conversationId,
-        author: "system",
-        body: reply,
-        blocks,
-      }),
+    const saved = await insertAuthorMessage(
+      input.agencyId,
+      conversationId,
+      "system",
+      reply,
+      blocks,
     );
     await touchConversation(input.agencyId, conversationId);
 
-    // Auto Rules: chat needs human
     void fireChatHandoffAutomation({
       agencyId: input.agencyId,
       clientId: input.clientId,
@@ -292,6 +296,50 @@ export async function runChatTurn(
       blocks,
       handoffStatus: handoff,
       skippedAi: true,
+      ...turnMessageMeta(saved),
+    };
+  }
+
+  // Booking / call CTAs — guide to form or human instead of inventing a calendar.
+  if (handoff === "ai" && BOOKING_RE.test(question)) {
+    const buttons: NonNullable<Extract<CepChatBlock, { type: "buttons" }>["buttons"]> =
+      [];
+    if (modules.leadForm !== false && cfg?.payload?.leadFormId) {
+      buttons.push({
+        id: "form",
+        label: "Leave your details",
+        action: "start_form",
+      });
+    }
+    if (modules.transferAgent !== false) {
+      buttons.push({
+        id: "transfer",
+        label: "Talk to a human",
+        action: "transfer_agent",
+      });
+    }
+    const reply =
+      "Happy to help you book a call. Leave your details below (or talk to a teammate) and we’ll confirm a time — we won’t invent availability.";
+    const blocks: CepChatBlock[] = [
+      { type: "plain_text", text: reply },
+      ...(buttons.length ? [{ type: "buttons" as const, buttons }] : []),
+    ];
+    const saved = await insertAuthorMessage(
+      input.agencyId,
+      conversationId,
+      "ai",
+      reply,
+      blocks,
+    );
+    await touchConversation(input.agencyId, conversationId);
+    return {
+      ok: true,
+      conversationId,
+      reply,
+      blocks,
+      handoffStatus: handoff,
+      skippedAi: true,
+      ...turnMessageMeta(saved),
     };
   }
 
@@ -317,14 +365,12 @@ export async function runChatTurn(
             : "You're in the queue — a teammate will reply soon.",
       },
     ];
-    await withAgency(input.agencyId, (tx) =>
-      tx.insert(messages).values({
-        agencyId: input.agencyId,
-        conversationId,
-        author: "system",
-        body: blocks[0].type === "system" ? blocks[0].text : "",
-        blocks,
-      }),
+    const saved = await insertAuthorMessage(
+      input.agencyId,
+      conversationId,
+      "system",
+      blocks[0].type === "system" ? blocks[0].text : "",
+      blocks,
     );
     await touchConversation(input.agencyId, conversationId);
     return {
@@ -334,6 +380,7 @@ export async function runChatTurn(
       blocks,
       handoffStatus: handoff,
       skippedAi: true,
+      ...turnMessageMeta(saved),
     };
   }
 
@@ -387,15 +434,13 @@ export async function runChatTurn(
     blocks = [...blocks, buttons];
   }
 
-  await withAgency(input.agencyId, (tx) =>
-    tx.insert(messages).values({
-      agencyId: input.agencyId,
-      conversationId,
-      author: "ai",
-      body: result.reply,
-      blocks,
-      model: result.model,
-    }),
+  const saved = await insertAuthorMessage(
+    input.agencyId,
+    conversationId,
+    "ai",
+    result.reply,
+    blocks,
+    result.model,
   );
 
   return {
@@ -407,14 +452,47 @@ export async function runChatTurn(
     provider: result.provider,
     model: result.model,
     skippedAi: false,
+    ...turnMessageMeta(saved),
   };
+}
+
+function turnMessageMeta(
+  saved: { id: string; createdAt: string } | undefined,
+): { messageId?: string; createdAt?: string } {
+  if (!saved) return {};
+  return { messageId: saved.id, createdAt: saved.createdAt };
+}
+
+async function insertAuthorMessage(
+  agencyId: string,
+  conversationId: string,
+  author: "ai" | "system",
+  body: string,
+  blocks: CepChatBlock[],
+  model?: string,
+): Promise<{ id: string; createdAt: string } | undefined> {
+  const [row] = await withAgency(agencyId, (tx) =>
+    tx
+      .insert(messages)
+      .values({
+        agencyId,
+        conversationId,
+        author,
+        body,
+        blocks,
+        ...(model ? { model } : {}),
+      })
+      .returning({ id: messages.id, createdAt: messages.createdAt }),
+  );
+  if (!row) return undefined;
+  return { id: row.id, createdAt: row.createdAt.toISOString() };
 }
 
 async function insertSystem(
   agencyId: string,
   conversationId: string,
   blocks: CepChatBlock[],
-) {
+): Promise<{ id: string; createdAt: string } | undefined> {
   const reply = blocks
     .map((b) =>
       b.type === "plain_text" || b.type === "markdown" || b.type === "system"
@@ -423,16 +501,15 @@ async function insertSystem(
     )
     .filter(Boolean)
     .join("\n");
-  await withAgency(agencyId, (tx) =>
-    tx.insert(messages).values({
-      agencyId,
-      conversationId,
-      author: "system",
-      body: reply || "…",
-      blocks,
-    }),
+  const row = await insertAuthorMessage(
+    agencyId,
+    conversationId,
+    "system",
+    reply || "…",
+    blocks,
   );
   await touchConversation(agencyId, conversationId);
+  return row;
 }
 
 async function touchConversation(agencyId: string, conversationId: string) {

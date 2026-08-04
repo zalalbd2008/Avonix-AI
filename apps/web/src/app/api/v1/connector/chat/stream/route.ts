@@ -98,6 +98,8 @@ export async function POST(request: Request) {
         send("done", {
           status: "ok",
           conversation_id: result.conversationId,
+          message_id: result.messageId ?? null,
+          created_at: result.createdAt ?? null,
           reply: result.reply,
           blocks: result.blocks,
           handoff_status: result.handoffStatus,

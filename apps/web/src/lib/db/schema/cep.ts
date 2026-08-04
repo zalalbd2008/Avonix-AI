@@ -43,7 +43,11 @@ export type CepChatBlock =
       html?: string;
     }
   | { type: "system"; text: string }
-  | { type: "typing" };
+  | { type: "typing" }
+  | {
+      type: "sources";
+      items: Array<{ url: string; title?: string }>;
+    };
 
 export type CepBubbleShape = "circle" | "rounded_square" | "image" | "gif" | "lottie";
 

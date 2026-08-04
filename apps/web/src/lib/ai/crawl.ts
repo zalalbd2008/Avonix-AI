@@ -6,6 +6,7 @@
  */
 
 import { createHash } from "crypto";
+import { extractPdfText, PdfExtractError } from "./pdf-text";
 
 export type CrawledPage = {
   url: string;
@@ -21,6 +22,7 @@ export type Chunk = {
 };
 
 const MAX_PAGES = 80;
+const MAX_PDF_PAGES = 10;
 const MAX_BYTES_PER_PAGE = 1_500_000;
 const FETCH_TIMEOUT_MS = 12_000;
 
@@ -150,27 +152,57 @@ function decodeEntities(s: string) {
     .trim();
 }
 
-function sameOriginLinks(html: string, base: URL): string[] {
-  const found = new Set<string>();
+function sameOriginLinks(html: string, base: URL): { pages: string[]; pdfs: string[] } {
+  const pages = new Set<string>();
+  const pdfs = new Set<string>();
   for (const match of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["']/gi)) {
     try {
       const url = new URL(match[1], base);
       if (url.origin !== base.origin) continue;
       if (!/^https?:$/.test(url.protocol)) continue;
+      url.hash = "";
+      const href = url.toString();
+      if (/\.pdf$/i.test(url.pathname)) {
+        pdfs.add(href);
+        continue;
+      }
       if (
-        /\.(pdf|jpe?g|png|gif|svg|webp|zip|mp4|css|js|woff2?|ico)$/i.test(
+        /\.(jpe?g|png|gif|svg|webp|zip|mp4|css|js|woff2?|ico)$/i.test(
           url.pathname,
         )
       ) {
         continue;
       }
-      url.hash = "";
-      found.add(url.toString());
+      pages.add(href);
     } catch {
       // skip
     }
   }
-  return [...found];
+  return { pages: [...pages], pdfs: [...pdfs] };
+}
+
+async function fetchBytes(url: string): Promise<{ body: Buffer; contentType: string } | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent": "AvonixBot/1.0 (+https://avonix.ai/bot)",
+        Accept: "*/*",
+      },
+    });
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") || "";
+    const ab = await res.arrayBuffer();
+    const body = Buffer.from(ab.slice(0, MAX_BYTES_PER_PAGE));
+    return { body, contentType };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchText(
@@ -266,7 +298,7 @@ async function loadSitemapUrls(origin: URL, limit = 120): Promise<string[]> {
   return urls;
 }
 
-/** Fetch and clean a single page (custom URL ingest — no BFS). */
+/** Fetch and clean a single page or PDF (custom URL ingest — no BFS). */
 export async function fetchPage(pageUrl: string): Promise<CrawledPage | null> {
   let parsed: URL;
   try {
@@ -275,6 +307,11 @@ export async function fetchPage(pageUrl: string): Promise<CrawledPage | null> {
     return null;
   }
   parsed.hash = "";
+
+  if (/\.pdf$/i.test(parsed.pathname)) {
+    return fetchPdfPage(parsed.toString());
+  }
+
   const fetched = await fetchText(parsed.toString());
   if (!fetched) return null;
   const { title, text } = htmlToText(fetched.body);
@@ -285,6 +322,25 @@ export async function fetchPage(pageUrl: string): Promise<CrawledPage | null> {
     text,
     contentHash: contentHash(text),
   };
+}
+
+async function fetchPdfPage(url: string): Promise<CrawledPage | null> {
+  const fetched = await fetchBytes(url);
+  if (!fetched) return null;
+  try {
+    const text = extractPdfText(fetched.body);
+    if (countWords(text) < 5) return null;
+    const title = url.split("/").pop()?.replace(/\.pdf$/i, "") ?? "PDF";
+    return {
+      url,
+      title,
+      text,
+      contentHash: contentHash(text),
+    };
+  } catch (e) {
+    if (e instanceof PdfExtractError) return null;
+    return null;
+  }
 }
 
 /**
@@ -323,6 +379,7 @@ export async function crawlSite(startUrl: string): Promise<CrawledPage[]> {
   for (const u of sitemapUrls) seed(u);
 
   const pages: CrawledPage[] = [];
+  const pdfQueue = new Set<string>();
 
   while (queue.length > 0 && pages.length < MAX_PAGES) {
     const url = queue.shift()!;
@@ -343,9 +400,24 @@ export async function crawlSite(startUrl: string): Promise<CrawledPage[]> {
       });
     }
 
-    for (const link of sameOriginLinks(fetched.body, origin)) {
+    const links = sameOriginLinks(fetched.body, origin);
+    for (const link of links.pages) {
       if (seen.size >= MAX_PAGES * 4) break;
       seed(link);
+    }
+    for (const pdf of links.pdfs) {
+      if (pdfQueue.size >= MAX_PDF_PAGES * 2) break;
+      pdfQueue.add(pdf);
+    }
+  }
+
+  let pdfCount = 0;
+  for (const pdfUrl of pdfQueue) {
+    if (pdfCount >= MAX_PDF_PAGES || pages.length >= MAX_PAGES + MAX_PDF_PAGES) break;
+    const pdfPage = await fetchPdfPage(pdfUrl);
+    if (pdfPage) {
+      pages.push(pdfPage);
+      pdfCount += 1;
     }
   }
 

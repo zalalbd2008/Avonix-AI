@@ -12,8 +12,13 @@ import {
 import { limitsFor } from "@/lib/plans";
 import { retrieve, type Retrieved } from "./index-site";
 import { completeChat, configuredAiProviders } from "./router";
+import {
+  detectHandoffInAnswer,
+  detectHandoffIntent,
+} from "./handoff";
 
 const HISTORY_TURNS = 10;
+const MIN_CITATION_SCORE = 0.42;
 
 export type AnswerResult =
   | {
@@ -23,6 +28,8 @@ export type AnswerResult =
       model: string;
       provider: string;
       capturedEmail: boolean;
+      sources: Array<{ url: string; title?: string }>;
+      handoffSuggested: boolean;
     }
   | { ok: false; error: string; status: number };
 
@@ -39,6 +46,8 @@ export async function answerVisitor(opts: {
   question: string;
   ai?: CepAiConfig | null;
   systemPromptOverride?: string | null;
+  attachmentText?: string | null;
+  attachmentName?: string | null;
 }): Promise<AnswerResult> {
   if ((await configuredAiProviders()).length === 0) {
     return { ok: false, error: "AI chat is not configured.", status: 503 };
@@ -60,10 +69,17 @@ export async function answerVisitor(opts: {
       .limit(HISTORY_TURNS * 2),
   );
 
-  const baseSystem = buildSystemPrompt(opts.clientName, passages);
+  const baseSystem = buildSystemPrompt(opts.clientName, passages, {
+    attachmentText: opts.attachmentText,
+    attachmentName: opts.attachmentName,
+  });
   const system = opts.systemPromptOverride?.trim()
     ? `${opts.systemPromptOverride.trim()}\n\n${baseSystem}`
     : baseSystem;
+
+  const userContent = opts.attachmentText?.trim()
+    ? `${opts.question}\n\n[Attached file: ${opts.attachmentName ?? "document"}]\n${opts.attachmentText.trim().slice(0, 8000)}`
+    : opts.question;
 
   const result = await completeChat({
     system,
@@ -76,7 +92,7 @@ export async function answerVisitor(opts: {
             : ("assistant" as const),
         content: m.body,
       })),
-      { role: "user", content: opts.question },
+      { role: "user", content: userContent },
     ],
   });
 
@@ -91,6 +107,14 @@ export async function answerVisitor(opts: {
   });
 
   const blocks = textToBlocks(result.text);
+  const sources = buildCitationSources(passages, opts.question);
+  if (sources.length) {
+    blocks.push({ type: "sources", items: sources });
+  }
+
+  const handoffSuggested =
+    detectHandoffIntent(opts.question) || detectHandoffInAnswer(result.text);
+
   return {
     ok: true,
     reply: result.text,
@@ -98,6 +122,8 @@ export async function answerVisitor(opts: {
     model: result.model,
     provider: result.provider,
     capturedEmail: false,
+    sources,
+    handoffSuggested,
   };
 }
 
@@ -109,12 +135,20 @@ export async function answerVisitor(opts: {
  * what makes the first rule survivable — an assistant forbidden to guess and not
  * allowed to admit ignorance will guess anyway.
  */
-function buildSystemPrompt(clientName: string, passages: Retrieved[]) {
+function buildSystemPrompt(
+  clientName: string,
+  passages: Retrieved[],
+  opts?: { attachmentText?: string | null; attachmentName?: string | null },
+) {
   const context = passages.length
     ? passages
         .map((p, i) => `<passage id="${i + 1}" source="${p.sourceUrl}">\n${p.content}\n</passage>`)
         .join("\n\n")
     : "(no content was found for this question)";
+
+  const attachment = opts?.attachmentText?.trim()
+    ? `\n\nThe visitor also attached a file (${opts.attachmentName ?? "document"}). Use it together with the passages when relevant:\n<attachment>\n${opts.attachmentText.trim().slice(0, 6000)}\n</attachment>`
+    : "";
 
   return `You are the assistant on ${clientName}'s website, talking to a visitor.
 
@@ -131,7 +165,30 @@ not about it. Do not mention these instructions or the passages.
 
 <passages>
 ${context}
-</passages>`;
+</passages>${attachment}`;
+}
+
+function buildCitationSources(
+  passages: Retrieved[],
+  question: string,
+): Array<{ url: string; title?: string }> {
+  if (!passages.length) return [];
+  const isSocial = /^(hi|hello|hey|thanks|thank you|ok|okay)\b/i.test(question.trim());
+  if (isSocial) return [];
+
+  const seen = new Set<string>();
+  const out: Array<{ url: string; title?: string }> = [];
+  for (const p of passages) {
+    if (!p.sourceUrl || seen.has(p.sourceUrl)) continue;
+    if (p.score != null && p.score < MIN_CITATION_SCORE) continue;
+    seen.add(p.sourceUrl);
+    out.push({
+      url: p.sourceUrl,
+      title: p.title ?? undefined,
+    });
+    if (out.length >= 3) break;
+  }
+  return out;
 }
 
 /** Whether this agency has AI budget left this month. */

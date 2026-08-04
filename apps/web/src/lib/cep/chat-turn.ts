@@ -3,6 +3,8 @@
  */
 import { and, eq } from "drizzle-orm";
 import { answerVisitor, chatConversation } from "@/lib/ai/chat";
+import { extractFileText } from "@/lib/ai/file-text";
+import { detectHandoffIntent } from "@/lib/ai/handoff";
 import { enqueueWebsiteAutomation } from "@/lib/automation/engine";
 import {
   getPublishedWidgetConfig,
@@ -40,6 +42,9 @@ export type ChatTurnInput = {
   phone?: string | null;
   action?: "transfer_agent" | "start_form" | "prechat_lead" | null;
   surface?: CepWidgetSurface;
+  attachmentName?: string | null;
+  attachmentContent?: string | null;
+  attachmentEncoding?: "text" | "base64" | null;
 };
 
 export type ChatTurnOk = {
@@ -186,11 +191,14 @@ export async function runChatTurn(
     };
   }
 
-  const contactKind = detectContactKind({
+  let contactKind = detectContactKind({
     question,
     action: input.action,
     handoff,
   });
+  if (!contactKind && detectHandoffIntent(question)) {
+    contactKind = "transfer";
+  }
 
   if (
     contactKind &&
@@ -272,6 +280,19 @@ export async function runChatTurn(
     };
   }
 
+  let attachmentText: string | null = null;
+  if (input.attachmentContent && input.attachmentName) {
+    try {
+      const raw =
+        input.attachmentEncoding === "base64"
+          ? Buffer.from(input.attachmentContent, "base64")
+          : input.attachmentContent;
+      attachmentText = extractFileText(input.attachmentName, raw).text;
+    } catch {
+      attachmentText = null;
+    }
+  }
+
   const result = await answerVisitor({
     agencyId: input.agencyId,
     clientId: input.clientId,
@@ -281,6 +302,8 @@ export async function runChatTurn(
     question,
     ai,
     systemPromptOverride: systemOverride,
+    attachmentText,
+    attachmentName: input.attachmentName,
   });
 
   await touchConversation(input.agencyId, conversationId);
@@ -295,12 +318,13 @@ export async function runChatTurn(
   }
 
   let blocks = result.blocks;
-  // Offer transfer + form when AI admits it doesn't know
+  // Offer transfer + form when AI admits it doesn't know or handoff intent detected
   if (
     modules.transferAgent !== false &&
-    /\b(do not have|don't have|pass (the )?question|follow up|someone (can|will))\b/i.test(
-      result.reply,
-    )
+    (result.handoffSuggested ||
+      /\b(do not have|don't have|pass (the )?question|follow up|someone (can|will))\b/i.test(
+        result.reply,
+      ))
   ) {
     const buttons: CepChatBlock = {
       type: "buttons",

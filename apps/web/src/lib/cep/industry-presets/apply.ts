@@ -110,7 +110,7 @@ export function customizePresetWithBrand(
 export function applyExperienceToPayload(
   current: CepWidgetPayload,
   experience: CepIndustryExperience,
-  opts?: { logoUrl?: string | null },
+  opts?: { logoUrl?: string | null; brandFaqs?: Array<{ q: string; a: string }> },
 ): CepWidgetPayload {
   const care =
     experience.category === "healthcare" || experience.category === "dental";
@@ -124,6 +124,18 @@ export function applyExperienceToPayload(
     action: q.action,
     value: q.value,
   }));
+
+  const faqFromBrand =
+    opts?.brandFaqs && opts.brandFaqs.length
+      ? {
+          enabled: true,
+          items: opts.brandFaqs.slice(0, 8).map((f, i) => ({
+            id: `brand-faq-${i}`,
+            label: f.q.slice(0, 48),
+            answer: f.a,
+          })),
+        }
+      : undefined;
 
   return {
     ...current,
@@ -184,6 +196,7 @@ export function applyExperienceToPayload(
       exitIntent: experience.variant !== "minimal",
     },
     quickReplies,
+    faq: faqFromBrand ?? current.faq,
     botAvatarUrl: current.botAvatarUrl,
     agentAvatarUrl: current.agentAvatarUrl,
   };
@@ -198,6 +211,7 @@ export function applyIndustryPreset(
   const experience = customizePresetWithBrand(preset, brand, variant);
   return applyExperienceToPayload(current, experience, {
     logoUrl: brand?.logoUrl,
+    brandFaqs: brand?.faqs,
   });
 }
 

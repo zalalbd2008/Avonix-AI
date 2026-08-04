@@ -12,6 +12,7 @@ import {
 import { chunkText, contentHash, fetchPage, chunkPage } from "./crawl";
 import { embeddings } from "./embeddings";
 import { indexWebsite } from "./index-site";
+import { autogenWebsiteChat, type AutogenPreview } from "./autogen";
 
 function canEdit(permissions: string[] | "*") {
   if (permissions === "*") return true;
@@ -237,6 +238,32 @@ export async function actionDeleteCustomSource(input: {
 }
 
 /** Wipe all knowledge for this website (crawl + custom). */
+export async function actionAutogenWebsite(input: {
+  clientId: string;
+  websiteId: string;
+}): Promise<
+  { ok: true; preview: AutogenPreview } | { ok: false; error: string }
+> {
+  const ctx = await requireAgency();
+  if (!canEdit(ctx.permissions)) {
+    return { ok: false, error: "Permission denied." };
+  }
+
+  const [site] = await withAgency(ctx.agencyId, (tx) =>
+    tx
+      .select({ url: websites.url, name: websites.name })
+      .from(websites)
+      .where(and(eq(websites.id, input.websiteId), isNull(websites.deletedAt)))
+      .limit(1),
+  );
+  if (!site) return { ok: false, error: "Website not found." };
+
+  const preview = await autogenWebsiteChat(site.url, site.name);
+  if ("error" in preview) return { ok: false, error: preview.error };
+  revalidateKnowledge(input.clientId, input.websiteId);
+  return { ok: true, preview };
+}
+
 export async function actionClearKnowledge(
   clientId: string,
   websiteId: string,

@@ -212,6 +212,7 @@
   var handoffStatus = "ai";
   var open = false;
   var busy = false;
+  var pendingAttachment = null;
   var pollTimer = null;
   var seenIds = {};
   var seenBodies = {};
@@ -470,6 +471,9 @@
     ".avonix-cep-embed-form .avonix-form .avx-submit,.avonix-cep-embed-form .avonix-form button[type='submit'].avx-submit{width:100%;padding:10px 14px!important;border-radius:10px!important;}" +
     ".avonix-cep-embed-form .avonix-form[data-mode='single'] .avx-next,.avonix-cep-embed-form .avonix-form[data-mode='single'] .avx-prev,.avonix-cep-embed-form .avonix-form[data-mode='accordion'] .avx-next,.avonix-cep-embed-form .avonix-form[data-mode='accordion'] .avx-prev{display:none!important;}" +
     ".avonix-cep-embed-form .avonix-form input[type='radio'],.avonix-cep-embed-form .avonix-form input[type='checkbox']{-webkit-appearance:auto!important;appearance:auto!important;width:16px!important;height:16px!important;min-width:0!important;max-width:18px!important;padding:0!important;margin:2px 6px 0 0!important;border:0!important;flex-shrink:0!important;}" +
+    ".avonix-cep-sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}" +
+    ".avonix-cep-sources a{font-size:11px;line-height:1.3;padding:4px 8px;border-radius:999px;background:var(--avx-border-soft);color:var(--avx-ink-2);text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
+    ".avonix-cep-sources a:hover{background:var(--avx-border);color:var(--avx-ink);}" +
     /* Typing */
     ".avonix-cep-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:#ffffff;border:1px solid #e2e8f0;border-radius:var(--avx-r);border-bottom-left-radius:4px;}" +
     ".avonix-cep-typing span{width:7px;height:7px;border-radius:50%;background:var(--avx-muted);animation:avonix-cep-bounce 1.2s infinite ease-in-out;}" +
@@ -1450,6 +1454,23 @@
         p.innerHTML = linkify(b.text || "");
         wrap.appendChild(p);
         plainBits.push(b.text || "");
+      } else if (b.type === "sources" && b.items && b.items.length) {
+        var srcWrap = document.createElement("div");
+        srcWrap.className = "avonix-cep-sources";
+        b.items.forEach(function (item) {
+          if (!item || !item.url) return;
+          var a = document.createElement("a");
+          a.href = item.url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent =
+            item.title ||
+            String(item.url)
+              .replace(/^https?:\/\//i, "")
+              .slice(0, 42);
+          srcWrap.appendChild(a);
+        });
+        wrap.appendChild(srcWrap);
       } else if (b.type === "buttons") {
         return;
       }
@@ -1886,6 +1907,15 @@
     startPoll();
   }
 
+  function appendAttachmentFields(body) {
+    if (!pendingAttachment) return;
+    body.append("attachment_name", pendingAttachment.name);
+    body.append("attachment_content", pendingAttachment.content);
+    body.append("attachment_encoding", pendingAttachment.encoding || "text");
+    pendingAttachment = null;
+    clipBtn.classList.remove("is-armed");
+  }
+
   function sendMessage(text, action) {
     if (busy) return;
     var msg = (text || "").trim();
@@ -1904,6 +1934,7 @@
       streamBody.append("surface", surface);
       if (visitorEmail) streamBody.append("email", visitorEmail);
       if (visitorName) streamBody.append("name", visitorName);
+      appendAttachmentFields(streamBody);
 
       var live = appendStreamingBubble();
       fetch(proxy, { method: "POST", body: streamBody, credentials: "same-origin" })
@@ -1988,6 +2019,7 @@
     body.append("surface", surface);
     if (visitorEmail) body.append("email", visitorEmail);
     if (visitorName) body.append("name", visitorName);
+    appendAttachmentFields(body);
 
     fetch(proxy, { method: "POST", body: body, credentials: "same-origin" })
       .then(function (r) {
@@ -2244,10 +2276,31 @@
     fileInput.click();
   });
   fileInput.addEventListener("change", function () {
-    /* Preview only for now — upload pipeline can be wired later */
-    if (fileInput.files && fileInput.files[0]) {
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    var name = file.name || "attachment";
+    var isPdf = /\.pdf$/i.test(name);
+    var reader = new FileReader();
+    reader.onload = function () {
+      if (isPdf && typeof reader.result === "string") {
+        var parts = reader.result.split(",");
+        pendingAttachment = {
+          name: name,
+          content: parts[1] || "",
+          encoding: "base64",
+        };
+      } else {
+        pendingAttachment = {
+          name: name,
+          content: String(reader.result || "").slice(0, 120000),
+          encoding: "text",
+        };
+      }
       clipBtn.classList.add("is-armed");
-    }
+      fileInput.value = "";
+    };
+    if (isPdf) reader.readAsDataURL(file);
+    else reader.readAsText(file);
   });
   document.addEventListener("keydown", function (ev) {
     if (ev.key === "Escape" && open) setOpen(false);

@@ -1,4 +1,5 @@
 import { processMissedChats, processUptimeChecks } from "@/lib/automation/cron-jobs";
+import { processScheduledKnowledgeCrawls } from "@/lib/ai/scheduled-crawl";
 import { processDueFollowUps } from "@/lib/automation/followups";
 import { processScheduledBackups } from "@/lib/backups/cron";
 
@@ -9,6 +10,7 @@ import { processScheduledBackups } from "@/lib/backups/cron";
  * 1. Due follow-up emails (open → offer / else reminder)
  * 2. Missed chat detection (queued too long)
  * 3. Uptime probes → uptime_down rules
+ * 4. Scheduled knowledge re-crawl (stale > 7 days)
  *
  * Protect with CRON_SECRET (required in production).
  *
@@ -46,14 +48,15 @@ async function run(request: Request) {
     }
   }
 
-  const [followUps, missed, uptime, backups] = await Promise.all([
+  const [followUps, missed, uptime, backups, knowledge] = await Promise.all([
     safe("followUps", () => processDueFollowUps(50)),
     safe("missedChat", () => processMissedChats(40)),
     safe("uptime", () => processUptimeChecks(30)),
     safe("backups", () => processScheduledBackups(20)),
+    safe("knowledge", () => processScheduledKnowledgeCrawls(10)),
   ]);
 
-  const failed = [followUps, missed, uptime, backups].filter(
+  const failed = [followUps, missed, uptime, backups, knowledge].filter(
     (r) => r && typeof r === "object" && "error" in r,
   );
 
@@ -63,6 +66,7 @@ async function run(request: Request) {
     missedChat: missed,
     uptime,
     backups,
+    knowledge,
   });
 }
 

@@ -374,6 +374,21 @@ class Avonix_Chat
             $payload['action'] = $chat_action;
         }
 
+        $attachment_name = isset($_POST['attachment_name'])
+            ? sanitize_text_field(wp_unslash($_POST['attachment_name']))
+            : '';
+        $attachment_content = isset($_POST['attachment_content'])
+            ? wp_unslash($_POST['attachment_content'])
+            : '';
+        $attachment_encoding = isset($_POST['attachment_encoding'])
+            ? sanitize_text_field(wp_unslash($_POST['attachment_encoding']))
+            : 'text';
+        if ($attachment_name !== '' && $attachment_content !== '') {
+            $payload['attachment_name'] = substr($attachment_name, 0, 200);
+            $payload['attachment_content'] = substr($attachment_content, 0, 500000);
+            $payload['attachment_encoding'] = $attachment_encoding === 'base64' ? 'base64' : 'text';
+        }
+
         $result = (new Avonix_Client())->chat($payload);
         wp_send_json($result, 200);
     }
@@ -448,6 +463,15 @@ class Avonix_Chat
             'phone'           => isset($_POST['phone'])
                 ? substr(sanitize_text_field(wp_unslash($_POST['phone'])), 0, 50)
                 : '',
+            'attachment_name' => isset($_POST['attachment_name'])
+                ? substr(sanitize_text_field(wp_unslash($_POST['attachment_name'])), 0, 200)
+                : '',
+            'attachment_content' => isset($_POST['attachment_content'])
+                ? substr(wp_unslash($_POST['attachment_content']), 0, 500000)
+                : '',
+            'attachment_encoding' => isset($_POST['attachment_encoding'])
+                ? sanitize_text_field(wp_unslash($_POST['attachment_encoding']))
+                : 'text',
         ]);
         exit;
     }

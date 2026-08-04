@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { withAgency } from "@/lib/db";
 import {
   knowledgeChunks,
@@ -6,7 +6,8 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { embeddings } from "./embeddings";
-import { chunkPage, crawlSite, type Chunk } from "./crawl";
+import { chunkPage, crawlSite, type Chunk, contentHash } from "./crawl";
+import { dedupeChunks, enrichKnowledgeFromPages } from "./enrichment";
 
 export type IndexResult =
   | {
@@ -15,6 +16,8 @@ export type IndexResult =
       chunks: number;
       embedded: boolean;
       runId: string;
+      skippedPages?: number;
+      enrichment?: boolean;
     }
   | { ok: false; error: string };
 
@@ -23,6 +26,7 @@ const EMBED_BATCH = 64;
 /**
  * Crawl a website and refresh crawl-sourced chunks only.
  * Custom sources (text / url / pdf / …) are never deleted.
+ * Unchanged pages are skipped via contentHash (dedup).
  */
 export async function indexWebsite(
   agencyId: string,
@@ -31,7 +35,7 @@ export async function indexWebsite(
 ): Promise<IndexResult> {
   const [site] = await withAgency(agencyId, (tx) =>
     tx
-      .select({ id: websites.id, url: websites.url })
+      .select({ id: websites.id, url: websites.url, name: websites.name })
       .from(websites)
       .where(eq(websites.id, websiteId))
       .limit(1),
@@ -62,7 +66,55 @@ export async function indexWebsite(
       return { ok: false, error: "Could not read any pages from that site." };
     }
 
-    const chunks = pages.flatMap(chunkPage);
+    const existingByUrl = await withAgency(agencyId, (tx) =>
+      tx
+        .select({
+          sourceUrl: knowledgeChunks.sourceUrl,
+          contentHash: knowledgeChunks.contentHash,
+        })
+        .from(knowledgeChunks)
+        .where(
+          and(
+            eq(knowledgeChunks.websiteId, websiteId),
+            eq(knowledgeChunks.sourceType, "crawl"),
+          ),
+        ),
+    );
+
+    const hashByUrl = new Map<string, string>();
+    for (const row of existingByUrl) {
+      if (row.contentHash) hashByUrl.set(row.sourceUrl, row.contentHash);
+    }
+
+    let skippedPages = 0;
+    const pagesToIndex = pages.filter((p) => {
+      const prev = hashByUrl.get(p.url);
+      if (prev && prev === p.contentHash) {
+        skippedPages += 1;
+        return false;
+      }
+      return true;
+    });
+
+    const chunks = dedupeChunks(pagesToIndex.flatMap(chunkPage));
+    if (chunks.length === 0 && skippedPages === pages.length) {
+      await finishRun(agencyId, run.id, {
+        status: "succeeded",
+        pagesFound: pages.length,
+        chunksWritten: 0,
+        embedded: 0,
+        meta: { skippedPages, unchanged: true },
+      });
+      return {
+        ok: true,
+        pages: pages.length,
+        chunks: 0,
+        embedded: false,
+        runId: run.id,
+        skippedPages,
+      };
+    }
+
     if (chunks.length === 0) {
       await finishRun(agencyId, run.id, {
         status: "failed",
@@ -72,18 +124,71 @@ export async function indexWebsite(
       return { ok: false, error: "That site had no indexable text." };
     }
 
+    const enrichment = await enrichKnowledgeFromPages(pages, site.name).catch(
+      () => null,
+    );
+
+    if (enrichment?.faqs.length) {
+      const faqText = enrichment.faqs
+        .map((f) => `Q: ${f.q}\nA: ${f.a}`)
+        .join("\n\n");
+      chunks.push(
+        ...dedupeChunks(
+          chunkPage({
+            url: `${site.url}#auto-faq`,
+            title: "Auto-generated FAQ",
+            text: faqText,
+            contentHash: contentHash(faqText),
+          }),
+        ),
+      );
+    }
+
     const vectors = await embedChunks(chunks);
 
     await withAgency(agencyId, async (tx) => {
-      // Merge-safe: only remove previous crawl chunks (keep custom knowledge).
-      await tx
-        .delete(knowledgeChunks)
+      const changedUrls = [...new Set(pagesToIndex.map((p) => p.url))];
+      if (changedUrls.length) {
+        await tx
+          .delete(knowledgeChunks)
+          .where(
+            and(
+              eq(knowledgeChunks.websiteId, websiteId),
+              eq(knowledgeChunks.sourceType, "crawl"),
+              inArray(knowledgeChunks.sourceUrl, changedUrls),
+            ),
+          );
+      }
+
+      // Remove stale crawl URLs no longer discovered.
+      const liveSet = new Set(pages.map((p) => p.url));
+      const staleRows = await tx
+        .select({ sourceUrl: knowledgeChunks.sourceUrl })
+        .from(knowledgeChunks)
         .where(
           and(
             eq(knowledgeChunks.websiteId, websiteId),
             eq(knowledgeChunks.sourceType, "crawl"),
           ),
         );
+      const staleUrls = [
+        ...new Set(
+          staleRows
+            .map((r) => r.sourceUrl)
+            .filter((u) => u && !liveSet.has(u)),
+        ),
+      ];
+      if (staleUrls.length) {
+        await tx
+          .delete(knowledgeChunks)
+          .where(
+            and(
+              eq(knowledgeChunks.websiteId, websiteId),
+              eq(knowledgeChunks.sourceType, "crawl"),
+              inArray(knowledgeChunks.sourceUrl, staleUrls),
+            ),
+          );
+      }
 
       for (let i = 0; i < chunks.length; i += 200) {
         const slice = chunks.slice(i, i + 200);
@@ -99,6 +204,13 @@ export async function indexWebsite(
             contentHash: chunk.contentHash,
             crawlRunId: run.id,
             embedding: vectors ? vectors[i + j] : null,
+            meta: enrichment
+              ? {
+                  keywords: enrichment.keywords,
+                  categories: enrichment.categories,
+                  summary: enrichment.summary,
+                }
+              : {},
           })),
         );
       }
@@ -109,6 +221,17 @@ export async function indexWebsite(
       pagesFound: pages.length,
       chunksWritten: chunks.length,
       embedded: vectors ? chunks.length : 0,
+      meta: {
+        skippedPages,
+        enrichment: enrichment
+          ? {
+              summary: enrichment.summary,
+              keywords: enrichment.keywords,
+              categories: enrichment.categories,
+              faqCount: enrichment.faqs.length,
+            }
+          : null,
+      },
     });
 
     return {
@@ -117,6 +240,8 @@ export async function indexWebsite(
       chunks: chunks.length,
       embedded: vectors !== null,
       runId: run.id,
+      skippedPages,
+      enrichment: Boolean(enrichment),
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Indexing failed.";
@@ -134,6 +259,7 @@ async function finishRun(
     pagesFound?: number;
     chunksWritten?: number;
     embedded?: number;
+    meta?: Record<string, unknown>;
   },
 ) {
   await withAgency(agencyId, (tx) =>
@@ -145,6 +271,7 @@ async function finishRun(
         pagesFound: patch.pagesFound ?? 0,
         chunksWritten: patch.chunksWritten ?? 0,
         embedded: patch.embedded ?? 0,
+        meta: patch.meta ?? {},
         finishedAt: new Date(),
         updatedAt: new Date(),
       })
@@ -173,6 +300,7 @@ export type Retrieved = {
   title: string | null;
   sourceUrl: string;
   sourceType?: string | null;
+  score?: number;
 };
 
 /**
@@ -191,13 +319,16 @@ export async function retrieve(
       const vector = await provider.embedQuery(question);
       const literal = `[${vector.join(",")}]`;
 
-      return await withAgency(agencyId, (tx) =>
+      const rows = await withAgency(agencyId, (tx) =>
         tx
           .select({
             content: knowledgeChunks.content,
             title: knowledgeChunks.title,
             sourceUrl: knowledgeChunks.sourceUrl,
             sourceType: knowledgeChunks.sourceType,
+            score: sql<number>`1 - (${knowledgeChunks.embedding} <=> ${literal}::vector)`.mapWith(
+              Number,
+            ),
           })
           .from(knowledgeChunks)
           .where(
@@ -206,6 +337,7 @@ export async function retrieve(
           .orderBy(sql`${knowledgeChunks.embedding} <=> ${literal}::vector`)
           .limit(limit),
       );
+      return rows;
     } catch (e) {
       console.error("retrieve: vector search failed, falling back to FTS", e);
     }
@@ -218,6 +350,9 @@ export async function retrieve(
         title: knowledgeChunks.title,
         sourceUrl: knowledgeChunks.sourceUrl,
         sourceType: knowledgeChunks.sourceType,
+        score: sql<number>`ts_rank(to_tsvector('english', ${knowledgeChunks.content}), plainto_tsquery('english', ${question}))`.mapWith(
+          Number,
+        ),
       })
       .from(knowledgeChunks)
       .where(

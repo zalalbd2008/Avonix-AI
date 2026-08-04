@@ -30,6 +30,9 @@ export async function POST(request: Request) {
     phone?: string;
     action?: string;
     surface?: string;
+    attachment_name?: string;
+    attachment_content?: string;
+    attachment_encoding?: string;
   };
   try {
     body = await request.json();
@@ -72,6 +75,10 @@ export async function POST(request: Request) {
           phone: body.phone,
           action,
           surface,
+          attachmentName: body.attachment_name,
+          attachmentContent: body.attachment_content,
+          attachmentEncoding:
+            body.attachment_encoding === "base64" ? "base64" : "text",
         });
 
         if (!result.ok) {

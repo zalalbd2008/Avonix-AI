@@ -1,25 +1,33 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { withAgency } from "@/lib/db";
-import { knowledgeChunks, websites } from "@/lib/db/schema";
+import {
+  knowledgeChunks,
+  knowledgeCrawlRuns,
+  websites,
+} from "@/lib/db/schema";
 import { embeddings } from "./embeddings";
-import { chunkPage, crawlSite } from "./crawl";
+import { chunkPage, crawlSite, type Chunk } from "./crawl";
 
 export type IndexResult =
-  | { ok: true; pages: number; chunks: number; embedded: boolean }
+  | {
+      ok: true;
+      pages: number;
+      chunks: number;
+      embedded: boolean;
+      runId: string;
+    }
   | { ok: false; error: string };
 
 const EMBED_BATCH = 64;
 
 /**
- * Crawl a website and replace its indexed content.
- *
- * Replace rather than merge: pages get deleted and rewritten, and a stale chunk
- * makes the assistant confidently quote something that is no longer on the site.
- * Correctness beats the wasted embedding spend of re-indexing unchanged pages.
+ * Crawl a website and refresh crawl-sourced chunks only.
+ * Custom sources (text / url / pdf / …) are never deleted.
  */
 export async function indexWebsite(
   agencyId: string,
   websiteId: string,
+  trigger: "manual" | "scheduled" | "automatic" = "manual",
 ): Promise<IndexResult> {
   const [site] = await withAgency(agencyId, (tx) =>
     tx
@@ -31,64 +39,144 @@ export async function indexWebsite(
 
   if (!site) return { ok: false, error: "Website not found." };
 
-  const pages = await crawlSite(site.url);
-  if (pages.length === 0) {
-    return { ok: false, error: "Could not read any pages from that site." };
-  }
+  const [run] = await withAgency(agencyId, (tx) =>
+    tx
+      .insert(knowledgeCrawlRuns)
+      .values({
+        agencyId,
+        websiteId,
+        status: "running",
+        trigger,
+        startedAt: new Date(),
+      })
+      .returning({ id: knowledgeCrawlRuns.id }),
+  );
 
-  const chunks = pages.flatMap(chunkPage);
-  if (chunks.length === 0) {
-    return { ok: false, error: "That site had no indexable text." };
-  }
+  try {
+    const pages = await crawlSite(site.url);
+    if (pages.length === 0) {
+      await finishRun(agencyId, run.id, {
+        status: "failed",
+        error: "Could not read any pages from that site.",
+      });
+      return { ok: false, error: "Could not read any pages from that site." };
+    }
 
-  const provider = embeddings();
-  let vectors: number[][] | null = null;
+    const chunks = pages.flatMap(chunkPage);
+    if (chunks.length === 0) {
+      await finishRun(agencyId, run.id, {
+        status: "failed",
+        error: "That site had no indexable text.",
+        pagesFound: pages.length,
+      });
+      return { ok: false, error: "That site had no indexable text." };
+    }
 
-  if (provider) {
-    try {
-      vectors = [];
-      for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
-        const batch = chunks.slice(i, i + EMBED_BATCH).map((c) => c.content);
-        vectors.push(...(await provider.embedDocuments(batch)));
+    const vectors = await embedChunks(chunks);
+
+    await withAgency(agencyId, async (tx) => {
+      // Merge-safe: only remove previous crawl chunks (keep custom knowledge).
+      await tx
+        .delete(knowledgeChunks)
+        .where(
+          and(
+            eq(knowledgeChunks.websiteId, websiteId),
+            eq(knowledgeChunks.sourceType, "crawl"),
+          ),
+        );
+
+      for (let i = 0; i < chunks.length; i += 200) {
+        const slice = chunks.slice(i, i + 200);
+        await tx.insert(knowledgeChunks).values(
+          slice.map((chunk, j) => ({
+            agencyId,
+            websiteId,
+            sourceUrl: chunk.url,
+            title: chunk.title,
+            content: chunk.content,
+            tokenCount: Math.ceil(chunk.content.length / 4),
+            sourceType: "crawl" as const,
+            contentHash: chunk.contentHash,
+            crawlRunId: run.id,
+            embedding: vectors ? vectors[i + j] : null,
+          })),
+        );
       }
-    } catch (e) {
-      // Store the text anyway. Full-text retrieval still works, so a Voyage
-      // outage degrades answer quality instead of leaving the site unindexed.
-      console.error("indexWebsite: embedding failed, storing text only", e);
-      vectors = null;
-    }
+    });
+
+    await finishRun(agencyId, run.id, {
+      status: "succeeded",
+      pagesFound: pages.length,
+      chunksWritten: chunks.length,
+      embedded: vectors ? chunks.length : 0,
+    });
+
+    return {
+      ok: true,
+      pages: pages.length,
+      chunks: chunks.length,
+      embedded: vectors !== null,
+      runId: run.id,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Indexing failed.";
+    await finishRun(agencyId, run.id, { status: "failed", error: msg });
+    return { ok: false, error: msg };
   }
-
-  await withAgency(agencyId, async (tx) => {
-    await tx.delete(knowledgeChunks).where(eq(knowledgeChunks.websiteId, websiteId));
-
-    for (let i = 0; i < chunks.length; i += 200) {
-      const slice = chunks.slice(i, i + 200);
-      await tx.insert(knowledgeChunks).values(
-        slice.map((chunk, j) => ({
-          agencyId,
-          websiteId,
-          sourceUrl: chunk.url,
-          title: chunk.title,
-          content: chunk.content,
-          tokenCount: Math.ceil(chunk.content.length / 4),
-          embedding: vectors ? vectors[i + j] : null,
-        })),
-      );
-    }
-  });
-
-  return { ok: true, pages: pages.length, chunks: chunks.length, embedded: vectors !== null };
 }
 
-export type Retrieved = { content: string; title: string | null; sourceUrl: string };
+async function finishRun(
+  agencyId: string,
+  runId: string,
+  patch: {
+    status: "succeeded" | "failed";
+    error?: string;
+    pagesFound?: number;
+    chunksWritten?: number;
+    embedded?: number;
+  },
+) {
+  await withAgency(agencyId, (tx) =>
+    tx
+      .update(knowledgeCrawlRuns)
+      .set({
+        status: patch.status,
+        error: patch.error ?? null,
+        pagesFound: patch.pagesFound ?? 0,
+        chunksWritten: patch.chunksWritten ?? 0,
+        embedded: patch.embedded ?? 0,
+        finishedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(knowledgeCrawlRuns.id, runId)),
+  );
+}
+
+async function embedChunks(chunks: Chunk[]): Promise<number[][] | null> {
+  const provider = embeddings();
+  if (!provider) return null;
+  try {
+    const vectors: number[][] = [];
+    for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
+      const batch = chunks.slice(i, i + EMBED_BATCH).map((c) => c.content);
+      vectors.push(...(await provider.embedDocuments(batch)));
+    }
+    return vectors;
+  } catch (e) {
+    console.error("indexWebsite: embedding failed, storing text only", e);
+    return null;
+  }
+}
+
+export type Retrieved = {
+  content: string;
+  title: string | null;
+  sourceUrl: string;
+  sourceType?: string | null;
+};
 
 /**
- * Find the passages most likely to answer a question.
- *
- * Vector similarity when embeddings exist, Postgres full-text when they do not
- * (ADR-005). The fallback is worse, not absent — "do you open Saturdays?" will
- * miss a page titled "Practice hours", which is exactly the gap embeddings close.
+ * Find the passages most likely to answer a question (per website only).
  */
 export async function retrieve(
   agencyId: string,
@@ -109,6 +197,7 @@ export async function retrieve(
             content: knowledgeChunks.content,
             title: knowledgeChunks.title,
             sourceUrl: knowledgeChunks.sourceUrl,
+            sourceType: knowledgeChunks.sourceType,
           })
           .from(knowledgeChunks)
           .where(
@@ -118,22 +207,26 @@ export async function retrieve(
           .limit(limit),
       );
     } catch (e) {
-      console.error("retrieve: embedding query failed, falling back to full text", e);
+      console.error("retrieve: vector search failed, falling back to FTS", e);
     }
   }
 
-  return withAgency(agencyId, (tx) =>
+  return await withAgency(agencyId, (tx) =>
     tx
       .select({
         content: knowledgeChunks.content,
         title: knowledgeChunks.title,
         sourceUrl: knowledgeChunks.sourceUrl,
+        sourceType: knowledgeChunks.sourceType,
       })
       .from(knowledgeChunks)
       .where(
         sql`${knowledgeChunks.websiteId} = ${websiteId}
-            and to_tsvector('english', coalesce(${knowledgeChunks.title}, '') || ' ' || ${knowledgeChunks.content})
-                @@ plainto_tsquery('english', ${question})`,
+          and to_tsvector('english', ${knowledgeChunks.content})
+            @@ plainto_tsquery('english', ${question})`,
+      )
+      .orderBy(
+        sql`ts_rank(to_tsvector('english', ${knowledgeChunks.content}), plainto_tsquery('english', ${question})) desc`,
       )
       .limit(limit),
   );

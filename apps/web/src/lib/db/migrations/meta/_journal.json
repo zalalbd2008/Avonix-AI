@@ -232,6 +232,13 @@
       "when": 1784650000000,
       "tag": "0032_platform_ai_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1784651000000,
+      "tag": "0033_knowledge_studio",
+      "breakpoints": true
     }
   ]
 }

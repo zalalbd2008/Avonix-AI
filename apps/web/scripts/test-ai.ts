@@ -64,7 +64,12 @@ async function main() {
 
   console.log("\nChunking");
   const long = Array.from({ length: 40 }, (_, i) => `Paragraph ${i} about dental care and appointments.`).join("\n\n");
-  const chunks = chunkPage({ url: "https://x.test/a", title: "A", text: long });
+  const chunks = chunkPage({
+    url: "https://x.test/a",
+    title: "A",
+    text: long,
+    contentHash: "a",
+  });
   check("splits a long page", chunks.length > 1, `${chunks.length}`);
   check("every chunk carries its source url", chunks.every((c) => c.url === "https://x.test/a"));
   check("no chunk is tiny", chunks.every((c) => c.content.length > 80));
@@ -75,10 +80,20 @@ async function main() {
     `tail ${JSON.stringify(tail.slice(0, 30))} not found in the next chunk`,
   );
 
-  const single = chunkPage({ url: "https://x.test/b", title: "B", text: "Short but useful text about opening on Saturday mornings for checkups." });
+  const single = chunkPage({
+    url: "https://x.test/b",
+    title: "B",
+    text: "Short but useful text about opening on Saturday mornings for checkups.",
+    contentHash: "b",
+  });
   check("a short page is kept, not dropped", single.length === 1, `${single.length}`);
 
-  const scrap = chunkPage({ url: "https://x.test/c", title: "C", text: "Menu" });
+  const scrap = chunkPage({
+    url: "https://x.test/c",
+    title: "C",
+    text: "Menu",
+    contentHash: "c",
+  });
   check("a navigational scrap is dropped", scrap.length === 0, `${scrap.length}`);
 
   console.log("\nRetrieval falls back to full text");

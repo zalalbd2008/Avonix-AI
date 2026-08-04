@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { limitsFor } from "@/lib/plans";
 import { configuredAiProviders } from "@/lib/ai/router";
+import { resolveVoyageApiKey } from "@/lib/ai/embeddings";
 import { ensureDefaultBubbleWidget } from "@/lib/cep/cep-service";
 
 /**
@@ -135,7 +136,7 @@ export default async function ChatAiPage({
   const limits = limitsFor(data.plan);
   const providers = await configuredAiProviders();
   const modelReady = providers.length > 0;
-  const embeddingsReady = Boolean(process.env.VOYAGE_API_KEY);
+  const embeddingsReady = Boolean(resolveVoyageApiKey());
   const indexed = data.chunks > 0;
   const live = modelReady && indexed;
 
